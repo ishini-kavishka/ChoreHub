@@ -44,7 +44,42 @@ async function token() {
   return value;
 }
 
+export interface AdminUser {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string | null;
+  role?: string;
+  phone?: string;
+  family_role?: string;
+  family_name?: string;
+}
+
 export const choreService = {
+  async getAdminStats() {
+    return apiRequest<{ stats: ChoreStats; chores: ChoreItem[] }>(
+      '/api/chores/admin/stats',
+      {},
+      await token()
+    );
+  },
+
+  async getAdminAllUsers() {
+    return apiRequest<{ users: AdminUser[] }>(
+      '/api/chores/admin/users',
+      {},
+      await token()
+    );
+  },
+
+  async getMemberChores() {
+    return apiRequest<{ stats: ChoreStats; chores: ChoreItem[] }>(
+      '/api/chores/my-chores',
+      {},
+      await token()
+    );
+  },
+
   async getStats() {
     return apiRequest<{ stats: ChoreStats; todaysChores: ChoreItem[] }>(
       '/api/chores/stats',

@@ -7,6 +7,7 @@ export interface FamilyMember {
   email: string;
   avatar?: string | null;
   role?: string;
+  phone?: string;
 }
 
 export interface FamilyInfo {
