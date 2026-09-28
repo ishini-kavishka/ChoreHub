@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { choreService, ChoreItem } from '@/services/choreService';
 import { ChoreItemCard } from '@/components/chores/ChoreItemCard';
 import { AddChoreModal } from '@/components/chores/AddChoreModal';
@@ -231,7 +231,7 @@ export default function AdminChoresScreen() {
 
         {/* Add New Chore Button */}
         <Pressable
-          onPress={() => setIsAddModalOpen(true)}
+          onPress={() => router.push('/admin/add-chore' as any)}
           style={({ pressed }) => [
             styles.addBtn,
             pressed && { opacity: 0.9, backgroundColor: '#5C2ECE' },

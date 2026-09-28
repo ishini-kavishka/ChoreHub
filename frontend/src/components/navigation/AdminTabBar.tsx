@@ -40,14 +40,13 @@ export function AdminTabBar({ state, descriptors, navigation }: BottomTabBarProp
 
   return (
     <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-      {state.routes.map((route, index) => {
-        const { options } = descriptors[route.key];
-        const isFocused = state.index === index;
-        const tabConfig = TAB_CONFIGS[route.name] || {
-          label: options.title || route.name,
-          activeIcon: 'square',
-          inactiveIcon: 'square-outline',
-        };
+      {state.routes
+        .filter((route) => TAB_CONFIGS[route.name] !== undefined)
+        .map((route) => {
+          const index = state.routes.findIndex((r) => r.key === route.key);
+          const { options } = descriptors[route.key];
+          const isFocused = state.index === index;
+          const tabConfig = TAB_CONFIGS[route.name];
 
         const onPress = () => {
           const event = navigation.emit({
