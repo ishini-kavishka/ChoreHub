@@ -36,12 +36,31 @@ export function AddChoreModal({
 
   useEffect(() => {
     if (visible) {
-      familyService
-        .getMyFamily()
+      choreService
+        .getAdminAllUsers()
         .then((res) => {
-          setMembers(res.members || []);
+          if (res?.users && res.users.length > 0) {
+            setMembers(
+              res.users.map((u) => ({
+                id: u.id,
+                name: u.name || u.email,
+                email: u.email,
+                role: u.role || 'member',
+              }))
+            );
+          } else {
+            familyService
+              .getMyFamily()
+              .then((fRes) => setMembers(fRes.members || []))
+              .catch(() => {});
+          }
         })
-        .catch(() => {});
+        .catch(() => {
+          familyService
+            .getMyFamily()
+            .then((res) => setMembers(res.members || []))
+            .catch(() => {});
+        });
     }
   }, [visible]);
 

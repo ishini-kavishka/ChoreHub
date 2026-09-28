@@ -47,10 +47,31 @@ export function EditChoreModal({
       setStatus(chore.status || 'pending');
       setAssignedTo(chore.assigned_to || null);
 
-      familyService
-        .getMyFamily()
-        .then((res) => setMembers(res.members || []))
-        .catch(() => {});
+      choreService
+        .getAdminAllUsers()
+        .then((res) => {
+          if (res?.users && res.users.length > 0) {
+            setMembers(
+              res.users.map((u) => ({
+                id: u.id,
+                name: u.name || u.email,
+                email: u.email,
+                role: u.role || 'member',
+              }))
+            );
+          } else {
+            familyService
+              .getMyFamily()
+              .then((fRes) => setMembers(fRes.members || []))
+              .catch(() => {});
+          }
+        })
+        .catch(() => {
+          familyService
+            .getMyFamily()
+            .then((fRes) => setMembers(fRes.members || []))
+            .catch(() => {});
+        });
     }
   }, [visible, chore]);
 
