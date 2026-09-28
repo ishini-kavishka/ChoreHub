@@ -7,6 +7,7 @@ interface ChoreItemCardProps {
   chore: ChoreItem;
   onToggleComplete: (id: string) => void;
   onDelete: (id: string) => void;
+  onEdit?: (chore: ChoreItem) => void;
   onPress?: (chore: ChoreItem) => void;
 }
 
@@ -14,6 +15,7 @@ export function ChoreItemCard({
   chore,
   onToggleComplete,
   onDelete,
+  onEdit,
   onPress,
 }: ChoreItemCardProps) {
   const isCompleted = chore.status === 'completed';
@@ -98,6 +100,12 @@ export function ChoreItemCard({
             </Text>
           </View>
 
+          {chore.assignee_name ? (
+            <View style={styles.assigneeBadge}>
+              <Text style={styles.assigneeText}>👤 {chore.assignee_name}</Text>
+            </View>
+          ) : null}
+
           {chore.category ? (
             <View style={styles.categoryBadge}>
               <Text style={styles.categoryText}>{chore.category}</Text>
@@ -119,23 +127,35 @@ export function ChoreItemCard({
         </View>
       </View>
 
-      {/* Right Column: Assignee Avatar & Delete */}
+      {/* Right Column: Assignee Avatar & Actions */}
       <View style={styles.rightColumn}>
         {chore.assignee_name ? (
           <Avatar
             name={chore.assignee_name}
             uri={chore.assignee_avatar || undefined}
-            size={30}
+            size={28}
           />
         ) : null}
 
-        <Pressable
-          onPress={() => onDelete(chore.id)}
-          style={({ pressed }) => [styles.deleteBtn, pressed && { opacity: 0.6 }]}
-          accessibilityLabel="Delete chore"
-        >
-          <Text style={styles.deleteIcon}>🗑️</Text>
-        </Pressable>
+        <View style={styles.actionButtonsRow}>
+          {onEdit ? (
+            <Pressable
+              onPress={() => onEdit(chore)}
+              style={({ pressed }) => [styles.actionBtn, pressed && { opacity: 0.6 }]}
+              accessibilityLabel="Edit chore"
+            >
+              <Text style={styles.actionIcon}>✏️</Text>
+            </Pressable>
+          ) : null}
+
+          <Pressable
+            onPress={() => onDelete(chore.id)}
+            style={({ pressed }) => [styles.actionBtn, pressed && { opacity: 0.6 }]}
+            accessibilityLabel="Delete chore"
+          >
+            <Text style={styles.actionIcon}>🗑️</Text>
+          </Pressable>
+        </View>
       </View>
     </Pressable>
   );
@@ -261,10 +281,32 @@ const styles = StyleSheet.create({
     color: '#6B21A8',
     fontWeight: '600',
   },
+  assigneeBadge: {
+    backgroundColor: '#E0F2FE',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  assigneeText: {
+    fontSize: 11,
+    color: '#0369A1',
+    fontWeight: '600',
+  },
   rightColumn: {
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 10,
+  },
+  actionButtonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  actionBtn: {
+    padding: 4,
+  },
+  actionIcon: {
+    fontSize: 15,
   },
   deleteBtn: {
     padding: 4,

@@ -9,25 +9,28 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { choreService } from '@/services/choreService';
+import { choreService, ChoreItem } from '@/services/choreService';
 import { familyService, FamilyMember } from '@/services/familyService';
 
-interface AddChoreModalProps {
+interface EditChoreModalProps {
   visible: boolean;
+  chore: ChoreItem | null;
   onClose: () => void;
-  onChoreCreated: () => void;
+  onChoreUpdated: () => void;
 }
 
-export function AddChoreModal({
+export function EditChoreModal({
   visible,
+  chore,
   onClose,
-  onChoreCreated,
-}: AddChoreModalProps) {
+  onChoreUpdated,
+}: EditChoreModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('General');
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [recurrence, setRecurrence] = useState<'none' | 'daily' | 'weekly' | 'monthly'>('none');
+  const [status, setStatus] = useState<'pending' | 'completed'>('pending');
   const [assignedTo, setAssignedTo] = useState<string | null>(null);
 
   const [members, setMembers] = useState<FamilyMember[]>([]);
@@ -35,7 +38,15 @@ export function AddChoreModal({
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (visible) {
+    if (visible && chore) {
+      setTitle(chore.title || '');
+      setDescription(chore.description || '');
+      setCategory(chore.category || 'General');
+      setPriority(chore.priority || 'medium');
+      setRecurrence(chore.recurrence || 'none');
+      setStatus(chore.status || 'pending');
+      setAssignedTo(chore.assigned_to || null);
+
       choreService
         .getAdminAllUsers()
         .then((res) => {
@@ -58,28 +69,19 @@ export function AddChoreModal({
         .catch(() => {
           familyService
             .getMyFamily()
-            .then((res) => setMembers(res.members || []))
+            .then((fRes) => setMembers(fRes.members || []))
             .catch(() => {});
         });
     }
-  }, [visible]);
-
-  const resetForm = () => {
-    setTitle('');
-    setDescription('');
-    setCategory('General');
-    setPriority('medium');
-    setRecurrence('none');
-    setAssignedTo(null);
-    setError('');
-  };
+  }, [visible, chore]);
 
   const handleClose = () => {
-    resetForm();
+    setError('');
     onClose();
   };
 
   const handleSubmit = async () => {
+    if (!chore) return;
     if (!title.trim()) {
       setError('Please enter a chore title.');
       return;
@@ -89,27 +91,28 @@ export function AddChoreModal({
     setError('');
 
     try {
-      await choreService.createChore({
+      await choreService.updateChore(chore.id, {
         title: title.trim(),
         description: description.trim() || undefined,
         category,
         priority,
         recurrence,
+        status,
         assigned_to: assignedTo,
-        due_date: new Date().toISOString(),
       });
 
-      resetForm();
-      onChoreCreated();
+      onChoreUpdated();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create chore.');
+      setError(err instanceof Error ? err.message : 'Failed to update chore.');
     } finally {
       setLoading(false);
     }
   };
 
   const categories = ['General', 'Cleaning', 'Kitchen', 'Laundry', 'Yard', 'Pets'];
+
+  if (!chore) return null;
 
   return (
     <Modal
@@ -122,7 +125,7 @@ export function AddChoreModal({
         <View style={styles.modalCard}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>Add New Chore</Text>
+            <Text style={styles.headerTitle}>Edit Chore</Text>
             <Pressable onPress={handleClose} style={styles.closeBtn}>
               <Text style={styles.closeIcon}>✕</Text>
             </Pressable>
@@ -148,7 +151,7 @@ export function AddChoreModal({
 
             {/* Description */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Description (optional)</Text>
+              <Text style={styles.label}>Description</Text>
               <TextInput
                 style={[styles.input, styles.multilineInput]}
                 placeholder="Add any specific instructions..."
@@ -160,7 +163,33 @@ export function AddChoreModal({
               />
             </View>
 
-            {/* Priority Selector */}
+            {/* Status */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Status</Text>
+              <View style={styles.pillRow}>
+                {(['pending', 'completed'] as const).map((s) => (
+                  <Pressable
+                    key={s}
+                    onPress={() => setStatus(s)}
+                    style={[
+                      styles.pill,
+                      status === s && styles.statusSelectedPill,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.pillText,
+                        status === s && styles.selectedPillText,
+                      ]}
+                    >
+                      {s.toUpperCase()}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            {/* Priority */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Priority</Text>
               <View style={styles.pillRow}>
@@ -186,7 +215,7 @@ export function AddChoreModal({
               </View>
             </View>
 
-            {/* Category Selector */}
+            {/* Category */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Category</Text>
               <ScrollView
@@ -216,7 +245,7 @@ export function AddChoreModal({
               </ScrollView>
             </View>
 
-            {/* Repeat Options */}
+            {/* Repeat */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Repeat</Text>
               <View style={styles.pillRow}>
@@ -292,7 +321,7 @@ export function AddChoreModal({
             ) : null}
           </ScrollView>
 
-          {/* Submit Button */}
+          {/* Submit */}
           <View style={styles.footer}>
             <Pressable
               onPress={handleSubmit}
@@ -305,7 +334,7 @@ export function AddChoreModal({
               {loading ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
-                <Text style={styles.submitBtnText}>Create Chore</Text>
+                <Text style={styles.submitBtnText}>Save Changes</Text>
               )}
             </Pressable>
           </View>
@@ -399,6 +428,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#656276',
+  },
+  statusSelectedPill: {
+    backgroundColor: '#713DE8',
   },
   prioritySelectedPill: {
     backgroundColor: '#713DE8',

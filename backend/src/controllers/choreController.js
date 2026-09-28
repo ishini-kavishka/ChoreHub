@@ -305,6 +305,107 @@ async function toggleChoreComplete(req, res, next) {
   }
 }
 
+async function getMemberChores(req, res, next) {
+  try {
+    const userId = req.userId;
+
+    // Stats: only chores assigned to this member
+    const statsResult = await pool.query(
+      `SELECT
+         COUNT(*)::int AS total,
+         COUNT(CASE WHEN status = 'completed' THEN 1 END)::int AS completed,
+         COUNT(CASE WHEN status = 'pending' THEN 1 END)::int AS pending,
+         COUNT(CASE WHEN status = 'pending' AND due_date < NOW() THEN 1 END)::int AS overdue
+       FROM chores
+       WHERE assigned_to = $1`,
+      [userId]
+    );
+    const row = statsResult.rows[0] || { total: 0, completed: 0, pending: 0, overdue: 0 };
+    const total = Number(row.total) || 0;
+    const completed = Number(row.completed) || 0;
+    const pending = Number(row.pending) || 0;
+    const overdue = Number(row.overdue) || 0;
+    const completionPercentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+    // All chores assigned to this member
+    const choresResult = await pool.query(
+      `SELECT c.*,
+              u_creator.full_name AS creator_name
+       FROM chores c
+       LEFT JOIN users u_creator ON c.created_by = u_creator.id
+       WHERE c.assigned_to = $1
+       ORDER BY c.status ASC, c.due_date ASC NULLS LAST, c.created_at DESC`,
+      [userId]
+    );
+
+    return res.json({
+      stats: { completed, pending, overdue, total, completionPercentage },
+      chores: choresResult.rows,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function getAdminChoreStats(req, res, next) {
+  try {
+    const userId = req.userId;
+    const familyId = await getUserFamilyId(userId);
+
+    const baseWhere = familyId
+      ? `(family_id = $1 OR family_id IS NULL OR 1=1)`
+      : `1=1`;
+
+    const queryParams = familyId ? [familyId] : [];
+
+    const statsQuery = `
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(CASE WHEN status = 'completed' THEN 1 END)::int AS completed,
+        COUNT(CASE WHEN status = 'pending' THEN 1 END)::int AS pending,
+        COUNT(CASE WHEN status = 'pending' AND due_date < NOW() THEN 1 END)::int AS overdue
+      FROM chores
+      WHERE ${baseWhere}
+    `;
+
+    const statsResult = await pool.query(statsQuery, queryParams);
+    const row = statsResult.rows[0] || { total: 0, completed: 0, pending: 0, overdue: 0 };
+
+    const total = Number(row.total) || 0;
+    const completed = Number(row.completed) || 0;
+    const pending = Number(row.pending) || 0;
+    const overdue = Number(row.overdue) || 0;
+    const completionPercentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+    const allChoresQuery = `
+      SELECT c.*, 
+             u_assignee.full_name AS assignee_name, 
+             u_assignee.profile_image_url AS assignee_avatar,
+             u_creator.full_name AS creator_name
+      FROM chores c
+      LEFT JOIN users u_assignee ON c.assigned_to = u_assignee.id
+      LEFT JOIN users u_creator ON c.created_by = u_creator.id
+      WHERE ${baseWhere}
+      ORDER BY c.status ASC, c.due_date ASC NULLS LAST, c.created_at DESC
+    `;
+
+    const allChoresResult = await pool.query(allChoresQuery, queryParams);
+
+    return res.json({
+      stats: {
+        completed,
+        pending,
+        overdue,
+        total,
+        completionPercentage,
+      },
+      chores: allChoresResult.rows,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function deleteChore(req, res, next) {
   try {
     const { id } = req.params;
@@ -316,12 +417,39 @@ async function deleteChore(req, res, next) {
   }
 }
 
+async function getAdminAllUsers(req, res, next) {
+  try {
+    const result = await pool.query(
+      `SELECT
+         u.id,
+         u.full_name AS name,
+         u.email,
+         u.profile_image_url AS avatar,
+         u.role,
+         u.phone,
+         fm.role AS family_role,
+         f.name AS family_name
+       FROM users u
+       LEFT JOIN family_members fm ON fm.user_id = u.id
+       LEFT JOIN families f ON fm.family_id = f.id
+       ORDER BY u.created_at ASC`
+    );
+    return res.json({ users: result.rows });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 module.exports = {
   createChore,
   getChores,
   getChoreStats,
+  getMemberChores,
+  getAdminChoreStats,
+  getAdminAllUsers,
   getChoreById,
   updateChore,
   toggleChoreComplete,
   deleteChore,
 };
+
