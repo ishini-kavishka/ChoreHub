@@ -1,0 +1,415 @@
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { choreService } from '@/services/choreService';
+import { familyService, FamilyMember } from '@/services/familyService';
+
+interface AddChoreModalProps {
+  visible: boolean;
+  onClose: () => void;
+  onChoreCreated: () => void;
+}
+
+export function AddChoreModal({
+  visible,
+  onClose,
+  onChoreCreated,
+}: AddChoreModalProps) {
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('General');
+  const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
+  const [recurrence, setRecurrence] = useState<'none' | 'daily' | 'weekly' | 'monthly'>('none');
+  const [assignedTo, setAssignedTo] = useState<string | null>(null);
+
+  const [members, setMembers] = useState<FamilyMember[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (visible) {
+      familyService
+        .getMyFamily()
+        .then((res) => {
+          setMembers(res.members || []);
+        })
+        .catch(() => {});
+    }
+  }, [visible]);
+
+  const resetForm = () => {
+    setTitle('');
+    setDescription('');
+    setCategory('General');
+    setPriority('medium');
+    setRecurrence('none');
+    setAssignedTo(null);
+    setError('');
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
+  const handleSubmit = async () => {
+    if (!title.trim()) {
+      setError('Please enter a chore title.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      await choreService.createChore({
+        title: title.trim(),
+        description: description.trim() || undefined,
+        category,
+        priority,
+        recurrence,
+        assigned_to: assignedTo,
+        due_date: new Date().toISOString(),
+      });
+
+      resetForm();
+      onChoreCreated();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create chore.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const categories = ['General', 'Cleaning', 'Kitchen', 'Laundry', 'Yard', 'Pets'];
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={handleClose}
+    >
+      <View style={styles.overlay}>
+        <View style={styles.modalCard}>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>Add New Chore</Text>
+            <Pressable onPress={handleClose} style={styles.closeBtn}>
+              <Text style={styles.closeIcon}>✕</Text>
+            </Pressable>
+          </View>
+
+          <ScrollView
+            contentContainerStyle={styles.formContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+            {/* Title */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Title *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. Wash the dinner dishes"
+                value={title}
+                onChangeText={setTitle}
+                placeholderTextColor="#A0A0B0"
+              />
+            </View>
+
+            {/* Description */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Description (optional)</Text>
+              <TextInput
+                style={[styles.input, styles.multilineInput]}
+                placeholder="Add any specific instructions..."
+                value={description}
+                onChangeText={setDescription}
+                multiline
+                numberOfLines={3}
+                placeholderTextColor="#A0A0B0"
+              />
+            </View>
+
+            {/* Priority Selector */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Priority</Text>
+              <View style={styles.pillRow}>
+                {(['low', 'medium', 'high'] as const).map((p) => (
+                  <Pressable
+                    key={p}
+                    onPress={() => setPriority(p)}
+                    style={[
+                      styles.pill,
+                      priority === p && styles.prioritySelectedPill,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.pillText,
+                        priority === p && styles.selectedPillText,
+                      ]}
+                    >
+                      {p.toUpperCase()}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            {/* Category Selector */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Category</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.pillRow}
+              >
+                {categories.map((cat) => (
+                  <Pressable
+                    key={cat}
+                    onPress={() => setCategory(cat)}
+                    style={[
+                      styles.pill,
+                      category === cat && styles.categorySelectedPill,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.pillText,
+                        category === cat && styles.selectedPillText,
+                      ]}
+                    >
+                      {cat}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+
+            {/* Repeat Options */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Repeat</Text>
+              <View style={styles.pillRow}>
+                {(['none', 'daily', 'weekly', 'monthly'] as const).map((r) => (
+                  <Pressable
+                    key={r}
+                    onPress={() => setRecurrence(r)}
+                    style={[
+                      styles.pill,
+                      recurrence === r && styles.repeatSelectedPill,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.pillText,
+                        recurrence === r && styles.selectedPillText,
+                      ]}
+                    >
+                      {r.charAt(0).toUpperCase() + r.slice(1)}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            {/* Assign Member */}
+            {members.length > 0 ? (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Assign To</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.pillRow}
+                >
+                  <Pressable
+                    onPress={() => setAssignedTo(null)}
+                    style={[
+                      styles.pill,
+                      assignedTo === null && styles.assigneeSelectedPill,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.pillText,
+                        assignedTo === null && styles.selectedPillText,
+                      ]}
+                    >
+                      Unassigned
+                    </Text>
+                  </Pressable>
+
+                  {members.map((m) => (
+                    <Pressable
+                      key={m.id}
+                      onPress={() => setAssignedTo(m.id)}
+                      style={[
+                        styles.pill,
+                        assignedTo === m.id && styles.assigneeSelectedPill,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.pillText,
+                          assignedTo === m.id && styles.selectedPillText,
+                        ]}
+                      >
+                        👤 {m.name}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            ) : null}
+          </ScrollView>
+
+          {/* Submit Button */}
+          <View style={styles.footer}>
+            <Pressable
+              onPress={handleSubmit}
+              disabled={loading}
+              style={({ pressed }) => [
+                styles.submitBtn,
+                pressed && { opacity: 0.8 },
+              ]}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={styles.submitBtnText}>Create Chore</Text>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    maxHeight: '85%',
+    paddingBottom: 24,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0EFF8',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1E1B2E',
+  },
+  closeBtn: {
+    padding: 6,
+  },
+  closeIcon: {
+    fontSize: 18,
+    color: '#757288',
+    fontWeight: '800',
+  },
+  formContent: {
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    gap: 16,
+  },
+  errorText: {
+    color: '#DC2626',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  inputGroup: {
+    gap: 8,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#4B485C',
+  },
+  input: {
+    backgroundColor: '#F8F7FC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#EAE7F5',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: '#1E1B2E',
+  },
+  multilineInput: {
+    minHeight: 70,
+    textAlignVertical: 'top',
+  },
+  pillRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  pill: {
+    backgroundColor: '#F0EFF8',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  pillText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#656276',
+  },
+  prioritySelectedPill: {
+    backgroundColor: '#713DE8',
+  },
+  categorySelectedPill: {
+    backgroundColor: '#713DE8',
+  },
+  repeatSelectedPill: {
+    backgroundColor: '#713DE8',
+  },
+  assigneeSelectedPill: {
+    backgroundColor: '#713DE8',
+  },
+  selectedPillText: {
+    color: '#FFFFFF',
+  },
+  footer: {
+    paddingHorizontal: 24,
+    paddingTop: 8,
+  },
+  submitBtn: {
+    backgroundColor: '#713DE8',
+    borderRadius: 16,
+    paddingVertical: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  submitBtnText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+});

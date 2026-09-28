@@ -5,6 +5,9 @@ const express = require('express');
 const { pool, ensureAuthSchema } = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const profileRoutes = require('./routes/profileRoutes');
+const choreRoutes = require('./routes/choreRoutes');
+const familyRoutes = require('./routes/familyRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 
 const app = express();
@@ -24,6 +27,9 @@ app.get('/api/health', async (_req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/chores', choreRoutes);
+app.use('/api/families', familyRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
