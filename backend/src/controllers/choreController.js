@@ -1,0 +1,327 @@
+const { pool } = require('../config/db');
+
+const appError = (message, statusCode = 400) => Object.assign(new Error(message), { statusCode });
+
+async function getUserFamilyId(userId) {
+  const result = await pool.query(
+    'SELECT family_id FROM family_members WHERE user_id = $1 LIMIT 1',
+    [userId]
+  );
+  return result.rows[0]?.family_id || null;
+}
+
+async function createChore(req, res, next) {
+  try {
+    const userId = req.userId;
+    const {
+      title,
+      description,
+      category = 'General',
+      priority = 'medium',
+      due_date,
+      assigned_to,
+      recurrence = 'none',
+    } = req.body || {};
+
+    if (typeof title !== 'string' || !title.trim() || title.trim().length > 200) {
+      throw appError('Chore title is required and must be 200 characters or fewer.');
+    }
+
+    const validPriorities = ['low', 'medium', 'high'];
+    const selectedPriority = validPriorities.includes(priority) ? priority : 'medium';
+
+    const validRecurrence = ['none', 'daily', 'weekly', 'monthly'];
+    const selectedRecurrence = validRecurrence.includes(recurrence) ? recurrence : 'none';
+
+    const familyId = await getUserFamilyId(userId);
+
+    const query = `
+      INSERT INTO chores (
+        title, description, category, priority, due_date,
+        assigned_to, created_by, family_id, recurrence, status
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending')
+      RETURNING *
+    `;
+
+    const values = [
+      title.trim(),
+      description ? description.trim() : null,
+      category ? category.trim() : 'General',
+      selectedPriority,
+      due_date ? new Date(due_date) : null,
+      assigned_to || null,
+      userId,
+      familyId,
+      selectedRecurrence,
+    ];
+
+    const result = await pool.query(query, values);
+    const chore = result.rows[0];
+
+    // Create notification if assigned to another user
+    if (assigned_to && assigned_to !== userId) {
+      await pool.query(
+        `INSERT INTO notifications (user_id, title, message, type)
+         VALUES ($1, $2, $3, $4)`,
+        [
+          assigned_to,
+          'New Chore Assigned',
+          `You have been assigned to: "${chore.title}"`,
+          'chore_assigned',
+        ]
+      );
+    }
+
+    return res.status(201).json({ chore });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function getChores(req, res, next) {
+  try {
+    const userId = req.userId;
+    const familyId = await getUserFamilyId(userId);
+    const { today, status, assigned_to } = req.query;
+
+    let query = `
+      SELECT c.*, 
+             u_assignee.full_name AS assignee_name, 
+             u_assignee.profile_image_url AS assignee_avatar,
+             u_creator.full_name AS creator_name
+      FROM chores c
+      LEFT JOIN users u_assignee ON c.assigned_to = u_assignee.id
+      LEFT JOIN users u_creator ON c.created_by = u_creator.id
+      WHERE (c.created_by = $1 OR c.assigned_to = $1 ${familyId ? 'OR c.family_id = $2' : ''})
+    `;
+
+    const values = familyId ? [userId, familyId] : [userId];
+    let paramIndex = values.length + 1;
+
+    if (status === 'pending' || status === 'completed') {
+      query += ` AND c.status = $${paramIndex++}`;
+      values.push(status);
+    }
+
+    if (assigned_to) {
+      query += ` AND c.assigned_to = $${paramIndex++}`;
+      values.push(assigned_to);
+    }
+
+    if (today === 'true') {
+      query += ` AND (c.due_date IS NULL OR c.due_date::date <= CURRENT_DATE)`;
+    }
+
+    query += ` ORDER BY c.status ASC, c.due_date ASC NULLS LAST, c.created_at DESC`;
+
+    const result = await pool.query(query, values);
+    return res.json({ chores: result.rows });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function getChoreStats(req, res, next) {
+  try {
+    const userId = req.userId;
+    const familyId = await getUserFamilyId(userId);
+
+    const baseWhere = familyId
+      ? `(created_by = $1 OR assigned_to = $1 OR family_id = $2)`
+      : `(created_by = $1 OR assigned_to = $1)`;
+
+    const queryParams = familyId ? [userId, familyId] : [userId];
+
+    const statsQuery = `
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(CASE WHEN status = 'completed' THEN 1 END)::int AS completed,
+        COUNT(CASE WHEN status = 'pending' THEN 1 END)::int AS pending,
+        COUNT(CASE WHEN status = 'pending' AND due_date < NOW() THEN 1 END)::int AS overdue
+      FROM chores
+      WHERE ${baseWhere}
+    `;
+
+    const statsResult = await pool.query(statsQuery, queryParams);
+    const row = statsResult.rows[0] || { total: 0, completed: 0, pending: 0, overdue: 0 };
+
+    const total = Number(row.total) || 0;
+    const completed = Number(row.completed) || 0;
+    const pending = Number(row.pending) || 0;
+    const overdue = Number(row.overdue) || 0;
+    const completionPercentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+    // Retrieve today's chores (up to 20)
+    const todaysChoresQuery = `
+      SELECT c.*, 
+             u_assignee.full_name AS assignee_name, 
+             u_assignee.profile_image_url AS assignee_avatar
+      FROM chores c
+      LEFT JOIN users u_assignee ON c.assigned_to = u_assignee.id
+      WHERE ${baseWhere}
+        AND (c.due_date IS NULL OR c.due_date::date <= CURRENT_DATE)
+      ORDER BY c.status ASC, c.due_date ASC NULLS LAST, c.created_at DESC
+      LIMIT 20
+    `;
+
+    const todaysChoresResult = await pool.query(todaysChoresQuery, queryParams);
+
+    return res.json({
+      stats: {
+        completed,
+        pending,
+        overdue,
+        total,
+        completionPercentage,
+      },
+      todaysChores: todaysChoresResult.rows,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function getChoreById(req, res, next) {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+    const familyId = await getUserFamilyId(userId);
+
+    const query = `
+      SELECT c.*, 
+             u_assignee.full_name AS assignee_name, 
+             u_assignee.profile_image_url AS assignee_avatar,
+             u_creator.full_name AS creator_name
+      FROM chores c
+      LEFT JOIN users u_assignee ON c.assigned_to = u_assignee.id
+      LEFT JOIN users u_creator ON c.created_by = u_creator.id
+      WHERE c.id = $1 AND (c.created_by = $2 OR c.assigned_to = $2 ${familyId ? 'OR c.family_id = $3' : ''})
+    `;
+
+    const values = familyId ? [id, userId, familyId] : [id, userId];
+    const result = await pool.query(query, values);
+
+    if (!result.rows[0]) throw appError('Chore not found.', 404);
+    return res.json({ chore: result.rows[0] });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function updateChore(req, res, next) {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+    const {
+      title,
+      description,
+      category,
+      priority,
+      due_date,
+      assigned_to,
+      recurrence,
+      status,
+    } = req.body || {};
+
+    const existing = await pool.query('SELECT * FROM chores WHERE id = $1', [id]);
+    if (!existing.rows[0]) throw appError('Chore not found.', 404);
+
+    const chore = existing.rows[0];
+
+    const updatedTitle = typeof title === 'string' && title.trim() ? title.trim() : chore.title;
+    const updatedDesc = description !== undefined ? (description ? description.trim() : null) : chore.description;
+    const updatedCat = category !== undefined ? category : chore.category;
+    const updatedPriority = ['low', 'medium', 'high'].includes(priority) ? priority : chore.priority;
+    const updatedDueDate = due_date !== undefined ? (due_date ? new Date(due_date) : null) : chore.due_date;
+    const updatedAssigned = assigned_to !== undefined ? (assigned_to || null) : chore.assigned_to;
+    const updatedRecurrence = ['none', 'daily', 'weekly', 'monthly'].includes(recurrence) ? recurrence : chore.recurrence;
+    const updatedStatus = ['pending', 'completed'].includes(status) ? status : chore.status;
+
+    let completedAt = chore.completed_at;
+    if (updatedStatus === 'completed' && chore.status !== 'completed') {
+      completedAt = new Date();
+    } else if (updatedStatus === 'pending') {
+      completedAt = null;
+    }
+
+    const query = `
+      UPDATE chores SET
+        title = $1,
+        description = $2,
+        category = $3,
+        priority = $4,
+        due_date = $5,
+        assigned_to = $6,
+        recurrence = $7,
+        status = $8,
+        completed_at = $9,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $10
+      RETURNING *
+    `;
+
+    const result = await pool.query(query, [
+      updatedTitle,
+      updatedDesc,
+      updatedCat,
+      updatedPriority,
+      updatedDueDate,
+      updatedAssigned,
+      updatedRecurrence,
+      updatedStatus,
+      completedAt,
+      id,
+    ]);
+
+    return res.json({ chore: result.rows[0] });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function toggleChoreComplete(req, res, next) {
+  try {
+    const { id } = req.params;
+    const existing = await pool.query('SELECT * FROM chores WHERE id = $1', [id]);
+    if (!existing.rows[0]) throw appError('Chore not found.', 404);
+
+    const chore = existing.rows[0];
+    const newStatus = chore.status === 'completed' ? 'pending' : 'completed';
+    const completedAt = newStatus === 'completed' ? new Date() : null;
+
+    const result = await pool.query(
+      `UPDATE chores SET
+        status = $1,
+        completed_at = $2,
+        updated_at = CURRENT_TIMESTAMP
+       WHERE id = $3 RETURNING *`,
+      [newStatus, completedAt, id]
+    );
+
+    return res.json({ chore: result.rows[0] });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function deleteChore(req, res, next) {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('DELETE FROM chores WHERE id = $1 RETURNING id', [id]);
+    if (!result.rows[0]) throw appError('Chore not found.', 404);
+    return res.json({ message: 'Chore deleted successfully.', id });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+module.exports = {
+  createChore,
+  getChores,
+  getChoreStats,
+  getChoreById,
+  updateChore,
+  toggleChoreComplete,
+  deleteChore,
+};
