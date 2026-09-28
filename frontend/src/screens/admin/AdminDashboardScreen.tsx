@@ -339,7 +339,7 @@ export default function AdminDashboardScreen() {
 
           {/* Add New Chore Button */}
           <Pressable
-            onPress={() => setIsAddModalOpen(true)}
+            onPress={() => router.push('/admin/add-chore' as any)}
             style={({ pressed }) => [
               styles.addChoreButton,
               pressed && styles.buttonPressed,
