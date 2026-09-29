@@ -11,11 +11,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '@/components/profile/Avatar';
 import { authService, Member } from '@/services/authService';
 import { profileService } from '@/services/profileService';
 import { choreService, ChoreItem, ChoreStats } from '@/services/choreService';
-import { ChoreItemCard } from '@/components/chores/ChoreItemCard';
 import { AddChoreModal } from '@/components/chores/AddChoreModal';
 import { EditChoreModal } from '@/components/chores/EditChoreModal';
 
@@ -28,8 +28,6 @@ export default function AdminDashboardScreen() {
     total: 0,
     completionPercentage: 0,
   });
-  const [allChores, setAllChores] = useState<ChoreItem[]>([]);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'pending' | 'completed'>('all');
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -39,7 +37,6 @@ export default function AdminDashboardScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      // 1. Fetch current member & verify admin role
       const currentMember = await authService.getCurrentMember();
       if (currentMember) setProfile(currentMember);
 
@@ -47,19 +44,13 @@ export default function AdminDashboardScreen() {
         const freshProfile = await profileService.getProfile();
         setProfile(freshProfile);
       } catch {
-        // Fallback to cached profile if profile API is temporarily unreachable
+        // Fallback to cached profile
       }
 
-      // 2. Fetch household-wide stats & all chores via admin endpoint
       const adminData = await choreService.getAdminStats();
-      if (adminData?.stats) {
-        setStats(adminData.stats);
-      }
-      if (adminData?.chores) {
-        setAllChores(adminData.chores);
-      }
-    } catch (err) {
-      // Handle network errors gracefully
+      if (adminData?.stats) setStats(adminData.stats);
+    } catch {
+      // Soft fail
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -77,63 +68,45 @@ export default function AdminDashboardScreen() {
     loadData();
   };
 
-  const handleToggleComplete = async (id: string) => {
-    try {
-      // Optimistic update
-      setAllChores((prev) =>
-        prev.map((c) =>
-          c.id === id
-            ? { ...c, status: c.status === 'completed' ? 'pending' : 'completed' }
-            : c
-        )
-      );
-
-      await choreService.toggleChoreComplete(id);
-      loadData();
-    } catch {
-      Alert.alert('Error', 'Could not update chore status. Please try again.');
-      loadData();
-    }
-  };
-
-  const handleDeleteChore = (id: string) => {
-    Alert.alert('Delete Chore', 'Are you sure you want to delete this chore from the household?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            setAllChores((prev) => prev.filter((c) => c.id !== id));
-            await choreService.deleteChore(id);
-            loadData();
-          } catch {
-            Alert.alert('Error', 'Could not delete chore.');
-            loadData();
-          }
-        },
-      },
-    ]);
-  };
-
-  const handleEditChore = (chore: ChoreItem) => {
-    router.push({
-      pathname: '/admin/edit-chore',
-      params: { id: chore.id, choreData: JSON.stringify(chore) },
-    } as any);
-  };
-
-  const handleProfilePress = () => {
-    router.push('/admin/profile');
-  };
-
   const greetingName = profile?.name ? profile.name.split(' ')[0] : 'Admin';
+  const completionPct = Math.round(stats.completionPercentage ?? 0);
 
-  const filteredChores = allChores.filter((chore) => {
-    if (activeFilter === 'pending') return chore.status === 'pending';
-    if (activeFilter === 'completed') return chore.status === 'completed';
-    return true;
-  });
+  const QUICK_ACTIONS = [
+    {
+      id: 'chores',
+      label: 'Manage Chores',
+      icon: 'list-outline' as const,
+      onPress: () => router.push('/admin/chores' as any),
+    },
+    {
+      id: 'family',
+      label: 'Manage Family',
+      icon: 'people-outline' as const,
+      onPress: () => router.push('/admin/members' as any),
+    },
+    {
+      id: 'calendar',
+      label: 'View Calendar',
+      icon: 'calendar-outline' as const,
+      onPress: () => {},
+    },
+    {
+      id: 'progress',
+      label: 'View Progress',
+      icon: 'bar-chart-outline' as const,
+      onPress: () => {},
+    },
+  ];
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.centerLoader}>
+          <ActivityIndicator size="large" color="#713DE8" />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -149,219 +122,105 @@ export default function AdminDashboardScreen() {
           />
         }
       >
-        {/* Header Section */}
+        {/* ── Header ── */}
         <View style={styles.header}>
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.welcomeTag}>Welcome to ChoreHub</Text>
-            <View style={styles.adminBadgeRow}>
-              <View style={styles.adminBadge}>
-                <Text style={styles.adminBadgeText}>⚡ Admin Dashboard</Text>
-              </View>
+          <View style={styles.headerLeft}>
+            <Text style={styles.welcomeLabel}>WELCOME BACK</Text>
+            <Text style={styles.greetingText}>
+              Hello, {greetingName}! 👋
+            </Text>
+            <View style={styles.roleBadge}>
+              <Ionicons name="shield-checkmark-outline" size={14} color="#713DE8" />
+              <Text style={styles.roleBadgeText}>Admin Dashboard</Text>
             </View>
-            <Text style={styles.greetingText}>Hello, {greetingName} 👋</Text>
           </View>
-          <Pressable
-            onPress={handleProfilePress}
-            style={({ pressed }) => [
-              styles.avatarButton,
-              pressed && styles.pressed,
-            ]}
-            accessibilityLabel="Open profile"
-          >
-            <Avatar name={profile?.name || 'Admin'} uri={profile?.avatarUri} size={48} />
+
+          <Pressable onPress={() => router.push('/admin/profile' as any)}>
+            <Avatar
+              name={profile?.name ?? 'A'}
+              uri={profile?.avatarUri ?? undefined}
+              size={48}
+            />
           </Pressable>
         </View>
 
-        {/* Household Progress Card */}
+        {/* ── Household Progress Card ── */}
         <View style={styles.progressCard}>
-          <View style={styles.progressHeader}>
+          <View style={styles.progressCardTop}>
             <View>
               <Text style={styles.progressCardTitle}>Household Progress</Text>
-              <Text style={styles.progressCardSubtitle}>
-                Managing household chores & team productivity
-              </Text>
+              <Text style={styles.progressCardSubtitle}>Overall completion</Text>
             </View>
-            <View style={styles.percentageBadge}>
-              <Text style={styles.percentageText}>
-                {Math.round(stats.completionPercentage)}%
-              </Text>
+            <View style={styles.percentBadge}>
+              <Text style={styles.percentText}>{completionPct}%</Text>
             </View>
           </View>
 
-          {/* Visual Progress Bar */}
+          {/* Progress Bar */}
           <View style={styles.progressBarTrack}>
             <View
               style={[
                 styles.progressBarFill,
-                { width: `${Math.min(100, Math.max(0, stats.completionPercentage))}%` },
+                { width: `${Math.min(completionPct, 100)}%` },
               ]}
             />
           </View>
+        </View>
 
-          {/* Household Statistics Grid */}
-          <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
-              <View style={[styles.statIconBadge, styles.pendingBadge]}>
-                <Text style={styles.statIconText}>⏳</Text>
-              </View>
-              <Text style={styles.statNumber}>{stats.pending}</Text>
-              <Text style={styles.statLabel}>Pending</Text>
-            </View>
+        {/* ── Stats Row ── */}
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Ionicons name="list-outline" size={22} color="#713DE8" />
+            <Text style={styles.statNumber}>{stats.total}</Text>
+            <Text style={styles.statLabel}>Total{'\n'}Chores</Text>
+          </View>
 
-            <View style={styles.statDivider} />
+          <View style={styles.statCard}>
+            <Ionicons name="time-outline" size={22} color="#F59E0B" />
+            <Text style={[styles.statNumber, { color: '#F59E0B' }]}>{stats.pending}</Text>
+            <Text style={styles.statLabel}>Pending</Text>
+          </View>
 
-            <View style={styles.statItem}>
-              <View style={[styles.statIconBadge, styles.completedBadge]}>
-                <Text style={styles.statIconText}>✓</Text>
-              </View>
-              <Text style={styles.statNumber}>{stats.completed}</Text>
-              <Text style={styles.statLabel}>Completed</Text>
-            </View>
+          <View style={styles.statCard}>
+            <Ionicons name="checkmark-circle-outline" size={22} color="#10B981" />
+            <Text style={[styles.statNumber, { color: '#10B981' }]}>{stats.completed}</Text>
+            <Text style={styles.statLabel}>Completed</Text>
+          </View>
 
-            <View style={styles.statDivider} />
-
-            <View style={styles.statItem}>
-              <View style={[styles.statIconBadge, styles.overdueBadge]}>
-                <Text style={styles.statIconText}>!</Text>
-              </View>
-              <Text style={styles.statNumber}>{stats.overdue}</Text>
-              <Text style={styles.statLabel}>Overdue</Text>
-            </View>
-
-            <View style={styles.statDivider} />
-
-            <View style={styles.statItem}>
-              <View style={[styles.statIconBadge, styles.totalBadge]}>
-                <Text style={styles.statIconText}>📊</Text>
-              </View>
-              <Text style={styles.statNumber}>{stats.total}</Text>
-              <Text style={styles.statLabel}>Total</Text>
-            </View>
+          <View style={styles.statCard}>
+            <Ionicons name="alert-circle-outline" size={22} color="#EF4444" />
+            <Text style={[styles.statNumber, { color: '#EF4444' }]}>{stats.overdue}</Text>
+            <Text style={styles.statLabel}>Overdue</Text>
           </View>
         </View>
 
-        {/* Chores Section */}
-        <View style={styles.choresSection}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionTitleRow}>
-              <Text style={styles.sectionTitle}>Household Chores</Text>
-              <View style={styles.countBadge}>
-                <Text style={styles.countBadgeText}>{filteredChores.length}</Text>
-              </View>
-            </View>
-
-            {/* View All Chores Button / Filter Options */}
+        {/* ── Quick Actions ── */}
+        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        <View style={styles.quickActionsGrid}>
+          {QUICK_ACTIONS.map((action) => (
             <Pressable
-              onPress={() => setActiveFilter('all')}
+              key={action.id}
+              onPress={action.onPress}
               style={({ pressed }) => [
-                styles.viewAllButton,
-                activeFilter === 'all' && styles.viewAllActiveButton,
-                pressed && styles.pressed,
+                styles.quickActionCard,
+                pressed && styles.quickActionCardPressed,
               ]}
             >
-              <Text
-                style={[
-                  styles.viewAllButtonText,
-                  activeFilter === 'all' && styles.viewAllActiveButtonText,
-                ]}
-              >
-                View All Chores
-              </Text>
-            </Pressable>
-          </View>
-
-          {/* Filter Tabs */}
-          <View style={styles.filterTabsRow}>
-            <Pressable
-              onPress={() => setActiveFilter('all')}
-              style={[styles.filterTab, activeFilter === 'all' && styles.filterTabActive]}
-            >
-              <Text
-                style={[
-                  styles.filterTabText,
-                  activeFilter === 'all' && styles.filterTabTextActive,
-                ]}
-              >
-                All ({allChores.length})
-              </Text>
-            </Pressable>
-
-            <Pressable
-              onPress={() => setActiveFilter('pending')}
-              style={[styles.filterTab, activeFilter === 'pending' && styles.filterTabActive]}
-            >
-              <Text
-                style={[
-                  styles.filterTabText,
-                  activeFilter === 'pending' && styles.filterTabTextActive,
-                ]}
-              >
-                Pending ({stats.pending})
-              </Text>
-            </Pressable>
-
-            <Pressable
-              onPress={() => setActiveFilter('completed')}
-              style={[styles.filterTab, activeFilter === 'completed' && styles.filterTabActive]}
-            >
-              <Text
-                style={[
-                  styles.filterTabText,
-                  activeFilter === 'completed' && styles.filterTabTextActive,
-                ]}
-              >
-                Completed ({stats.completed})
-              </Text>
-            </Pressable>
-          </View>
-
-          {/* Chores List */}
-          {filteredChores.length === 0 ? (
-            <View style={styles.emptyStateCard}>
-              <View style={styles.emptyIconContainer}>
-                <Text style={styles.emptyIcon}>✨</Text>
+              <View style={styles.quickActionIconWrap}>
+                <Ionicons name={action.icon} size={28} color="#713DE8" />
               </View>
-              <Text style={styles.emptyStateTitle}>No household chores found</Text>
-              <Text style={styles.emptyStateSubtitle}>
-                There are no chores matching the selected filter. Click below to add a new chore for your household.
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.choresList}>
-              {filteredChores.map((item) => (
-                <ChoreItemCard
-                  key={item.id}
-                  chore={item}
-                  onToggleComplete={handleToggleComplete}
-                  onDelete={handleDeleteChore}
-                  onEdit={handleEditChore}
-                />
-              ))}
-            </View>
-          )}
-
-          {/* Add New Chore Button */}
-          <Pressable
-            onPress={() => router.push('/admin/add-chore' as any)}
-            style={({ pressed }) => [
-              styles.addChoreButton,
-              pressed && styles.buttonPressed,
-            ]}
-          >
-            <Text style={styles.addChoreButtonIcon}>+</Text>
-            <Text style={styles.addChoreButtonText}>Add New Chore</Text>
-          </Pressable>
+              <Text style={styles.quickActionLabel}>{action.label}</Text>
+            </Pressable>
+          ))}
         </View>
       </ScrollView>
 
-      {/* Add Chore Modal */}
+      {/* Add / Edit Modals (retained for backward compatibility) */}
       <AddChoreModal
         visible={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onChoreCreated={loadData}
       />
-
-      {/* Edit Chore Modal */}
       <EditChoreModal
         visible={!!selectedEditChore}
         chore={selectedEditChore}
@@ -375,311 +234,188 @@ export default function AdminDashboardScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F8F7FC',
+    backgroundColor: '#F6F4FF',
+  },
+  centerLoader: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingTop: 16,
     paddingBottom: 32,
     gap: 20,
   },
-  pressed: {
-    opacity: 0.8,
-    transform: [{ scale: 0.97 }],
-  },
-  buttonPressed: {
-    opacity: 0.9,
-    backgroundColor: '#5C2ECE',
-  },
+
+  // ── Header ──
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    paddingVertical: 8,
   },
-  headerTextContainer: {
-    flex: 1,
+  headerLeft: {
     gap: 4,
   },
-  welcomeTag: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#713DE8',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  adminBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 2,
-  },
-  adminBadge: {
-    backgroundColor: '#713DE8',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  adminBadgeText: {
-    color: '#FFFFFF',
+  welcomeLabel: {
     fontSize: 12,
     fontWeight: '800',
-    letterSpacing: 0.4,
+    color: '#713DE8',
+    letterSpacing: 1.2,
   },
   greetingText: {
     fontSize: 26,
-    fontWeight: '800',
+    fontWeight: '900',
     color: '#1E1B2E',
+    letterSpacing: -0.5,
+  },
+  roleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#EDE9FE',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
     marginTop: 2,
   },
-  avatarButton: {
-    borderRadius: 24,
-    padding: 2,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#713DE8',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 3,
+  roleBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#713DE8',
   },
 
-  // Progress Card
+  // ── Progress Card ──
   progressCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
+    borderRadius: 22,
     padding: 20,
-    gap: 16,
+    gap: 14,
     borderWidth: 1,
     borderColor: '#EAE7F5',
     shadowColor: '#713DE8',
-    shadowOffset: { width: 0, height: 6 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 4,
+    shadowRadius: 12,
+    elevation: 3,
   },
-  progressHeader: {
+  progressCardTop: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   progressCardTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
     color: '#1E1B2E',
   },
   progressCardSubtitle: {
-    fontSize: 13,
-    color: '#757288',
+    fontSize: 12,
+    color: '#8A879A',
+    fontWeight: '500',
     marginTop: 2,
   },
-  percentageBadge: {
-    backgroundColor: '#F0EAFF',
-    paddingHorizontal: 12,
+  percentBadge: {
+    backgroundColor: '#EDE9FE',
+    paddingHorizontal: 14,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderRadius: 16,
   },
-  percentageText: {
-    fontSize: 15,
-    fontWeight: '800',
+  percentText: {
+    fontSize: 16,
+    fontWeight: '900',
     color: '#713DE8',
   },
   progressBarTrack: {
     height: 10,
-    backgroundColor: '#F0EAFF',
-    borderRadius: 5,
+    backgroundColor: '#EDE9FE',
+    borderRadius: 10,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
     backgroundColor: '#713DE8',
-    borderRadius: 5,
+    borderRadius: 10,
   },
-  statsContainer: {
+
+  // ── Stats Row ──
+  statsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#F4F2FA',
+    gap: 10,
   },
-  statItem: {
-    alignItems: 'center',
+  statCard: {
     flex: 1,
-    gap: 4,
-  },
-  statIconBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 6,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
-  },
-  pendingBadge: {
-    backgroundColor: '#FFF8E6',
-  },
-  completedBadge: {
-    backgroundColor: '#ECFDF5',
-  },
-  overdueBadge: {
-    backgroundColor: '#FEF2F2',
-  },
-  totalBadge: {
-    backgroundColor: '#F0EAFF',
-  },
-  statIconText: {
-    fontSize: 14,
-    fontWeight: '800',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#EAE7F5',
+    shadowColor: '#713DE8',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   statNumber: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#1E1B2E',
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#713DE8',
   },
   statLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#757288',
-  },
-  statDivider: {
-    width: 1,
-    height: 36,
-    backgroundColor: '#EAE7F5',
+    color: '#8A879A',
+    textAlign: 'center',
+    lineHeight: 15,
   },
 
-  // Chores Section
-  choresSection: {
-    gap: 16,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  sectionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
+  // ── Quick Actions ──
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '800',
+    fontSize: 18,
+    fontWeight: '900',
     color: '#1E1B2E',
   },
-  countBadge: {
-    backgroundColor: '#713DE8',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-  },
-  countBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  viewAllButton: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#713DE8',
-  },
-  viewAllActiveButton: {
-    backgroundColor: '#713DE8',
-  },
-  viewAllButtonText: {
-    color: '#713DE8',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  viewAllActiveButtonText: {
-    color: '#FFFFFF',
-  },
-  filterTabsRow: {
+  quickActionsGrid: {
     flexDirection: 'row',
-    gap: 8,
-  },
-  filterTab: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 8,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#EAE7F5',
-  },
-  filterTabActive: {
-    backgroundColor: '#F0EAFF',
-    borderColor: '#713DE8',
-  },
-  filterTabText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#757288',
-  },
-  filterTabTextActive: {
-    color: '#713DE8',
-  },
-  emptyStateCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 28,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#EAE7F5',
-    gap: 10,
-  },
-  emptyIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#F0EAFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-  },
-  emptyIcon: {
-    fontSize: 26,
-  },
-  emptyStateTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#1E1B2E',
-    textAlign: 'center',
-  },
-  emptyStateSubtitle: {
-    fontSize: 13,
-    color: '#757288',
-    textAlign: 'center',
-    lineHeight: 19,
-  },
-  choresList: {
+    flexWrap: 'wrap',
     gap: 12,
   },
-  addChoreButton: {
-    backgroundColor: '#713DE8',
+  quickActionCard: {
+    width: '47%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingVertical: 22,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: '#EAE7F5',
+    shadowColor: '#713DE8',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  quickActionCardPressed: {
+    transform: [{ scale: 0.97 }],
+    opacity: 0.9,
+  },
+  quickActionIconWrap: {
+    width: 52,
+    height: 52,
     borderRadius: 16,
-    paddingVertical: 16,
-    flexDirection: 'row',
+    backgroundColor: '#EDE9FE',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    shadowColor: '#713DE8',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 4,
-    marginTop: 4,
   },
-  addChoreButtonIcon: {
-    color: '#FFFFFF',
-    fontSize: 20,
+  quickActionLabel: {
+    fontSize: 13,
     fontWeight: '800',
-    lineHeight: 22,
-  },
-  addChoreButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '800',
+    color: '#1E1B2E',
+    textAlign: 'center',
   },
 });
