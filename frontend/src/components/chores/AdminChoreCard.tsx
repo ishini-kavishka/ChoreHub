@@ -7,12 +7,14 @@ interface AdminChoreCardProps {
   chore: ChoreItem;
   onToggleComplete: (id: string) => void;
   onEdit: (chore: ChoreItem) => void;
+  onPress?: (chore: ChoreItem) => void;
 }
 
 export function AdminChoreCard({
   chore,
   onToggleComplete,
   onEdit,
+  onPress,
 }: AdminChoreCardProps) {
   const isCompleted = chore.status === 'completed';
 
@@ -55,7 +57,7 @@ export function AdminChoreCard({
 
   return (
     <Pressable
-      onPress={() => onEdit(chore)}
+      onPress={() => (onPress ? onPress(chore) : onEdit(chore))}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
     >
       {/* Left Completion Toggle Circle */}
