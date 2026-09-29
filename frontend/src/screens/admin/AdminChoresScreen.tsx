@@ -71,7 +71,10 @@ export default function AdminChoresScreen() {
   };
 
   const handleEditChore = (chore: ChoreItem) => {
-    setSelectedEditChore(chore);
+    router.push({
+      pathname: '/admin/edit-chore',
+      params: { id: chore.id, choreData: JSON.stringify(chore) },
+    } as any);
   };
 
   // Stats for pill counts
