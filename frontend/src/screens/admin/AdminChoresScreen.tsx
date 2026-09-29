@@ -11,20 +11,18 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { choreService, ChoreItem } from '@/services/choreService';
-import { ChoreItemCard } from '@/components/chores/ChoreItemCard';
-import { AddChoreModal } from '@/components/chores/AddChoreModal';
+import { AdminChoreCard } from '@/components/chores/AdminChoreCard';
 import { EditChoreModal } from '@/components/chores/EditChoreModal';
 
 export default function AdminChoresScreen() {
   const [chores, setChores] = useState<ChoreItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed'>('all');
-  const [priorityFilter, setPriorityFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed' | 'overdue'>('all');
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedEditChore, setSelectedEditChore] = useState<ChoreItem | null>(null);
 
   const loadData = useCallback(async () => {
@@ -56,7 +54,12 @@ export default function AdminChoresScreen() {
     try {
       setChores((prev) =>
         prev.map((c) =>
-          c.id === id ? { ...c, status: c.status === 'completed' ? 'pending' : 'completed' } : c
+          c.id === id
+            ? {
+                ...c,
+                status: c.status === 'completed' ? 'pending' : 'completed',
+              }
+            : c
         )
       );
       await choreService.toggleChoreComplete(id);
@@ -67,44 +70,28 @@ export default function AdminChoresScreen() {
     }
   };
 
-  const handleDeleteChore = (id: string) => {
-    Alert.alert('Delete Chore', 'Are you sure you want to delete this chore?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            setChores((prev) => prev.filter((c) => c.id !== id));
-            await choreService.deleteChore(id);
-            loadData();
-          } catch {
-            Alert.alert('Error', 'Could not delete chore.');
-            loadData();
-          }
-        },
-      },
-    ]);
-  };
-
   const handleEditChore = (chore: ChoreItem) => {
     setSelectedEditChore(chore);
   };
+
+  // Stats for pill counts
+  const allCount = chores.length;
+  const pendingCount = chores.filter((c) => c.status === 'pending').length;
+  const completedCount = chores.filter((c) => c.status === 'completed').length;
+  const overdueCount = chores.filter((c) => c.status === 'overdue').length;
 
   const filteredChores = chores.filter((item) => {
     const matchesSearch =
       searchQuery.trim() === '' ||
       item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (item.category && item.category.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (item.assignee_name && item.assignee_name.toLowerCase().includes(searchQuery.toLowerCase()));
 
     const matchesStatus =
       statusFilter === 'all' || item.status === statusFilter;
 
-    const matchesPriority =
-      priorityFilter === 'all' || item.priority === priorityFilter;
-
-    return matchesSearch && matchesStatus && matchesPriority;
+    return matchesSearch && matchesStatus;
   });
 
   return (
@@ -121,133 +108,121 @@ export default function AdminChoresScreen() {
           />
         }
       >
-        {/* Header */}
+        {/* Top Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Household Chores</Text>
-          <Text style={styles.headerSubtitle}>
-            Manage, filter, and track all assigned household tasks
-          </Text>
+          <View style={styles.headerTitleGroup}>
+            <Text style={styles.brandTitle}>
+              Chore<Text style={styles.brandAccent}>Hub</Text>
+            </Text>
+            <Text style={styles.headerSubtitle}>Manage all household chores</Text>
+          </View>
+
+          {/* Add Chore Button */}
+          <Pressable
+            onPress={() => router.push('/admin/add-chore' as any)}
+            style={({ pressed }) => [
+              styles.addChoreBtn,
+              pressed && { opacity: 0.85 },
+            ]}
+          >
+            <Text style={styles.addChoreBtnIcon}>+</Text>
+            <Text style={styles.addChoreBtnText}>Add Chore</Text>
+          </Pressable>
         </View>
 
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <Text style={styles.searchIcon}>🔍</Text>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search chores or housemates..."
-            placeholderTextColor="#9CA3AF"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery ? (
-            <Pressable onPress={() => setSearchQuery('')} style={styles.clearBtn}>
-              <Text style={styles.clearIcon}>✕</Text>
-            </Pressable>
-          ) : null}
-        </View>
-
-        {/* Status Filters */}
-        <View style={styles.filterGroup}>
-          <Text style={styles.filterLabel}>Status</Text>
-          <View style={styles.pillRow}>
-            {(['all', 'pending', 'completed'] as const).map((sf) => (
+        {/* Filter Tabs Bar (Pills) */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterTabsContainer}
+        >
+          {[
+            { id: 'all', label: `All (${allCount})` },
+            { id: 'pending', label: `Pending (${pendingCount})` },
+            { id: 'completed', label: `Completed (${completedCount})` },
+            { id: 'overdue', label: `Overdue (${overdueCount})` },
+          ].map((tab) => {
+            const isActive = statusFilter === tab.id;
+            return (
               <Pressable
-                key={sf}
-                onPress={() => setStatusFilter(sf)}
+                key={tab.id}
+                onPress={() => setStatusFilter(tab.id as any)}
                 style={[
                   styles.filterPill,
-                  statusFilter === sf && styles.activeStatusPill,
+                  isActive ? styles.filterPillActive : styles.filterPillInactive,
                 ]}
               >
                 <Text
                   style={[
                     styles.filterPillText,
-                    statusFilter === sf && styles.activePillText,
+                    isActive ? styles.filterPillTextActive : styles.filterPillTextInactive,
                   ]}
                 >
-                  {sf.toUpperCase()}
+                  {tab.label}
                 </Text>
               </Pressable>
-            ))}
-          </View>
-        </View>
+            );
+          })}
+        </ScrollView>
 
-        {/* Priority Filters */}
-        <View style={styles.filterGroup}>
-          <Text style={styles.filterLabel}>Priority</Text>
-          <View style={styles.pillRow}>
-            {(['all', 'high', 'medium', 'low'] as const).map((pf) => (
-              <Pressable
-                key={pf}
-                onPress={() => setPriorityFilter(pf)}
-                style={[
-                  styles.filterPill,
-                  priorityFilter === pf && styles.activePriorityPill,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.filterPillText,
-                    priorityFilter === pf && styles.activePillText,
-                  ]}
-                >
-                  {pf.toUpperCase()}
-                </Text>
+        {/* Search & Filter Funnel Row */}
+        <View style={styles.searchRow}>
+          <View style={styles.searchContainer}>
+            <Ionicons name="search-outline" size={18} color="#8A879A" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search chores..."
+              placeholderTextColor="#8A879A"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery ? (
+              <Pressable onPress={() => setSearchQuery('')}>
+                <Ionicons name="close-circle" size={18} color="#8A879A" />
               </Pressable>
-            ))}
+            ) : null}
           </View>
-        </View>
 
-        {/* Chores Count & Header */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Chores List</Text>
-          <View style={styles.countBadge}>
-            <Text style={styles.countText}>{filteredChores.length}</Text>
-          </View>
+          {/* Filter Funnel Icon Button */}
+          <Pressable
+            onPress={() => {
+              // Toggle filter options or clear search
+              if (searchQuery || statusFilter !== 'all') {
+                setSearchQuery('');
+                setStatusFilter('all');
+              }
+            }}
+            style={({ pressed }) => [
+              styles.filterFunnelBtn,
+              pressed && { opacity: 0.7 },
+            ]}
+          >
+            <Ionicons name="options-outline" size={20} color="#757288" />
+          </Pressable>
         </View>
 
         {/* Chores List */}
         {filteredChores.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyIcon}>📋</Text>
+            <Text style={styles.emptyIcon}>✨</Text>
             <Text style={styles.emptyTitle}>No chores found</Text>
             <Text style={styles.emptySubtitle}>
-              Try adjusting your search or filters, or add a new chore below.
+              There are no chores matching the current filter or search criteria.
             </Text>
           </View>
         ) : (
           <View style={styles.choresList}>
             {filteredChores.map((item) => (
-              <ChoreItemCard
+              <AdminChoreCard
                 key={item.id}
                 chore={item}
                 onToggleComplete={handleToggleComplete}
-                onDelete={handleDeleteChore}
                 onEdit={handleEditChore}
               />
             ))}
           </View>
         )}
-
-        {/* Add New Chore Button */}
-        <Pressable
-          onPress={() => router.push('/admin/add-chore' as any)}
-          style={({ pressed }) => [
-            styles.addBtn,
-            pressed && { opacity: 0.9, backgroundColor: '#5C2ECE' },
-          ]}
-        >
-          <Text style={styles.addBtnIcon}>+</Text>
-          <Text style={styles.addBtnText}>Add New Chore</Text>
-        </Pressable>
       </ScrollView>
-
-      {/* Add Chore Modal */}
-      <AddChoreModal
-        visible={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onChoreCreated={loadData}
-      />
 
       {/* Edit Chore Modal */}
       <EditChoreModal
@@ -263,7 +238,7 @@ export default function AdminChoresScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F8F7FC',
+    backgroundColor: '#FAFAFD',
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -272,102 +247,113 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   header: {
-    gap: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
   },
-  headerTitle: {
+  headerTitleGroup: {
+    gap: 2,
+  },
+  brandTitle: {
     fontSize: 26,
-    fontWeight: '800',
+    fontWeight: '900',
     color: '#1E1B2E',
+    letterSpacing: -0.5,
+  },
+  brandAccent: {
+    color: '#713DE8',
   },
   headerSubtitle: {
     fontSize: 13,
-    color: '#757288',
+    fontWeight: '600',
+    color: '#8A879A',
   },
-  searchContainer: {
+  addChoreBtn: {
+    backgroundColor: '#713DE8',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderRadius: 14,
+    gap: 6,
+    shadowColor: '#713DE8',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  addChoreBtnIcon: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '800',
+    lineHeight: 18,
+  },
+  addChoreBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  filterTabsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingVertical: 4,
+  },
+  filterPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterPillActive: {
+    backgroundColor: '#713DE8',
+  },
+  filterPillInactive: {
+    backgroundColor: '#F4F3FA',
+  },
+  filterPillText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  filterPillTextActive: {
+    color: '#FFFFFF',
+  },
+  filterPillTextInactive: {
+    color: '#757288',
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 10,
   },
-  searchIcon: {
-    fontSize: 16,
+  searchContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F4F3FA',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    gap: 8,
   },
   searchInput: {
     flex: 1,
     fontSize: 14,
     color: '#1E1B2E',
   },
-  clearBtn: {
-    padding: 4,
-  },
-  clearIcon: {
-    fontSize: 14,
-    color: '#757288',
-  },
-  filterGroup: {
-    gap: 6,
-  },
-  filterLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#4B485C',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  pillRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  filterPill: {
+  filterFunnelBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#EAE7F5',
-  },
-  activeStatusPill: {
-    backgroundColor: '#713DE8',
-    borderColor: '#713DE8',
-  },
-  activePriorityPill: {
-    backgroundColor: '#713DE8',
-    borderColor: '#713DE8',
-  },
-  filterPillText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#757288',
-  },
-  activePillText: {
-    color: '#FFFFFF',
-  },
-  sectionHeader: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginTop: 8,
+    justifyContent: 'center',
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#1E1B2E',
-  },
-  countBadge: {
-    backgroundColor: '#713DE8',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-  },
-  countText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
+  choresList: {
+    gap: 12,
   },
   emptyCard: {
     backgroundColor: '#FFFFFF',
@@ -377,6 +363,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#EAE7F5',
     gap: 8,
+    marginTop: 8,
   },
   emptyIcon: {
     fontSize: 32,
@@ -391,33 +378,5 @@ const styles = StyleSheet.create({
     color: '#757288',
     textAlign: 'center',
     lineHeight: 18,
-  },
-  choresList: {
-    gap: 12,
-  },
-  addBtn: {
-    backgroundColor: '#713DE8',
-    borderRadius: 16,
-    paddingVertical: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    shadowColor: '#713DE8',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 3,
-    marginTop: 8,
-  },
-  addBtnIcon: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: '800',
-  },
-  addBtnText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '800',
   },
 });
