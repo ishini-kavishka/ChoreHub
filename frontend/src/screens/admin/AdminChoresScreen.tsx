@@ -77,6 +77,13 @@ export default function AdminChoresScreen() {
     } as any);
   };
 
+  const handleChorePress = (chore: ChoreItem) => {
+    router.push({
+      pathname: '/admin/chore-details',
+      params: { id: chore.id, choreData: JSON.stringify(chore) },
+    } as any);
+  };
+
   // Stats for pill counts
   const allCount = chores.length;
   const pendingCount = chores.filter((c) => c.status === 'pending').length;
@@ -221,6 +228,7 @@ export default function AdminChoresScreen() {
                 chore={item}
                 onToggleComplete={handleToggleComplete}
                 onEdit={handleEditChore}
+                onPress={handleChorePress}
               />
             ))}
           </View>
