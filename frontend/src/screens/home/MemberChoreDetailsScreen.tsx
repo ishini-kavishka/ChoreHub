@@ -58,9 +58,19 @@ export default function MemberChoreDetailsScreen() {
     if (!chore) return;
     setToggling(true);
     try {
-      const updatedStatus = chore.status === 'completed' ? 'pending' : 'completed';
-      setChore((prev) => (prev ? { ...prev, status: updatedStatus } : null));
+      const isNowCompleted = chore.status !== 'completed';
       await choreService.toggleChoreComplete(chore.id);
+      if (isNowCompleted) {
+        router.push({
+          pathname: '/home/chore-completed',
+          params: {
+            title: chore.title,
+            completedAt: new Date().toISOString(),
+          },
+        } as any);
+      } else {
+        setChore((prev) => (prev ? { ...prev, status: 'pending' } : null));
+      }
     } catch {
       Alert.alert('Error', 'Could not update chore status.');
       loadChoreDetails();
