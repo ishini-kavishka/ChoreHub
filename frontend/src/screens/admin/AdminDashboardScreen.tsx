@@ -91,10 +91,10 @@ export default function AdminDashboardScreen() {
       onPress: () => {},
     },
     {
-      id: 'progress',
-      label: 'View Progress',
-      icon: 'bar-chart-outline' as const,
-      onPress: () => {},
+      id: 'support',
+      label: 'Support & Help',
+      icon: 'headset-outline' as const,
+      onPress: () => router.push('/support?role=admin' as any),
     },
   ];
 
