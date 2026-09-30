@@ -94,7 +94,8 @@ export default function MemberHomeScreen() {
 
   const handleChoreClick = (chore: ChoreItem) => {
     router.push({
-      pathname: '/home/chores',
+      pathname: '/home/chore-details',
+      params: { id: chore.id, choreData: JSON.stringify(chore) },
     } as any);
   };
 
