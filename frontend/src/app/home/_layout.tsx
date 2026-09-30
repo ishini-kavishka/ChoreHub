@@ -14,6 +14,7 @@ export default function HomeLayout() {
       <Tabs.Screen name="chores" options={{ title: 'Chores' }} />
       <Tabs.Screen name="calendar" options={{ title: 'Calendar' }} />
       <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
+      <Tabs.Screen name="chore-details" options={{ href: null }} />
     </Tabs>
   );
 }
