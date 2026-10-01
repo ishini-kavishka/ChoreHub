@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { choreService, ChoreItem } from '@/services/choreService';
 import { MemberChoreCard } from '@/components/chores/MemberChoreCard';
 
@@ -62,6 +62,13 @@ export default function MemberChoresScreen() {
     } catch {
       loadData();
     }
+  };
+
+  const handleViewDetails = (chore: ChoreItem) => {
+    router.push({
+      pathname: '/home/chore-details',
+      params: { id: chore.id, choreData: JSON.stringify(chore) },
+    } as any);
   };
 
   const filteredChores = chores.filter((c) => {
@@ -145,6 +152,7 @@ export default function MemberChoresScreen() {
                 key={item.id}
                 chore={item}
                 onToggleComplete={handleToggleComplete}
+                onViewDetails={handleViewDetails}
               />
             ))}
           </View>
