@@ -43,6 +43,7 @@ async function ensureAuthSchema() {
       CONSTRAINT unique_family_user UNIQUE (family_id, user_id)
     )
   `);
+  await pool.query("ALTER TABLE family_members ADD COLUMN IF NOT EXISTS relationship TEXT DEFAULT 'Other'");
 
   // Chores
   await pool.query(`
