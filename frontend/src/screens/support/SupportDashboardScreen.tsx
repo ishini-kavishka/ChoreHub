@@ -127,7 +127,6 @@ export default function SupportDashboardScreen() {
             icon="ticket-outline"
             title="Submit a Support Request / Ticket"
             subtitle="Get technical or chore assistance"
-            badge="NEW"
             onPress={() => router.push('/support/tickets' as any)}
           />
 
