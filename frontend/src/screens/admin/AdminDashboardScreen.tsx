@@ -101,9 +101,13 @@ export default function AdminDashboardScreen() {
     },
     {
       id: 'progress',
-      label: 'View Progress',
-      icon: 'bar-chart-outline' as const,
-      onPress: () => {},
+      title: 'View Progress',
+      subtitle: 'Check detailed progress\nand reports',
+      icon: 'bar-chart' as const,
+      color: '#3B82F6',
+      bgTint: '#EFF6FF',
+      btnBg: '#DBEAFE',
+      onPress: () => router.push('/admin/chores' as any),
     },
   ];
 
