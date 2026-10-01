@@ -205,7 +205,7 @@ export default function ChangePasswordScreen() {
 
           {/* ── Action Buttons ── */}
           <View style={styles.actionButtonGroup}>
-            {/* Primary Update Button in ChoreHub Theme */}
+            {/* Primary Update Button in ChoreHub Theme (styled like logout button card) */}
             <Pressable
               onPress={submit}
               disabled={loading}
@@ -217,19 +217,23 @@ export default function ChangePasswordScreen() {
               accessibilityRole="button"
             >
               {loading ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
+                <ActivityIndicator color="#713DE8" size="small" />
               ) : (
-                <Text style={styles.updateBtnText}>Update Password</Text>
+                <>
+                  <Ionicons name="checkmark-circle-outline" size={22} color="#713DE8" />
+                  <Text style={styles.updateBtnText}>Update Password</Text>
+                </>
               )}
             </Pressable>
 
-            {/* Cancel Button matching reference mockup */}
+            {/* Cancel Button matching logout button style */}
             <Pressable
               onPress={() => router.back()}
               disabled={loading}
               style={({ pressed }) => [styles.cancelBtn, pressed && styles.btnPressed]}
               accessibilityRole="button"
             >
+              <Ionicons name="close-circle-outline" size={22} color="#EF4444" />
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </Pressable>
           </View>
@@ -411,39 +415,36 @@ const styles = StyleSheet.create({
   },
   updateBtn: {
     width: '100%',
-    height: 52,
-    backgroundColor: '#713DE8',
-    borderRadius: 16,
+    height: 54,
+    backgroundColor: '#F5F3FF',
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: '#C4B5FD',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#713DE8',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.28,
-    shadowRadius: 10,
-    elevation: 4,
+    gap: 10,
   },
   updateBtnText: {
-    color: '#FFFFFF',
+    color: '#713DE8',
     fontSize: 16,
     fontWeight: '800',
-    letterSpacing: -0.2,
   },
   cancelBtn: {
     width: '100%',
-    height: 48,
-    backgroundColor: '#E11D48',
-    borderRadius: 16,
+    height: 54,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: '#FCA5A5',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#E11D48',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 3,
+    gap: 10,
   },
   cancelBtnText: {
-    color: '#FFFFFF',
-    fontSize: 15,
+    color: '#EF4444',
+    fontSize: 16,
     fontWeight: '800',
   },
   btnPressed: {
