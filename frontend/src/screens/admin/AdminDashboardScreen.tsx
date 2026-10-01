@@ -101,12 +101,8 @@ export default function AdminDashboardScreen() {
     },
     {
       id: 'progress',
-      title: 'View Progress',
-      subtitle: 'Check detailed\nprogress and reports',
-      icon: 'bar-chart' as const,
-      color: '#2563EB',
-      bgTint: '#EFF6FF',
-      btnBg: '#DBEAFE',
+      label: 'View Progress',
+      icon: 'bar-chart-outline' as const,
       onPress: () => {},
     },
   ];
