@@ -94,8 +94,8 @@ export default function AdminTicketsScreen() {
       setTickets((current) =>
         current.map((ticket) => ticket.id === updatedTicket.id ? updatedTicket : ticket)
       );
-      setSelectedTicket(updatedTicket);
-      Alert.alert('Reply Sent', `Your reply to ${selectedTicket.ticketNumber} has been saved.`);
+      setSelectedTicket(null);
+      await loadTickets();
     } catch {
       Alert.alert('Error', 'Could not send reply. Please try again.');
     } finally {

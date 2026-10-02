@@ -329,12 +329,14 @@ export default function CustomerTicketsScreen() {
                     >
                       <Text style={styles.ticketActionText}>View</Text>
                     </Pressable>
-                    <Pressable
-                      onPress={() => handleEditTicket(ticket)}
-                      style={[styles.ticketActionBtn, styles.ticketActionPrimary]}
-                    >
-                      <Text style={styles.ticketActionText}>Edit</Text>
-                    </Pressable>
+                    {!ticket.adminNotes && (
+                      <Pressable
+                        onPress={() => handleEditTicket(ticket)}
+                        style={[styles.ticketActionBtn, styles.ticketActionPrimary]}
+                      >
+                        <Text style={styles.ticketActionText}>Edit</Text>
+                      </Pressable>
+                    )}
                     <Pressable
                       onPress={() => handleDeleteTicket(ticket)}
                       style={[styles.ticketActionBtn, styles.ticketActionDanger]}

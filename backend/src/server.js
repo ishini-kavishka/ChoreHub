@@ -8,6 +8,7 @@ const profileRoutes = require('./routes/profileRoutes');
 const choreRoutes = require('./routes/choreRoutes');
 const familyRoutes = require('./routes/familyRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const supportTicketRoutes = require('./routes/supportTicketRoutes');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 
 const app = express();
@@ -30,6 +31,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/chores', choreRoutes);
 app.use('/api/families', familyRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/support/tickets', supportTicketRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
