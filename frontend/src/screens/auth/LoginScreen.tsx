@@ -53,8 +53,14 @@ export default function LoginScreen() {
     }
   };
 
-  const handleGoogleSignIn = () => {
-    Alert.alert('Google Sign-In', 'Google Sign-In feature is coming soon!');
+  const handleGoogleSignIn = async () => {
+    try {
+      setError('');
+      await authService.signInWithGoogle();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Could not open Google Sign-In.';
+      setError(msg);
+    }
   };
 
   return (
