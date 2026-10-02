@@ -170,9 +170,9 @@ export default function SignUpScreen() {
             {/* ── Terms Note ── */}
             <Text style={styles.termsText}>
               By signing up, you agree to our{' '}
-              <Text style={styles.termsLink}>Terms of Service</Text>
+              <Text onPress={() => router.push('/auth/terms' as any)} style={styles.termsLink}>Terms of Service</Text>
               {' '}and{' '}
-              <Text style={styles.termsLink}>Privacy Policy</Text>.
+              <Text onPress={() => router.push('/auth/privacy-policy' as any)} style={styles.termsLink}>Privacy Policy</Text>.
             </Text>
 
             {/* ── Create Account Button ── */}

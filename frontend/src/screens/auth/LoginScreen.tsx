@@ -160,7 +160,6 @@ export default function LoginScreen() {
               </View>
             </View>
 
-            {/* ── Remember Me Checkbox ── */}
             <Pressable
               onPress={() => setRememberMe(!rememberMe)}
               style={styles.rememberRow}

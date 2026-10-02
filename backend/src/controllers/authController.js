@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 const { pool } = require('../config/db');
 const { generateToken } = require('../utils/generateToken');
 
@@ -60,7 +61,7 @@ async function forgotPassword(req, res, next) {
   try {
     const normalizedEmail = normalizeEmail(req.body?.email);
     if (!EMAIL_PATTERN.test(normalizedEmail)) throw appError('A valid email address is required.');
-    const result = await pool.query('SELECT id FROM users WHERE email = $1 AND is_active = TRUE', [normalizedEmail]);
+    const result = await pool.query('SELECT id, full_name, email FROM users WHERE email = $1 AND is_active = TRUE', [normalizedEmail]);
     const user = result.rows[0];
     if (!user) return res.json(genericResponse);
 
@@ -71,8 +72,42 @@ async function forgotPassword(req, res, next) {
        VALUES ($1, $2, NOW() + INTERVAL '15 minutes')`,
       [user.id, tokenHash],
     );
-    // An email provider belongs here. Never expose this token outside development.
-    if (process.env.NODE_ENV === 'development') genericResponse.devResetToken = rawToken;
+
+    const frontEndBaseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const resetLink = `${frontEndBaseUrl}/auth/reset-password?token=${encodeURIComponent(rawToken)}`;
+
+    const smtpHost = process.env.SMTP_HOST;
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+    const emailFrom = process.env.EMAIL_FROM || 'no-reply@chorehub.local';
+
+    if (smtpHost && smtpUser && smtpPass) {
+      const transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: Number(process.env.SMTP_PORT || 587),
+        secure: Number(process.env.SMTP_PORT || 587) === 465,
+        auth: { user: smtpUser, pass: smtpPass },
+      });
+
+      await transporter.sendMail({
+        from: emailFrom,
+        to: normalizedEmail,
+        subject: 'Reset your ChoreHub password',
+        html: `
+          <p>Hello ${user.full_name || 'there'},</p>
+          <p>You requested a password reset for your ChoreHub account.</p>
+          <p><a href="${resetLink}">Reset your password</a></p>
+          <p>If you did not request this, you can ignore this email.</p>
+        `,
+      });
+    } else if (process.env.NODE_ENV === 'development') {
+      console.log('Password reset email generated for development:', {
+        to: normalizedEmail,
+        resetLink,
+      });
+      genericResponse.devResetToken = rawToken;
+    }
+
     return res.json(genericResponse);
   } catch (error) { return next(error); }
 }
