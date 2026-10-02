@@ -96,6 +96,28 @@ export default function HomeLayout() {
           href: null,
         }}
       />
+
+      {/* Hidden Screens - Family & Schedule */}
+      <Tabs.Screen
+        name="family"
+        options={{
+          href: null,
+        }}
+      />
+
+      <Tabs.Screen
+        name="schedule"
+        options={{
+          href: null,
+        }}
+      />
+
+      <Tabs.Screen
+        name="progress"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
