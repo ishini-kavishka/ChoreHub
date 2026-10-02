@@ -97,7 +97,7 @@ export default function CustomerTicketsScreen() {
         setEditingTicketId(null);
         setActiveTab('my_tickets');
       } else {
-        const created = await supportTicketService.createTicket({
+        await supportTicketService.createTicket({
           userName: userName || 'Customer',
           userEmail: userEmail || 'customer@example.com',
           category,
@@ -105,25 +105,13 @@ export default function CustomerTicketsScreen() {
           description: description.trim(),
           priority,
         });
-
-        Alert.alert(
-          'Ticket Created!',
-          `Your request #${created.ticketNumber} has been logged. Our support team will review it shortly.`,
-          [
-            {
-              text: 'View My Tickets',
-              onPress: () => {
-                setSubject('');
-                setDescription('');
-                setCategory('Chore Issue');
-                setPriority('medium');
-                setEditingTicketId(null);
-                setActiveTab('my_tickets');
-                loadTickets();
-              },
-            },
-          ]
-        );
+        await loadTickets();
+        setSubject('');
+        setDescription('');
+        setCategory('Chore Issue');
+        setPriority('medium');
+        setEditingTicketId(null);
+        setActiveTab('my_tickets');
       }
     } catch {
       Alert.alert('Error', editingTicketId ? 'Could not update support ticket. Please try again.' : 'Could not create support ticket. Please try again.');
@@ -215,7 +203,7 @@ export default function CustomerTicketsScreen() {
       {/* Top Header */}
       <View style={styles.header}>
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => router.canGoBack() ? router.back() : router.replace('/support' as any)}
           style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
           accessibilityRole="button"
           accessibilityLabel="Go back"
