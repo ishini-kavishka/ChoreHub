@@ -68,7 +68,8 @@ export default function ContactUsScreen() {
               setSubject('');
               setMessage('');
               setSubmitted(false);
-              router.back();
+              if (router.canGoBack()) router.back();
+              else router.replace('/support/contact-support' as any);
             },
           },
         ]
@@ -81,7 +82,7 @@ export default function ContactUsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => router.canGoBack() ? router.back() : router.replace('/support/contact-support' as any)}
           style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
           accessibilityRole="button"
           accessibilityLabel="Go back"

@@ -51,7 +51,7 @@ export default function SupportDashboardScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => router.canGoBack() ? router.back() : router.replace('/home' as any)}
           style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
           accessibilityRole="button"
           accessibilityLabel="Go back"
@@ -127,7 +127,6 @@ export default function SupportDashboardScreen() {
             icon="ticket-outline"
             title="Submit a Support Request / Ticket"
             subtitle="Get technical or chore assistance"
-            badge="NEW"
             onPress={() => router.push('/support/tickets' as any)}
           />
 

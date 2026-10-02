@@ -12,4 +12,5 @@ export const profileService = {
   async updateProfile(data: Pick<Member, 'name' | 'phone'>) { const response = await apiRequest<{ user: ApiUser }>('/api/profile', { method: 'PUT', body: JSON.stringify({ full_name: data.name, phone: data.phone }) }, await token()); return saveProfile(response.user); },
   async updateAvatar(profileImageUrl: string) { const response = await apiRequest<{ user: ApiUser }>('/api/profile/image', { method: 'PUT', body: JSON.stringify({ profile_image_url: profileImageUrl }) }, await token()); return saveProfile(response.user); },
   async changePassword(currentPassword: string, newPassword: string) { return apiRequest<{ message: string }>('/api/profile/change-password', { method: 'PUT', body: JSON.stringify({ currentPassword, newPassword }) }, await token()); },
+  async deleteProfile() { return apiRequest<{ message: string }>('/api/profile', { method: 'DELETE' }, await token()); },
 };

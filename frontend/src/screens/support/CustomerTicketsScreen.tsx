@@ -41,6 +41,7 @@ export default function CustomerTicketsScreen() {
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<SupportTicket['priority']>('medium');
   const [submitting, setSubmitting] = useState(false);
+  const [editingTicketId, setEditingTicketId] = useState<string | null>(null);
 
   const loadTickets = useCallback(async () => {
     try {
@@ -76,35 +77,102 @@ export default function CustomerTicketsScreen() {
 
     setSubmitting(true);
     try {
-      const created = await supportTicketService.createTicket({
-        userName: userName || 'Customer',
-        userEmail: userEmail || 'customer@example.com',
-        category,
-        subject: subject.trim(),
-        description: description.trim(),
-        priority,
-      });
+      if (editingTicketId) {
+        const updated = await supportTicketService.updateTicket(editingTicketId, {
+          category,
+          subject: subject.trim(),
+          description: description.trim(),
+          priority,
+        });
 
-      Alert.alert(
-        'Ticket Created!',
-        `Your request #${created.ticketNumber} has been logged. Our support team will review it shortly.`,
-        [
-          {
-            text: 'View My Tickets',
-            onPress: () => {
-              setSubject('');
-              setDescription('');
-              setActiveTab('my_tickets');
-              loadTickets();
-            },
-          },
-        ]
-      );
+        if (!updated) {
+          throw new Error('Ticket not found');
+        }
+
+        await loadTickets();
+        setSubject('');
+        setDescription('');
+        setCategory('Chore Issue');
+        setPriority('medium');
+        setEditingTicketId(null);
+        setActiveTab('my_tickets');
+      } else {
+        await supportTicketService.createTicket({
+          userName: userName || 'Customer',
+          userEmail: userEmail || 'customer@example.com',
+          category,
+          subject: subject.trim(),
+          description: description.trim(),
+          priority,
+        });
+        await loadTickets();
+        setSubject('');
+        setDescription('');
+        setCategory('Chore Issue');
+        setPriority('medium');
+        setEditingTicketId(null);
+        setActiveTab('my_tickets');
+      }
     } catch {
-      Alert.alert('Error', 'Could not create support ticket. Please try again.');
+      Alert.alert('Error', editingTicketId ? 'Could not update support ticket. Please try again.' : 'Could not create support ticket. Please try again.');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleViewTicket = (ticket: SupportTicket) => {
+    Alert.alert(
+      `${ticket.ticketNumber} • ${ticket.subject}`,
+      `${ticket.description}\n\nStatus: ${ticket.status.replace('_', ' ')}\nPriority: ${ticket.priority}`
+    );
+  };
+
+  const handleEditTicket = (ticket: SupportTicket) => {
+    setCategory(ticket.category);
+    setSubject(ticket.subject);
+    setDescription(ticket.description);
+    setPriority(ticket.priority);
+    setEditingTicketId(ticket.id);
+    setActiveTab('submit_ticket');
+  };
+
+  const handleDeleteTicket = async (ticket: SupportTicket) => {
+    const deleteConfirmedTicket = async () => {
+      try {
+        const deleted = await supportTicketService.deleteTicket(ticket.id);
+        if (!deleted) throw new Error('Ticket not found');
+
+        setTickets((current) => current.filter((item) => item.id !== ticket.id));
+        if (Platform.OS === 'web') {
+          window.alert('The support ticket has been removed.');
+        } else {
+          Alert.alert('Ticket Deleted', 'The support ticket has been removed.');
+        }
+      } catch {
+        if (Platform.OS === 'web') {
+          window.alert('Could not delete support ticket. Please try again.');
+        } else {
+          Alert.alert('Error', 'Could not delete support ticket. Please try again.');
+        }
+      }
+    };
+
+    const confirmationMessage = `Remove ${ticket.ticketNumber}? This action cannot be undone.`;
+    if (Platform.OS === 'web') {
+      if (window.confirm(confirmationMessage)) {
+        await deleteConfirmedTicket();
+      }
+      return;
+    }
+
+    Alert.alert('Delete ticket', confirmationMessage, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => { void deleteConfirmedTicket(); },
+      },
+    ]);
   };
 
   const renderStatusBadge = (status: SupportTicket['status']) => {
@@ -135,7 +203,7 @@ export default function CustomerTicketsScreen() {
       {/* Top Header */}
       <View style={styles.header}>
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => router.canGoBack() ? router.back() : router.replace('/support' as any)}
           style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
           accessibilityRole="button"
           accessibilityLabel="Go back"
@@ -253,6 +321,29 @@ export default function CustomerTicketsScreen() {
                       </Text>
                     </Text>
                   </View>
+
+                  <View style={styles.ticketActions}>
+                    <Pressable
+                      onPress={() => handleViewTicket(ticket)}
+                      style={[styles.ticketActionBtn, styles.ticketActionSecondary]}
+                    >
+                      <Text style={styles.ticketActionText}>View</Text>
+                    </Pressable>
+                    {!ticket.adminNotes && (
+                      <Pressable
+                        onPress={() => handleEditTicket(ticket)}
+                        style={[styles.ticketActionBtn, styles.ticketActionPrimary]}
+                      >
+                        <Text style={styles.ticketActionText}>Edit</Text>
+                      </Pressable>
+                    )}
+                    <Pressable
+                      onPress={() => handleDeleteTicket(ticket)}
+                      style={[styles.ticketActionBtn, styles.ticketActionDanger]}
+                    >
+                      <Text style={styles.ticketActionText}>Delete</Text>
+                    </Pressable>
+                  </View>
                 </View>
               ))}
             </View>
@@ -269,9 +360,9 @@ export default function CustomerTicketsScreen() {
             keyboardShouldPersistTaps="handled"
           >
             <View style={styles.formContainer}>
-              <Text style={styles.formTitle}>Submit a Support Ticket</Text>
+              <Text style={styles.formTitle}>{editingTicketId ? 'Edit Support Ticket' : 'Submit a Support Ticket'}</Text>
               <Text style={styles.formSubtitle}>
-                Provide details about your question, chore dispute, or technical issue.
+                {editingTicketId ? 'Update the details of your existing support request.' : 'Provide details about your question, chore dispute, or technical issue.'}
               </Text>
 
               {/* Category Selection */}
@@ -372,9 +463,24 @@ export default function CustomerTicketsScreen() {
                 {submitting ? (
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.submitBtnText}>Submit Support Request</Text>
+                  <Text style={styles.submitBtnText}>{editingTicketId ? 'Update Support Request' : 'Submit Support Request'}</Text>
                 )}
               </Pressable>
+
+              {editingTicketId && (
+                <Pressable
+                  onPress={() => {
+                    setEditingTicketId(null);
+                    setSubject('');
+                    setDescription('');
+                    setCategory('Chore Issue');
+                    setPriority('medium');
+                  }}
+                  style={({ pressed }) => [styles.cancelEditBtn, pressed && { opacity: 0.8 }]}
+                >
+                  <Text style={styles.cancelEditBtnText}>Cancel Edit</Text>
+                </Pressable>
+              )}
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -608,6 +714,32 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#8A879A',
   },
+  ticketActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 6,
+  },
+  ticketActionBtn: {
+    flex: 1,
+    borderRadius: 10,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ticketActionPrimary: {
+    backgroundColor: '#EDE9FE',
+  },
+  ticketActionSecondary: {
+    backgroundColor: '#F4F2FA',
+  },
+  ticketActionDanger: {
+    backgroundColor: '#FEE2E2',
+  },
+  ticketActionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1E1B2E',
+  },
   formContainer: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
@@ -708,5 +840,17 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '800',
+  },
+  cancelEditBtn: {
+    backgroundColor: '#F4F2FA',
+    borderRadius: 12,
+    minHeight: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelEditBtnText: {
+    color: '#4B485A',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });
