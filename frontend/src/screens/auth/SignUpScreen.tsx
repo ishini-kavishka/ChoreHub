@@ -84,133 +84,135 @@ export default function SignUpScreen() {
             </View>
           </View>
 
-          {/* ── Error Banner ── */}
-          {error ? (
-            <View style={styles.errorCard}>
-              <Ionicons name="alert-circle" size={18} color="#DC2626" />
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : null}
+          <View style={styles.formCard}>
+            {/* ── Error Banner ── */}
+            {error ? (
+              <View style={styles.errorCard}>
+                <Ionicons name="alert-circle" size={18} color="#DC2626" />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
 
-          {/* ── Input Fields ── */}
-          <View style={styles.formGroup}>
-            {/* Full Name */}
-            <View style={styles.inputCard}>
-              <Ionicons name="person-outline" size={20} color="#8A879A" style={styles.fieldIcon} />
-              <TextInput
-                style={styles.textInput}
-                placeholder="Full Name"
-                placeholderTextColor="#A09DB1"
-                value={name}
-                onChangeText={(t) => { setName(t); clearError(); }}
-                autoComplete="name"
-                autoCapitalize="words"
-              />
-            </View>
-
-            {/* Email */}
-            <View style={styles.inputCard}>
-              <Ionicons name="mail-outline" size={20} color="#8A879A" style={styles.fieldIcon} />
-              <TextInput
-                style={styles.textInput}
-                placeholder="Email"
-                placeholderTextColor="#A09DB1"
-                value={email}
-                onChangeText={(t) => { setEmail(t); clearError(); }}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                autoComplete="email"
-              />
-            </View>
-
-            {/* Password */}
-            <View style={styles.inputCard}>
-              <Ionicons name="lock-closed-outline" size={20} color="#8A879A" style={styles.fieldIcon} />
-              <TextInput
-                style={styles.textInput}
-                placeholder="Password (min 8 characters)"
-                placeholderTextColor="#A09DB1"
-                value={password}
-                onChangeText={(t) => { setPassword(t); clearError(); }}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-              />
-              <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn} hitSlop={10}>
-                <Ionicons
-                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={20}
-                  color="#8A879A"
+            {/* ── Input Fields ── */}
+            <View style={styles.formGroup}>
+              {/* Full Name */}
+              <View style={styles.inputCard}>
+                <Ionicons name="person-outline" size={20} color="#8A879A" style={styles.fieldIcon} />
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Full Name"
+                  placeholderTextColor="#A09DB1"
+                  value={name}
+                  onChangeText={(t) => { setName(t); clearError(); }}
+                  autoComplete="name"
+                  autoCapitalize="words"
                 />
-              </Pressable>
-            </View>
+              </View>
 
-            {/* Confirm Password */}
-            <View style={styles.inputCard}>
-              <Ionicons name="lock-closed-outline" size={20} color="#8A879A" style={styles.fieldIcon} />
-              <TextInput
-                style={styles.textInput}
-                placeholder="Confirm Password"
-                placeholderTextColor="#A09DB1"
-                value={confirm}
-                onChangeText={(t) => { setConfirm(t); clearError(); }}
-                secureTextEntry={!showConfirm}
-                autoCapitalize="none"
-              />
-              <Pressable onPress={() => setShowConfirm(!showConfirm)} style={styles.eyeBtn} hitSlop={10}>
-                <Ionicons
-                  name={showConfirm ? 'eye-off-outline' : 'eye-outline'}
-                  size={20}
-                  color="#8A879A"
+              {/* Email */}
+              <View style={styles.inputCard}>
+                <Ionicons name="mail-outline" size={20} color="#8A879A" style={styles.fieldIcon} />
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Email"
+                  placeholderTextColor="#A09DB1"
+                  value={email}
+                  onChangeText={(t) => { setEmail(t); clearError(); }}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  autoComplete="email"
                 />
-              </Pressable>
+              </View>
+
+              {/* Password */}
+              <View style={styles.inputCard}>
+                <Ionicons name="lock-closed-outline" size={20} color="#8A879A" style={styles.fieldIcon} />
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Password (min 8 characters)"
+                  placeholderTextColor="#A09DB1"
+                  value={password}
+                  onChangeText={(t) => { setPassword(t); clearError(); }}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                />
+                <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn} hitSlop={10}>
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color="#8A879A"
+                  />
+                </Pressable>
+              </View>
+
+              {/* Confirm Password */}
+              <View style={styles.inputCard}>
+                <Ionicons name="lock-closed-outline" size={20} color="#8A879A" style={styles.fieldIcon} />
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Confirm Password"
+                  placeholderTextColor="#A09DB1"
+                  value={confirm}
+                  onChangeText={(t) => { setConfirm(t); clearError(); }}
+                  secureTextEntry={!showConfirm}
+                  autoCapitalize="none"
+                />
+                <Pressable onPress={() => setShowConfirm(!showConfirm)} style={styles.eyeBtn} hitSlop={10}>
+                  <Ionicons
+                    name={showConfirm ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color="#8A879A"
+                  />
+                </Pressable>
+              </View>
             </View>
-          </View>
 
-          {/* ── Terms Note ── */}
-          <Text style={styles.termsText}>
-            By signing up, you agree to our{' '}
-            <Text style={styles.termsLink}>Terms of Service</Text>
-            {' '}and{' '}
-            <Text style={styles.termsLink}>Privacy Policy</Text>.
-          </Text>
+            {/* ── Terms Note ── */}
+            <Text style={styles.termsText}>
+              By signing up, you agree to our{' '}
+              <Text style={styles.termsLink}>Terms of Service</Text>
+              {' '}and{' '}
+              <Text style={styles.termsLink}>Privacy Policy</Text>.
+            </Text>
 
-          {/* ── Create Account Button ── */}
-          <Pressable
-            onPress={handleSignUp}
-            disabled={loading}
-            style={({ pressed }) => [styles.signUpBtn, pressed && { opacity: 0.88 }]}
-          >
-            {loading ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
-            ) : (
-              <Text style={styles.signUpBtnText}>Create Account</Text>
-            )}
-          </Pressable>
-
-          {/* ── Divider ── */}
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OR</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          {/* ── Continue with Google (no-op until Google OAuth is configured) ── */}
-          <Pressable
-            onPress={() => {}}
-            style={({ pressed }) => [styles.googleBtn, pressed && { opacity: 0.88 }]}
-          >
-            <View style={styles.googleGContainer}>
-              <Text style={styles.googleGText}>G</Text>
-            </View>
-            <Text style={styles.googleBtnText}>Continue with Google</Text>
-          </Pressable>
-
-          {/* ── Footer Login Link ── */}
-          <View style={styles.footerRow}>
-            <Text style={styles.footerText}>Already have an account? </Text>
-            <Pressable onPress={() => router.replace('/auth/login' as any)}>
-              <Text style={styles.loginLinkText}>Login</Text>
+            {/* ── Create Account Button ── */}
+            <Pressable
+              onPress={handleSignUp}
+              disabled={loading}
+              style={({ pressed }) => [styles.signUpBtn, pressed && { opacity: 0.88 }]}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={styles.signUpBtnText}>Create Account</Text>
+              )}
             </Pressable>
+
+            {/* ── Divider ── */}
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>OR</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* ── Continue with Google (no-op until Google OAuth is configured) ── */}
+            <Pressable
+              onPress={() => {}}
+              style={({ pressed }) => [styles.googleBtn, pressed && { opacity: 0.88 }]}
+            >
+              <View style={styles.googleGContainer}>
+                <Text style={styles.googleGText}>G</Text>
+              </View>
+              <Text style={styles.googleBtnText}>Continue with Google</Text>
+            </Pressable>
+
+            {/* ── Footer Login Link ── */}
+            <View style={styles.footerRow}>
+              <Text style={styles.footerText}>Already have an account?</Text>
+              <Pressable onPress={() => router.replace('/auth/login' as any)}>
+                <Text style={styles.loginLinkText}>Login</Text>
+              </Pressable>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -287,6 +289,19 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 6,
     elevation: 2,
+  },
+
+  // ── Form Card ──
+  formCard: {
+    width: '100%',
+    backgroundColor: '#F3EEFF',
+    borderRadius: 26,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 5,
   },
 
   // ── Error Card ──
@@ -401,7 +416,7 @@ const styles = StyleSheet.create({
   // ── Google Button ──
   googleBtn: {
     width: '100%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F8F7FF',
     borderRadius: 18,
     height: 54,
     flexDirection: 'row',
@@ -409,10 +424,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 12,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
-    shadowColor: '#000',
+    borderColor: '#E9E3FF',
+    shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
+    shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 2,
     marginBottom: 24,
@@ -440,6 +455,8 @@ const styles = StyleSheet.create({
   footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
   },
   footerText: {
     fontSize: 14,
@@ -450,5 +467,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     color: '#713DE8',
+    marginLeft: 4,
   },
 });
