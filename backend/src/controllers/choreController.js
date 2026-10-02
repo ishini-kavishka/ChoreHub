@@ -239,10 +239,13 @@ async function updateChore(req, res, next) {
     const updatedStatus = ['pending', 'completed'].includes(status) ? status : chore.status;
 
     let completedAt = chore.completed_at;
+    let completedBy = chore.completed_by;
     if (updatedStatus === 'completed' && chore.status !== 'completed') {
       completedAt = new Date();
+      completedBy = req.userId;
     } else if (updatedStatus === 'pending') {
       completedAt = null;
+      completedBy = null;
     }
 
     const query = `
@@ -256,8 +259,9 @@ async function updateChore(req, res, next) {
         recurrence = $7,
         status = $8,
         completed_at = $9,
+        completed_by = $10,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $10
+      WHERE id = $11
       RETURNING *
     `;
 
@@ -271,6 +275,7 @@ async function updateChore(req, res, next) {
       updatedRecurrence,
       updatedStatus,
       completedAt,
+      completedBy,
       id,
     ]);
 
@@ -294,9 +299,10 @@ async function toggleChoreComplete(req, res, next) {
       `UPDATE chores SET
         status = $1,
         completed_at = $2,
+        completed_by = $4,
         updated_at = CURRENT_TIMESTAMP
        WHERE id = $3 RETURNING *`,
-      [newStatus, completedAt, id]
+      [newStatus, completedAt, id, newStatus === 'completed' ? req.userId : null]
     );
 
     return res.json({ chore: result.rows[0] });
