@@ -15,6 +15,11 @@ export default function AdminLayout() {
       <Tabs.Screen name="members" options={{ title: 'Members' }} />
       <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
       <Tabs.Screen name="add-chore" options={{ href: null }} />
+      <Tabs.Screen name="edit-chore" options={{ href: null }} />
+      <Tabs.Screen name="chore-details" options={{ href: null }} />
+      <Tabs.Screen name="add-family-member" options={{ href: null }} />
+      <Tabs.Screen name="calendar" options={{ href: null }} />
+      <Tabs.Screen name="schedule" options={{ href: null }} />
     </Tabs>
   );
 }

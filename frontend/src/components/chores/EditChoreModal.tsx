@@ -30,7 +30,7 @@ export function EditChoreModal({
   const [category, setCategory] = useState('General');
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [recurrence, setRecurrence] = useState<'none' | 'daily' | 'weekly' | 'monthly'>('none');
-  const [status, setStatus] = useState<'pending' | 'completed'>('pending');
+  const [status, setStatus] = useState<'pending' | 'completed' | 'overdue'>('pending');
   const [assignedTo, setAssignedTo] = useState<string | null>(null);
 
   const [members, setMembers] = useState<FamilyMember[]>([]);

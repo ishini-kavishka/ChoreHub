@@ -17,7 +17,7 @@ export interface ChoreItem {
   category?: string;
   priority: 'low' | 'medium' | 'high';
   due_date?: string | null;
-  status: 'pending' | 'completed';
+  status: 'pending' | 'completed' | 'overdue';
   assigned_to?: string | null;
   assignee_name?: string | null;
   assignee_avatar?: string | null;
@@ -121,7 +121,7 @@ export const choreService = {
     );
   },
 
-  async updateChore(id: string, data: Partial<CreateChoreData> & { status?: 'pending' | 'completed' }) {
+  async updateChore(id: string, data: Partial<CreateChoreData> & { status?: 'pending' | 'completed' | 'overdue' }) {
     return apiRequest<{ chore: ChoreItem }>(
       `/api/chores/${id}`,
       {

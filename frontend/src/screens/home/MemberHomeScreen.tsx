@@ -11,11 +11,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '@/components/profile/Avatar';
 import { authService, Member } from '@/services/authService';
 import { profileService } from '@/services/profileService';
 import { choreService, ChoreItem, ChoreStats } from '@/services/choreService';
-import { MemberChoreCard } from '@/components/chores/MemberChoreCard';
 
 export default function MemberHomeScreen() {
   const [profile, setProfile] = useState<Member | null>(null);
@@ -40,10 +40,9 @@ export default function MemberHomeScreen() {
         const freshProfile = await profileService.getProfile();
         setProfile(freshProfile);
       } catch {
-        // Fallback to cached profile if profile API fails
+        // Fallback
       }
 
-      // Fetch member's personal assigned chores and personal stats
       const memberRes = await choreService.getMemberChores();
       if (memberRes?.stats) {
         setStats(memberRes.stats);
@@ -72,7 +71,6 @@ export default function MemberHomeScreen() {
 
   const handleToggleComplete = async (id: string) => {
     try {
-      // Optimistic update
       setChores((prev) =>
         prev.map((c) =>
           c.id === id
@@ -89,20 +87,90 @@ export default function MemberHomeScreen() {
       if (refreshed?.stats) setStats(refreshed.stats);
       if (refreshed?.chores) setChores(refreshed.chores);
     } catch {
-      Alert.alert('Error', 'Could not update chore status. Please try again.');
+      Alert.alert('Error', 'Could not update chore status.');
       loadData();
     }
   };
 
-  const handleProfilePress = () => {
-    router.push('/home/profile');
+  const handleChoreClick = (chore: ChoreItem) => {
+    router.push({
+      pathname: '/home/chore-details',
+      params: { id: chore.id, choreData: JSON.stringify(chore) },
+    } as any);
   };
 
-  const handleViewAllPress = () => {
-    router.push('/home/chores');
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning!';
+    if (hour < 18) return 'Good afternoon!';
+    return 'Good evening!';
   };
 
-  const greetingName = profile?.name ? profile.name.split(' ')[0] : 'Member';
+  const firstName = profile?.name ? profile.name.trim().split(' ')[0] : 'Member';
+  const initial = firstName.charAt(0).toUpperCase();
+  const completionPct = Math.round(stats.completionPercentage ?? 0);
+
+  const getCategoryIcon = (category?: string) => {
+    const cat = (category || '').toLowerCase();
+    if (cat.includes('garden') || cat.includes('plant') || cat.includes('yard')) {
+      return { icon: 'leaf-outline' as const, bg: '#DCFCE7', color: '#16A34A' };
+    }
+    if (cat.includes('living') || cat.includes('mop') || cat.includes('floor') || cat.includes('clean')) {
+      return { icon: 'construct-outline' as const, bg: '#DBEAFE', color: '#2563EB' };
+    }
+    if (cat.includes('bath') || cat.includes('trash') || cat.includes('wash')) {
+      return { icon: 'trash-outline' as const, bg: '#FEE2E2', color: '#DC2626' };
+    }
+    return { icon: 'checkbox-outline' as const, bg: '#EDE9FE', color: '#713DE8' };
+  };
+
+  const formatDueTime = (dateString?: string | null) => {
+    if (!dateString) return 'Today, 10:00 AM';
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return 'Today, 10:00 AM';
+    return `Today, ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+  };
+
+  const QUICK_ACTIONS = [
+    {
+      id: 'chores',
+      label: 'View All\nChores',
+      icon: 'clipboard-outline' as const,
+      color: '#713DE8',
+      onPress: () => router.push('/home/chores' as any),
+    },
+    {
+      id: 'calendar',
+      label: 'View\nCalendar',
+      icon: 'calendar-outline' as const,
+      color: '#EC4899',
+      onPress: () => router.push('/home/calendar' as any),
+    },
+    {
+      id: 'family',
+      label: 'Family\nMembers',
+      icon: 'people-outline' as const,
+      color: '#2563EB',
+      onPress: () => {},
+    },
+    {
+      id: 'progress',
+      label: 'My\nProgress',
+      icon: 'bar-chart-outline' as const,
+      color: '#713DE8',
+      onPress: () => {},
+    },
+  ];
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.centerLoader}>
+          <ActivityIndicator size="large" color="#713DE8" />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -118,122 +186,256 @@ export default function MemberHomeScreen() {
           />
         }
       >
-        {/* Header Section */}
-        <View style={styles.header}>
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.welcomeTag}>WELCOME TO CHOREHUB</Text>
-            <Text style={styles.greetingText}>Hello, {greetingName} 👋</Text>
+        {/* ── Top Header Bar ── */}
+        <View style={styles.topHeader}>
+          {/* ChoreHub Logo */}
+          <View style={styles.logoRow}>
+            <Text style={styles.logoChore}>Chore</Text>
+            <Text style={styles.logoHub}>Hub</Text>
           </View>
-          <Pressable
-            onPress={handleProfilePress}
-            style={({ pressed }) => [
-              styles.avatarButton,
-              pressed && styles.pressed,
-            ]}
-            accessibilityLabel="Open profile"
-          >
-            <Avatar name={profile?.name || 'User'} uri={profile?.avatarUri} size={48} />
-          </Pressable>
+
+          {/* Right Header Controls */}
+          <View style={styles.headerRight}>
+            {/* Notification Bell */}
+            <Pressable
+              style={({ pressed }) => [styles.bellBtn, pressed && { opacity: 0.7 }]}
+              onPress={() => {}}
+            >
+              <Ionicons name="notifications-outline" size={24} color="#1E1B2E" />
+              <View style={styles.bellBadgeDot} />
+            </Pressable>
+
+            {/* Avatar Badge */}
+            <Pressable
+              onPress={() => router.push('/home/profile' as any)}
+              style={({ pressed }) => [styles.avatarWrap, pressed && { opacity: 0.8 }]}
+            >
+              <Avatar name={profile?.name || 'N'} uri={profile?.avatarUri} size={42} />
+            </Pressable>
+          </View>
         </View>
 
-        {/* My Progress Card */}
+        {/* ── Greeting Banner Section ── */}
+        <View style={styles.greetingSection}>
+          <View style={styles.greetingTextGroup}>
+            <Text style={styles.greetingSub}>{getGreeting()} 👋</Text>
+            <Text style={styles.greetingTitle}>{firstName}!</Text>
+            <Text style={styles.greetingCaption}>
+              Let's make today productive together.
+            </Text>
+          </View>
+
+          {/* Right Illustration Badge */}
+          <View style={styles.illustrationWrap}>
+            <View style={styles.speechBubble}>
+              <Text style={styles.speechBubbleText}>Small Steps{'\n'}Big Change!</Text>
+            </View>
+            <View style={styles.avatarGraphicCircle}>
+              <Text style={styles.graphicEmoji}>👩‍🌾</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* ── My Progress Purple Gradient Card ── */}
         <View style={styles.progressCard}>
-          <View style={styles.progressHeader}>
-            <View>
-              <Text style={styles.progressCardTitle}>My Progress</Text>
-              <Text style={styles.progressCardSubtitle}>
-                Keep up the great work!
-              </Text>
+          {/* Card Header */}
+          <View style={styles.progressCardHeader}>
+            <Text style={styles.progressCardTitle}>My Progress</Text>
+            <Pressable onPress={() => {}} style={styles.viewLinkRow}>
+              <Text style={styles.viewLinkText}>View</Text>
+              <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
+            </Pressable>
+          </View>
+
+          {/* Gauge & Subtitle Row */}
+          <View style={styles.gaugeRow}>
+            {/* Circular Gauge */}
+            <View style={styles.gaugeContainer}>
+              <View style={styles.gaugeOuterRing}>
+                <View style={styles.crownBadge}>
+                  <Text style={styles.crownEmoji}>👑</Text>
+                </View>
+                <View style={styles.gaugeInnerCircle}>
+                  <Text style={styles.gaugePercentText}>{completionPct}%</Text>
+                </View>
+              </View>
             </View>
-            <View style={styles.percentageBadge}>
-              <Text style={styles.percentageText}>
-                {Math.round(stats.completionPercentage)}%
+
+            {/* Progress Text & Icon */}
+            <View style={styles.gaugeRightCol}>
+              <Text style={styles.gaugeMessage}>
+                {stats.completed} of {stats.total} chores completed this week!
               </Text>
+              <View style={styles.chartIconBadge}>
+                <Ionicons name="bar-chart" size={20} color="#FFFFFF" />
+              </View>
             </View>
           </View>
 
-          {/* Visual Progress Bar */}
-          <View style={styles.progressBarTrack}>
-            <View
-              style={[
-                styles.progressBarFill,
-                { width: `${Math.min(100, Math.max(0, stats.completionPercentage))}%` },
-              ]}
-            />
-          </View>
-
-          {/* Statistics Grid */}
-          <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
-              <View style={[styles.statIconBadge, styles.pendingBadge]}>
-                <Text style={styles.statIconText}>⏳</Text>
+          {/* Bottom 3 Stat Cards inside container */}
+          <View style={styles.innerStatsRow}>
+            {/* Completed */}
+            <View style={styles.innerStatCard}>
+              <View style={[styles.innerStatIconCircle, { backgroundColor: '#DCFCE7' }]}>
+                <Ionicons name="checkmark" size={16} color="#16A34A" />
               </View>
-              <Text style={styles.statNumber}>{stats.pending}</Text>
-              <Text style={styles.statLabel}>Pending</Text>
+              <Text style={styles.innerStatNum}>{stats.completed}</Text>
+              <Text style={styles.innerStatLabel}>Completed</Text>
             </View>
 
-            <View style={styles.statDivider} />
-
-            <View style={styles.statItem}>
-              <View style={[styles.statIconBadge, styles.completedBadge]}>
-                <Text style={styles.statIconText}>✓</Text>
+            {/* Pending */}
+            <View style={styles.innerStatCard}>
+              <View style={[styles.innerStatIconCircle, { backgroundColor: '#FEF3C7' }]}>
+                <Ionicons name="time" size={16} color="#D97706" />
               </View>
-              <Text style={styles.statNumber}>{stats.completed}</Text>
-              <Text style={styles.statLabel}>Completed</Text>
+              <Text style={styles.innerStatNum}>{stats.pending}</Text>
+              <Text style={styles.innerStatLabel}>Pending</Text>
             </View>
 
-            <View style={styles.statDivider} />
-
-            <View style={styles.statItem}>
-              <View style={[styles.statIconBadge, styles.overdueBadge]}>
-                <Text style={styles.statIconText}>!</Text>
+            {/* Overdue */}
+            <View style={styles.innerStatCard}>
+              <View style={[styles.innerStatIconCircle, { backgroundColor: '#FEE2E2' }]}>
+                <Ionicons name="alert" size={16} color="#DC2626" />
               </View>
-              <Text style={styles.statNumber}>{stats.overdue}</Text>
-              <Text style={styles.statLabel}>Overdue</Text>
+              <Text style={styles.innerStatNum}>{stats.overdue}</Text>
+              <Text style={styles.innerStatLabel}>Overdue</Text>
             </View>
           </View>
         </View>
 
-        {/* My Chores Section */}
-        <View style={styles.choresSection}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.titleRow}>
-              <Text style={styles.sectionTitle}>My Chores</Text>
-              <View style={styles.countBadge}>
-                <Text style={styles.countBadgeText}>{chores.length}</Text>
-              </View>
-            </View>
-            {chores.length > 0 ? (
-              <Pressable onPress={handleViewAllPress} style={styles.viewAllButton}>
-                <Text style={styles.viewAllText}>View All ›</Text>
-              </Pressable>
-            ) : null}
+        {/* ── Today's Chores Section ── */}
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionHeaderTitle}>Today's Chores</Text>
+            <Pressable
+              onPress={() => router.push('/home/chores' as any)}
+              style={styles.viewAllRow}
+            >
+              <Text style={styles.viewAllText}>View All</Text>
+              <Ionicons name="chevron-forward" size={14} color="#713DE8" />
+            </Pressable>
           </View>
 
-          {/* Empty State / Assigned Chores List */}
-          {loading ? (
-            <ActivityIndicator size="large" color="#713DE8" style={{ marginTop: 20 }} />
-          ) : chores.length === 0 ? (
-            <View style={styles.emptyStateCard}>
-              <View style={styles.emptyIconContainer}>
-                <Text style={styles.emptyIcon}>✨</Text>
-              </View>
-              <Text style={styles.emptyStateTitle}>No chores assigned yet!</Text>
-              <Text style={styles.emptyStateSubtitle}>
-                You have no pending chores assigned to you right now. Enjoy your free time!
-              </Text>
+          {chores.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyIcon}>✨</Text>
+              <Text style={styles.emptyTitle}>All caught up!</Text>
+              <Text style={styles.emptySub}>No pending chores scheduled for today.</Text>
             </View>
           ) : (
             <View style={styles.choresList}>
-              {chores.slice(0, 5).map((item) => (
-                <MemberChoreCard
-                  key={item.id}
-                  chore={item}
-                  onToggleComplete={handleToggleComplete}
-                />
-              ))}
+              {chores.slice(0, 3).map((item) => {
+                const catStyle = getCategoryIcon(item.category);
+                const isDone = item.status === 'completed';
+
+                return (
+                  <Pressable
+                    key={item.id}
+                    onPress={() => handleChoreClick(item)}
+                    style={({ pressed }) => [
+                      styles.choreCard,
+                      pressed && styles.choreCardPressed,
+                    ]}
+                  >
+                    {/* Category Icon */}
+                    <View
+                      style={[
+                        styles.choreIconBadge,
+                        { backgroundColor: catStyle.bg },
+                      ]}
+                    >
+                      <Ionicons name={catStyle.icon} size={22} color={catStyle.color} />
+                    </View>
+
+                    {/* Middle Info */}
+                    <View style={styles.choreMetaGroup}>
+                      <Text style={styles.choreTitle} numberOfLines={1}>
+                        {item.title}
+                      </Text>
+                      {item.category ? (
+                        <Text style={styles.choreCategory}>{item.category}</Text>
+                      ) : null}
+                      <View style={styles.dueTimeRow}>
+                        <Ionicons name="calendar-outline" size={13} color="#8A879A" />
+                        <Text style={styles.dueTimeText}>
+                          {formatDueTime(item.due_date)}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Right Badge & Arrow */}
+                    <View style={styles.choreRightCol}>
+                      {item.status === 'pending' ? (
+                        <View style={styles.pendingPill}>
+                          <Text style={styles.pendingPillText}>Pending</Text>
+                        </View>
+                      ) : item.priority === 'high' ? (
+                        <View style={styles.highPriorityPill}>
+                          <Text style={styles.highPriorityText}>High</Text>
+                        </View>
+                      ) : (
+                        <View style={styles.mediumPriorityPill}>
+                          <Text style={styles.mediumPriorityText}>Medium</Text>
+                        </View>
+                      )}
+                      <Ionicons name="chevron-forward" size={16} color="#C4C1D4" />
+                    </View>
+                  </Pressable>
+                );
+              })}
             </View>
           )}
+        </View>
+
+        {/* ── Quick Actions Section ── */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionHeaderTitle}>Quick Actions</Text>
+          <View style={styles.quickGrid}>
+            {QUICK_ACTIONS.map((action) => (
+              <Pressable
+                key={action.id}
+                onPress={action.onPress}
+                style={({ pressed }) => [
+                  styles.quickCard,
+                  pressed && styles.quickCardPressed,
+                ]}
+              >
+                <View style={styles.quickIconWrap}>
+                  <Ionicons name={action.icon} size={26} color={action.color} />
+                </View>
+                <Text style={styles.quickLabel}>{action.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        {/* ── Recent Notifications Section ── */}
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionHeaderTitle}>Recent Notifications</Text>
+            <Pressable onPress={() => {}} style={styles.viewAllRow}>
+              <Text style={styles.viewAllText}>View All</Text>
+              <Ionicons name="chevron-forward" size={14} color="#713DE8" />
+            </Pressable>
+          </View>
+
+          <View style={styles.notificationCard}>
+            <View style={styles.notifLeftBorder} />
+            <View style={styles.notifIconWrap}>
+              <Ionicons name="notifications" size={20} color="#EF4444" />
+            </View>
+            <View style={styles.notifContent}>
+              <View style={styles.notifTitleRow}>
+                <Text style={styles.notifTitle}>Chore Due Today</Text>
+                <Text style={styles.notifTime}>2 hours ago</Text>
+              </View>
+              <Text style={styles.notifSub}>
+                {chores[0]?.title
+                  ? `${chores[0].title} is due today at 10:00 AM.`
+                  : 'Water plants is due today at 10:00 AM.'}
+              </Text>
+            </View>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -243,194 +445,485 @@ export default function MemberHomeScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F8F7FC',
+    backgroundColor: '#FAFAFD',
+  },
+  centerLoader: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 32,
+    paddingBottom: 36,
     gap: 20,
   },
-  pressed: {
-    opacity: 0.8,
-    transform: [{ scale: 0.97 }],
-  },
-  header: {
+
+  // ── Top Header Bar ──
+  topHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    paddingVertical: 4,
   },
-  headerTextContainer: {
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  logoChore: {
+    fontSize: 26,
+    fontWeight: '900',
+    color: '#713DE8',
+    letterSpacing: -0.5,
+  },
+  logoHub: {
+    fontSize: 26,
+    fontWeight: '900',
+    color: '#FF9F1C',
+    letterSpacing: -0.5,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  bellBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#EAE7F5',
+    position: 'relative',
+  },
+  bellBadgeDot: {
+    position: 'absolute',
+    top: 9,
+    right: 9,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#EF4444',
+  },
+  avatarWrap: {
+    borderRadius: 21,
+  },
+
+  // ── Greeting Banner ──
+  greetingSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  greetingTextGroup: {
     flex: 1,
     gap: 2,
   },
-  welcomeTag: {
-    fontSize: 13,
+  greetingSub: {
+    fontSize: 15,
     fontWeight: '700',
-    color: '#713DE8',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    color: '#656276',
   },
-  greetingText: {
-    fontSize: 26,
-    fontWeight: '800',
+  greetingTitle: {
+    fontSize: 30,
+    fontWeight: '900',
     color: '#1E1B2E',
+    letterSpacing: -0.5,
   },
-  avatarButton: {
-    borderRadius: 24,
-    padding: 2,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#713DE8',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 3,
+  greetingCaption: {
+    fontSize: 13,
+    color: '#8A879A',
+    fontWeight: '500',
+    marginTop: 2,
   },
+  illustrationWrap: {
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  speechBubble: {
+    backgroundColor: '#EEF2FF',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderBottomRightRadius: 2,
+  },
+  speechBubbleText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#713DE8',
+    textAlign: 'center',
+  },
+  avatarGraphicCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#EDE9FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  graphicEmoji: {
+    fontSize: 28,
+  },
+
+  // ── My Progress Purple Card ──
   progressCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#6D28D9',
     borderRadius: 24,
     padding: 20,
     gap: 16,
-    borderWidth: 1,
-    borderColor: '#EAE7F5',
-    shadowColor: '#713DE8',
+    shadowColor: '#6D28D9',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.25,
     shadowRadius: 16,
-    elevation: 4,
+    elevation: 6,
   },
-  progressHeader: {
+  progressCardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   progressCardTitle: {
     fontSize: 18,
-    fontWeight: '800',
-    color: '#1E1B2E',
+    fontWeight: '900',
+    color: '#FFFFFF',
   },
-  progressCardSubtitle: {
-    fontSize: 13,
-    color: '#757288',
-    marginTop: 2,
-  },
-  percentageBadge: {
-    backgroundColor: '#F0EAFF',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  percentageText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#713DE8',
-  },
-  progressBarTrack: {
-    height: 10,
-    backgroundColor: '#F0EAFF',
-    borderRadius: 5,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: '#713DE8',
-    borderRadius: 5,
-  },
-  statsContainer: {
+  viewLinkRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#F4F2FA',
-  },
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
     gap: 4,
   },
-  statIconBadge: {
-    width: 32,
-    height: 32,
+  viewLinkText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    opacity: 0.9,
+  },
+  gaugeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  gaugeContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gaugeOuterRing: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 7,
+    borderColor: '#A78BFA',
+    borderTopColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  crownBadge: {
+    position: 'absolute',
+    top: -12,
+    alignSelf: 'center',
+  },
+  crownEmoji: {
+    fontSize: 14,
+  },
+  gaugeInnerCircle: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gaugePercentText: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  gaugeRightCol: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  gaugeMessage: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    lineHeight: 20,
+  },
+  chartIconBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  innerStatsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingTop: 4,
+  },
+  innerStatCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+    gap: 4,
+  },
+  innerStatIconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 2,
   },
-  pendingBadge: { backgroundColor: '#FFF8E6' },
-  completedBadge: { backgroundColor: '#ECFDF5' },
-  overdueBadge: { backgroundColor: '#FEF2F2' },
-  statIconText: { fontSize: 14, fontWeight: '800' },
-  statNumber: { fontSize: 20, fontWeight: '800', color: '#1E1B2E' },
-  statLabel: { fontSize: 12, fontWeight: '600', color: '#757288' },
-  statDivider: { width: 1, height: 36, backgroundColor: '#EAE7F5' },
-  choresSection: { gap: 16 },
-  sectionHeader: {
+  innerStatNum: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#1E1B2E',
+  },
+  innerStatLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#757288',
+  },
+
+  // ── Section Styles ──
+  sectionContainer: {
+    gap: 12,
+  },
+  sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  titleRow: {
+  sectionHeaderTitle: {
+    fontSize: 19,
+    fontWeight: '900',
+    color: '#1E1B2E',
+  },
+  viewAllRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  viewAllText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#713DE8',
+  },
+
+  // ── Today's Chores ──
+  emptyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#EAE7F5',
+    gap: 6,
+  },
+  emptyIcon: { fontSize: 28 },
+  emptyTitle: { fontSize: 16, fontWeight: '800', color: '#1E1B2E' },
+  emptySub: { fontSize: 13, color: '#8A879A' },
+
+  choresList: {
+    gap: 10,
+  },
+  choreCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#EAE7F5',
+    shadowColor: '#713DE8',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  choreCardPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.99 }],
+  },
+  choreIconBadge: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  choreMetaGroup: {
+    flex: 1,
+    gap: 2,
+  },
+  choreTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#1E1B2E',
+  },
+  choreCategory: {
+    fontSize: 12,
+    color: '#8A879A',
+    fontWeight: '500',
+  },
+  dueTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  dueTimeText: {
+    fontSize: 11,
+    color: '#8A879A',
+    fontWeight: '600',
+  },
+  choreRightCol: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#1E1B2E',
-  },
-  countBadge: {
-    backgroundColor: '#713DE8',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-  },
-  countBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  viewAllButton: {
+  pendingPill: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    paddingHorizontal: 8,
+    borderRadius: 10,
   },
-  viewAllText: {
+  pendingPillText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#D97706',
+  },
+  mediumPriorityPill: {
+    backgroundColor: '#EDE9FE',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  mediumPriorityText: {
+    fontSize: 11,
+    fontWeight: '800',
     color: '#713DE8',
-    fontSize: 14,
-    fontWeight: '700',
   },
-  emptyStateCard: {
+  highPriorityPill: {
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  highPriorityText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#DC2626',
+  },
+
+  // ── Quick Actions ──
+  quickGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  quickCard: {
+    flex: 1,
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 28,
+    borderRadius: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 6,
     alignItems: 'center',
+    gap: 8,
     borderWidth: 1,
     borderColor: '#EAE7F5',
-    gap: 10,
+    shadowColor: '#713DE8',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  emptyIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#F0EAFF',
+  quickCardPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.97 }],
+  },
+  quickIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#F4F2FA',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
   },
-  emptyIcon: { fontSize: 26 },
-  emptyStateTitle: {
-    fontSize: 16,
+  quickLabel: {
+    fontSize: 11,
     fontWeight: '800',
     color: '#1E1B2E',
     textAlign: 'center',
+    lineHeight: 14,
   },
-  emptyStateSubtitle: {
-    fontSize: 13,
-    color: '#757288',
-    textAlign: 'center',
-    lineHeight: 19,
+
+  // ── Recent Notifications ──
+  notificationCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#EAE7F5',
+    position: 'relative',
+    overflow: 'hidden',
+    shadowColor: '#713DE8',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  choresList: { gap: 12 },
+  notifLeftBorder: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    backgroundColor: '#F97316',
+  },
+  notifIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FEF2F2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 4,
+  },
+  notifContent: {
+    flex: 1,
+    gap: 2,
+  },
+  notifTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  notifTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1E1B2E',
+  },
+  notifTime: {
+    fontSize: 11,
+    color: '#8A879A',
+    fontWeight: '600',
+  },
+  notifSub: {
+    fontSize: 12,
+    color: '#656276',
+    lineHeight: 16,
+  },
 });

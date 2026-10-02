@@ -4,8 +4,9 @@ const userColumns = 'id, full_name, email, phone, profile_image_url, role, creat
 const appError = (message, statusCode = 400) => Object.assign(new Error(message), { statusCode });
 
 function validImageUrl(value) {
-  if (value === null) return true;
-  if (typeof value !== 'string' || value.length > 2048) return false;
+  if (value === null || value === undefined) return true;
+  if (typeof value !== 'string') return false;
+  if (value.startsWith('data:image/') || value.startsWith('file://') || value.startsWith('content://') || value.startsWith('blob:') || value.startsWith('ph://')) return true;
   try { const url = new URL(value); return url.protocol === 'https:' || url.protocol === 'http:'; } catch { return false; }
 }
 
@@ -65,4 +66,12 @@ async function updateProfileImage(req, res, next) {
   } catch (error) { return next(error); }
 }
 
-module.exports = { getProfile, updateProfile, changePassword, updateProfileImage };
+async function deleteProfile(req, res, next) {
+  try {
+    const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id', [req.userId]);
+    if (!result.rows[0]) throw appError('User not found.', 404);
+    return res.json({ message: 'Account deleted successfully.' });
+  } catch (error) { return next(error); }
+}
+
+module.exports = { getProfile, updateProfile, changePassword, updateProfileImage, deleteProfile };
