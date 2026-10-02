@@ -53,16 +53,6 @@ export default function LoginScreen() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    try {
-      setError('');
-      await authService.signInWithGoogle();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Could not open Google Sign-In.';
-      setError(msg);
-    }
-  };
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
@@ -200,12 +190,11 @@ export default function LoginScreen() {
             <View style={styles.dividerLine} />
           </View>
 
-          {/* ── Continue with Google Button ── */}
+          {/* ── Continue with Google Button (no-op until Google OAuth is configured) ── */}
           <Pressable
-            onPress={handleGoogleSignIn}
+            onPress={() => {}}
             style={({ pressed }) => [styles.googleBtn, pressed && { opacity: 0.88 }]}
           >
-            {/* Google Icon SVG/Design */}
             <View style={styles.googleGContainer}>
               <Text style={styles.googleGText}>G</Text>
             </View>
