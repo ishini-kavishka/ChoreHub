@@ -74,6 +74,29 @@ export default function AdminTicketsScreen() {
     }
   };
 
+  const handleDeleteTicket = async (ticket: SupportTicket) => {
+    Alert.alert('Delete ticket', `Remove ${ticket.ticketNumber} for ${ticket.userName}? This cannot be undone.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          setUpdating(true);
+          try {
+            await supportTicketService.deleteTicket(ticket.id);
+            Alert.alert('Ticket Deleted', `${ticket.ticketNumber} has been removed.`);
+            setSelectedTicket(null);
+            loadTickets();
+          } catch {
+            Alert.alert('Error', 'Could not delete ticket.');
+          } finally {
+            setUpdating(false);
+          }
+        },
+      },
+    ]);
+  };
+
   const renderBadge = (status: SupportTicket['status']) => {
     switch (status) {
       case 'open':
@@ -261,6 +284,14 @@ export default function AdminTicketsScreen() {
                   style={[styles.statusBtn, { backgroundColor: '#FEF3C7' }]}
                 >
                   <Text style={[styles.statusBtnText, { color: '#D97706' }]}>Re-Open</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => handleDeleteTicket(selectedTicket)}
+                  disabled={updating}
+                  style={[styles.statusBtn, { backgroundColor: '#FEE2E2' }]}
+                >
+                  <Text style={[styles.statusBtnText, { color: '#B91C1C' }]}>Delete</Text>
                 </Pressable>
               </View>
             </View>

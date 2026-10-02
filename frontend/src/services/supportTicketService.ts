@@ -109,4 +109,21 @@ export const supportTicketService = {
 
     return target;
   },
+
+  async updateTicket(
+    id: string,
+    updates: Partial<Pick<SupportTicket, 'category' | 'subject' | 'description' | 'priority' | 'adminNotes'>>
+  ): Promise<SupportTicket | null> {
+    const target = inMemoryTickets.find((t) => t.id === id);
+    if (!target) return null;
+
+    Object.assign(target, updates, { updatedAt: new Date().toISOString() });
+    return target;
+  },
+
+  async deleteTicket(id: string): Promise<boolean> {
+    const before = inMemoryTickets.length;
+    inMemoryTickets = inMemoryTickets.filter((t) => t.id !== id);
+    return inMemoryTickets.length < before;
+  },
 };

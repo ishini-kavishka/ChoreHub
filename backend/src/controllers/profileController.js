@@ -66,4 +66,12 @@ async function updateProfileImage(req, res, next) {
   } catch (error) { return next(error); }
 }
 
-module.exports = { getProfile, updateProfile, changePassword, updateProfileImage };
+async function deleteProfile(req, res, next) {
+  try {
+    const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id', [req.userId]);
+    if (!result.rows[0]) throw appError('User not found.', 404);
+    return res.json({ message: 'Account deleted successfully.' });
+  } catch (error) { return next(error); }
+}
+
+module.exports = { getProfile, updateProfile, changePassword, updateProfileImage, deleteProfile };
