@@ -74,6 +74,35 @@ export default function AdminTicketsScreen() {
     }
   };
 
+  const handleSendReply = async () => {
+    if (!selectedTicket) return;
+    const reply = adminNotes.trim();
+    if (!reply) {
+      Alert.alert('Reply Required', 'Enter a reply before sending it to the user.');
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      const updatedTicket = await supportTicketService.updateTicketStatus(
+        selectedTicket.id,
+        selectedTicket.status,
+        reply
+      );
+      if (!updatedTicket) throw new Error('Ticket not found');
+
+      setTickets((current) =>
+        current.map((ticket) => ticket.id === updatedTicket.id ? updatedTicket : ticket)
+      );
+      setSelectedTicket(updatedTicket);
+      Alert.alert('Reply Sent', `Your reply to ${selectedTicket.ticketNumber} has been saved.`);
+    } catch {
+      Alert.alert('Error', 'Could not send reply. Please try again.');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const handleDeleteTicket = async (ticket: SupportTicket) => {
     Alert.alert('Delete ticket', `Remove ${ticket.ticketNumber} for ${ticket.userName}? This cannot be undone.`, [
       { text: 'Cancel', style: 'cancel' },
@@ -249,16 +278,24 @@ export default function AdminTicketsScreen() {
                   {selectedTicket.userName} &lt;{selectedTicket.userEmail}&gt;
                 </Text>
 
-                <Text style={[styles.modalLabel, { marginTop: 12 }]}>Admin Resolution Notes:</Text>
+                <Text style={[styles.modalLabel, { marginTop: 12 }]}>Reply to Support Request:</Text>
                 <TextInput
                   value={adminNotes}
                   onChangeText={setAdminNotes}
-                  placeholder="Enter support reply or notes..."
+                  placeholder="Write a reply to the user..."
                   placeholderTextColor="#9EA5B1"
                   multiline
                   style={styles.modalInput}
                 />
               </ScrollView>
+
+              <Pressable
+                onPress={handleSendReply}
+                disabled={updating}
+                style={[styles.replyButton, updating && { opacity: 0.65 }]}
+              >
+                <Text style={styles.replyButtonText}>{updating ? 'Sending...' : 'Send Reply'}</Text>
+              </Pressable>
 
               <Text style={styles.modalLabel}>Update Status:</Text>
               <View style={styles.modalBtnRow}>
@@ -568,6 +605,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     marginTop: 10,
+  },
+  replyButton: {
+    minHeight: 44,
+    marginBottom: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#6C3BEA',
+  },
+  replyButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
   },
   statusBtn: {
     flex: 1,

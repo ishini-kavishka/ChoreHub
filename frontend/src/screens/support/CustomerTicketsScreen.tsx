@@ -89,9 +89,13 @@ export default function CustomerTicketsScreen() {
           throw new Error('Ticket not found');
         }
 
-        Alert.alert('Ticket Updated', `Your request #${updated.ticketNumber} has been updated.`, [
-          { text: 'View My Tickets', onPress: () => { setSubject(''); setDescription(''); setCategory('Chore Issue'); setPriority('medium'); setEditingTicketId(null); setActiveTab('my_tickets'); loadTickets(); } },
-        ]);
+        await loadTickets();
+        setSubject('');
+        setDescription('');
+        setCategory('Chore Issue');
+        setPriority('medium');
+        setEditingTicketId(null);
+        setActiveTab('my_tickets');
       } else {
         const created = await supportTicketService.createTicket({
           userName: userName || 'Customer',
@@ -145,20 +149,40 @@ export default function CustomerTicketsScreen() {
   };
 
   const handleDeleteTicket = async (ticket: SupportTicket) => {
-    Alert.alert('Delete ticket', `Remove ${ticket.ticketNumber}? This action cannot be undone.`, [
+    const deleteConfirmedTicket = async () => {
+      try {
+        const deleted = await supportTicketService.deleteTicket(ticket.id);
+        if (!deleted) throw new Error('Ticket not found');
+
+        setTickets((current) => current.filter((item) => item.id !== ticket.id));
+        if (Platform.OS === 'web') {
+          window.alert('The support ticket has been removed.');
+        } else {
+          Alert.alert('Ticket Deleted', 'The support ticket has been removed.');
+        }
+      } catch {
+        if (Platform.OS === 'web') {
+          window.alert('Could not delete support ticket. Please try again.');
+        } else {
+          Alert.alert('Error', 'Could not delete support ticket. Please try again.');
+        }
+      }
+    };
+
+    const confirmationMessage = `Remove ${ticket.ticketNumber}? This action cannot be undone.`;
+    if (Platform.OS === 'web') {
+      if (window.confirm(confirmationMessage)) {
+        await deleteConfirmedTicket();
+      }
+      return;
+    }
+
+    Alert.alert('Delete ticket', confirmationMessage, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
         style: 'destructive',
-        onPress: async () => {
-          try {
-            await supportTicketService.deleteTicket(ticket.id);
-            Alert.alert('Ticket Deleted', 'The support ticket has been removed.');
-            loadTickets();
-          } catch {
-            Alert.alert('Error', 'Could not delete support ticket. Please try again.');
-          }
-        },
+        onPress: () => { void deleteConfirmedTicket(); },
       },
     ]);
   };
