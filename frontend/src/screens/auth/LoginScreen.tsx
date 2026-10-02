@@ -419,7 +419,7 @@ const styles = StyleSheet.create({
   // ── Form Card ──
   formCard: {
     width: '100%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F3EEFF',
     borderRadius: 26,
     padding: 18,
     shadowColor: '#000',
