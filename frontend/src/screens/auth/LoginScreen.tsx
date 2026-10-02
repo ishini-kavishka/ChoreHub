@@ -204,7 +204,7 @@ export default function LoginScreen() {
 
             {/* ── Footer Link ── */}
             <View style={styles.footerRow}>
-              <Text style={styles.footerText}>Don't have an account? </Text>
+              <Text style={styles.footerText}>Don't have an account?</Text>
               <Pressable onPress={() => router.push('/auth/signup' as any)}>
                 <Text style={styles.signUpLinkText}>Sign Up</Text>
               </Pressable>
@@ -534,7 +534,7 @@ const styles = StyleSheet.create({
   // ── Google Button ──
   googleBtn: {
     width: '100%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F8F7FF',
     borderRadius: 18,
     height: 54,
     flexDirection: 'row',
@@ -542,10 +542,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 12,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
-    shadowColor: '#000',
+    borderColor: '#E9E3FF',
+    shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
+    shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 2,
     marginBottom: 28,
@@ -573,6 +573,8 @@ const styles = StyleSheet.create({
   footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
   },
   footerText: {
     fontSize: 14,
@@ -583,5 +585,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     color: '#713DE8',
+    marginLeft: 4,
   },
 });
