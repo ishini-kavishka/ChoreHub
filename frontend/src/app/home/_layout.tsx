@@ -10,12 +10,92 @@ export default function HomeLayout() {
         headerShown: false,
       }}
     >
-      <Tabs.Screen name="index" options={{ title: 'Home' }} />
-      <Tabs.Screen name="chores" options={{ title: 'Chores' }} />
-      <Tabs.Screen name="calendar" options={{ title: 'Calendar' }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
-      <Tabs.Screen name="chore-details" options={{ href: null }} />
-      <Tabs.Screen name="chore-completed" options={{ href: null }} />
+      {/* Main Tab Screens */}
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Home',
+        }}
+      />
+
+      <Tabs.Screen
+        name="chores"
+        options={{
+          title: 'Chores',
+        }}
+      />
+
+      <Tabs.Screen
+        name="calendar"
+        options={{
+          title: 'Calendar',
+        }}
+      />
+
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          title: 'Notification',
+        }}
+      />
+
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+        }}
+      />
+
+      {/* Hidden Screens - Progress & Settings */}
+      <Tabs.Screen
+        name="completed-chores"
+        options={{
+          href: null,
+        }}
+      />
+
+      <Tabs.Screen
+        name="settings"
+        options={{
+          href: null,
+        }}
+      />
+
+      <Tabs.Screen
+        name="notification-settings"
+        options={{
+          href: null,
+        }}
+      />
+
+      <Tabs.Screen
+        name="preferences"
+        options={{
+          href: null,
+        }}
+      />
+
+      <Tabs.Screen
+        name="about"
+        options={{
+          href: null,
+        }}
+      />
+
+      {/* Hidden Screens - Chore Management */}
+      <Tabs.Screen
+        name="chore-details"
+        options={{
+          href: null,
+        }}
+      />
+
+      <Tabs.Screen
+        name="chore-completed"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }

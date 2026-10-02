@@ -12,7 +12,7 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}, tok
       headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
     });
   } catch {
-    throw new ApiError(`Unable to reach ChoreHub at ${API_BASE_URL}. Check that your phone and computer are on the same network.`);
+    throw new ApiError(`Unable to reach ChoreHub at ${API_BASE_URL}. Configure EXPO_PUBLIC_API_URL; physical Expo Go devices need this PC's LAN IP.`);
   }
 
   const body = await response.json().catch(() => ({}));

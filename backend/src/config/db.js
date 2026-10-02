@@ -1,7 +1,9 @@
 const { Pool } = require('pg');
 
 if (!process.env.DATABASE_URL) {
-  console.warn('DATABASE_URL is not set. Database-backed routes will be unavailable.');
+  console.warn(
+    'DATABASE_URL is not set. Database-backed routes will be unavailable.'
+  );
 }
 
 const pool = new Pool({
@@ -9,25 +11,41 @@ const pool = new Pool({
 });
 
 async function ensureAuthSchema() {
+  // Explicitly use the public schema.
+  await pool.query('SET search_path TO public');
+
+  // =========================================================
+  // Password Reset Tokens
+  // =========================================================
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    CREATE TABLE IF NOT EXISTS public.password_reset_tokens (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
       token_hash TEXT NOT NULL,
       expires_at TIMESTAMPTZ NOT NULL,
       used BOOLEAN NOT NULL DEFAULT FALSE,
       created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `);
-  await pool.query('CREATE INDEX IF NOT EXISTS password_reset_tokens_lookup_idx ON password_reset_tokens (token_hash, used, expires_at)');
 
-  // Support tickets
-  await pool.query('CREATE SEQUENCE IF NOT EXISTS support_ticket_number_seq START WITH 1045');
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS support_tickets (
+    CREATE INDEX IF NOT EXISTS password_reset_tokens_lookup_idx
+    ON public.password_reset_tokens (token_hash, used, expires_at)
+  `);
+
+  // =========================================================
+  // Support Tickets
+  // =========================================================
+  await pool.query(`
+    CREATE SEQUENCE IF NOT EXISTS public.support_ticket_number_seq
+    START WITH 1045
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS public.support_tickets (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       ticket_number TEXT NOT NULL UNIQUE,
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
       user_name TEXT NOT NULL,
       user_email TEXT NOT NULL,
       category TEXT NOT NULL,
@@ -40,58 +58,91 @@ async function ensureAuthSchema() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `);
-  await pool.query('CREATE INDEX IF NOT EXISTS support_tickets_user_created_idx ON support_tickets (user_id, created_at DESC)');
-  await pool.query('CREATE INDEX IF NOT EXISTS support_tickets_status_created_idx ON support_tickets (status, created_at DESC)');
 
-  // Families
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS families (
+    CREATE INDEX IF NOT EXISTS support_tickets_user_created_idx
+    ON public.support_tickets (user_id, created_at DESC)
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS support_tickets_status_created_idx
+    ON public.support_tickets (status, created_at DESC)
+  `);
+
+  // =========================================================
+  // Families
+  // =========================================================
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS public.families (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       name TEXT NOT NULL,
       invite_code TEXT UNIQUE NOT NULL,
-      created_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_by UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
       created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
+  // =========================================================
   // Family Members
+  // =========================================================
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS family_members (
+    CREATE TABLE IF NOT EXISTS public.family_members (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      family_id UUID NOT NULL REFERENCES families(id) ON DELETE CASCADE,
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      family_id UUID NOT NULL REFERENCES public.families(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
       role TEXT NOT NULL DEFAULT 'member',
       joined_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT unique_family_user UNIQUE (family_id, user_id)
     )
   `);
-  await pool.query("ALTER TABLE family_members ADD COLUMN IF NOT EXISTS relationship TEXT DEFAULT 'Other'");
 
-  // Chores
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS chores (
+    ALTER TABLE public.family_members
+    ADD COLUMN IF NOT EXISTS relationship TEXT DEFAULT 'Other'
+  `);
+
+  // =========================================================
+  // Chores
+  // =========================================================
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS public.chores (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      family_id UUID REFERENCES families(id) ON DELETE CASCADE,
+      family_id UUID REFERENCES public.families(id) ON DELETE CASCADE,
       title TEXT NOT NULL,
       description TEXT,
       category TEXT DEFAULT 'General',
       priority TEXT NOT NULL DEFAULT 'medium',
       due_date TIMESTAMPTZ,
       status TEXT NOT NULL DEFAULT 'pending',
-      assigned_to UUID REFERENCES users(id) ON DELETE SET NULL,
-      created_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      assigned_to UUID REFERENCES public.users(id) ON DELETE SET NULL,
+      created_by UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
       recurrence TEXT DEFAULT 'none',
       completed_at TIMESTAMPTZ,
+      completed_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
-  // Notifications
+  // Add columns safely for databases where chores table already exists
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS notifications (
+    ALTER TABLE public.chores
+    ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ
+  `);
+
+  await pool.query(`
+    ALTER TABLE public.chores
+    ADD COLUMN IF NOT EXISTS completed_by UUID
+    REFERENCES public.users(id) ON DELETE SET NULL
+  `);
+
+  // =========================================================
+  // Notifications
+  // =========================================================
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS public.notifications (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
       title TEXT NOT NULL,
       message TEXT NOT NULL,
       type TEXT DEFAULT 'info',
@@ -100,13 +151,78 @@ async function ensureAuthSchema() {
     )
   `);
 
+  // =========================================================
+  // Notification Settings
+  // =========================================================
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS public.notification_settings (
+      user_id UUID PRIMARY KEY
+        REFERENCES public.users(id) ON DELETE CASCADE,
+      chore_reminders BOOLEAN NOT NULL DEFAULT TRUE,
+      chore_completions BOOLEAN NOT NULL DEFAULT TRUE,
+      family_updates BOOLEAN NOT NULL DEFAULT TRUE,
+      announcements BOOLEAN NOT NULL DEFAULT FALSE,
+      reminder_time TEXT NOT NULL DEFAULT '10min',
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // =========================================================
+  // User Preferences
+  // =========================================================
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS public.user_preferences (
+      user_id UUID PRIMARY KEY
+        REFERENCES public.users(id) ON DELETE CASCADE,
+      theme TEXT NOT NULL DEFAULT 'light',
+      language TEXT NOT NULL DEFAULT 'en',
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // =========================================================
   // Indexes
-  await pool.query('CREATE INDEX IF NOT EXISTS chores_family_idx ON chores (family_id)');
-  await pool.query('CREATE INDEX IF NOT EXISTS chores_assigned_idx ON chores (assigned_to)');
-  await pool.query('CREATE INDEX IF NOT EXISTS chores_created_by_idx ON chores (created_by)');
-  await pool.query('CREATE INDEX IF NOT EXISTS chores_status_due_idx ON chores (status, due_date)');
-  await pool.query('CREATE INDEX IF NOT EXISTS family_members_user_idx ON family_members (user_id)');
-  await pool.query('CREATE INDEX IF NOT EXISTS notifications_user_idx ON notifications (user_id, is_read)');
+  // =========================================================
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS chores_family_idx
+    ON public.chores (family_id)
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS chores_assigned_idx
+    ON public.chores (assigned_to)
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS chores_created_by_idx
+    ON public.chores (created_by)
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS chores_status_due_idx
+    ON public.chores (status, due_date)
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS family_members_user_idx
+    ON public.family_members (user_id)
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS notifications_user_idx
+    ON public.notifications (user_id, is_read)
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS chores_completed_at_idx
+    ON public.chores (completed_at)
+    WHERE status = 'completed'
+  `);
+
+  console.log('Database schema checked successfully.');
 }
 
-module.exports = { pool, ensureAuthSchema };
+module.exports = {
+  pool,
+  ensureAuthSchema,
+};

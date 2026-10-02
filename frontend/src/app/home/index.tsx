@@ -1,3 +1,3 @@
-import MemberHomeScreen from '@/screens/home/MemberHomeScreen';
+import ProgressDashboardScreen from '@/screens/home/ProgressDashboardScreen';
 
-export default MemberHomeScreen;
+export default ProgressDashboardScreen;
