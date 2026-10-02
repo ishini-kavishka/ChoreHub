@@ -13,9 +13,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '@/components/profile/Avatar';
+import { NotificationPanel } from '@/components/notifications/NotificationPanel';
 import { authService, Member } from '@/services/authService';
 import { profileService } from '@/services/profileService';
 import { choreService, ChoreItem, ChoreStats } from '@/services/choreService';
+import { notificationService } from '@/services/notificationService';
 
 export default function MemberHomeScreen() {
   const [profile, setProfile] = useState<Member | null>(null);
@@ -27,6 +29,8 @@ export default function MemberHomeScreen() {
     completionPercentage: 0,
   });
   const [chores, setChores] = useState<ChoreItem[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -49,6 +53,13 @@ export default function MemberHomeScreen() {
       }
       if (memberRes?.chores) {
         setChores(memberRes.chores);
+      }
+
+      try {
+        const unreadCount = await notificationService.getUnreadCount();
+        setUnreadNotifsCount(unreadCount);
+      } catch {
+        // Fallback
       }
     } catch {
       // Soft fail
@@ -151,14 +162,14 @@ export default function MemberHomeScreen() {
       label: 'Family\nMembers',
       icon: 'people-outline' as const,
       color: '#2563EB',
-      onPress: () => {},
+      onPress: () => router.push('/home/family' as any),
     },
     {
       id: 'progress',
       label: 'My\nProgress',
       icon: 'bar-chart-outline' as const,
       color: '#713DE8',
-      onPress: () => {},
+      onPress: () => router.push('/home/progress' as any),
     },
   ];
 
@@ -199,10 +210,19 @@ export default function MemberHomeScreen() {
             {/* Notification Bell */}
             <Pressable
               style={({ pressed }) => [styles.bellBtn, pressed && { opacity: 0.7 }]}
-              onPress={() => {}}
+              onPress={() => setShowNotifications(true)}
+              accessibilityLabel="Open notifications"
             >
               <Ionicons name="notifications-outline" size={24} color="#1E1B2E" />
-              <View style={styles.bellBadgeDot} />
+              {unreadNotifsCount > 0 ? (
+                <View style={styles.bellBadgeDot}>
+                  <Text style={styles.bellBadgeText}>
+                    {unreadNotifsCount > 9 ? '9+' : unreadNotifsCount}
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.bellBadgeDot} />
+              )}
             </Pressable>
 
             {/* Avatar Badge */}
@@ -241,7 +261,7 @@ export default function MemberHomeScreen() {
           {/* Card Header */}
           <View style={styles.progressCardHeader}>
             <Text style={styles.progressCardTitle}>My Progress</Text>
-            <Pressable onPress={() => {}} style={styles.viewLinkRow}>
+          <Pressable onPress={() => router.push('/home/progress' as any)} style={styles.viewLinkRow}>
               <Text style={styles.viewLinkText}>View</Text>
               <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
             </Pressable>
@@ -438,6 +458,13 @@ export default function MemberHomeScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Notification Panel Modal */}
+      <NotificationPanel
+        visible={showNotifications}
+        onClose={() => setShowNotifications(false)}
+        onUnreadCountChange={setUnreadNotifsCount}
+      />
     </SafeAreaView>
   );
 }
@@ -500,12 +527,20 @@ const styles = StyleSheet.create({
   },
   bellBadgeDot: {
     position: 'absolute',
-    top: 9,
-    right: 9,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    top: 4,
+    right: 4,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  bellBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
   },
   avatarWrap: {
     borderRadius: 21,
