@@ -12,10 +12,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '@/components/profile/Avatar';
+import { useAppTheme } from '@/context/ThemeContext';
 import { authService, Member } from '@/services/authService';
 import { profileService } from '@/services/profileService';
 
 export default function ProfileScreen() {
+  const { colors } = useAppTheme();
   const [profile, setProfile] = useState<Member | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -83,7 +85,7 @@ export default function ProfileScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -101,17 +103,17 @@ export default function ProfileScreen() {
             style={styles.headerIconButton}
             hitSlop={10}
           >
-            <Ionicons name="chevron-back" size={24} color="#1E1B2E" />
+            <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
           </Pressable>
 
-          <Text style={styles.headerTitle}>Profile</Text>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Profile</Text>
 
           <Pressable
             onPress={() => router.push('/profile/edit')}
             style={styles.headerIconButton}
             hitSlop={10}
           >
-            <Ionicons name="settings-outline" size={22} color="#1E1B2E" />
+            <Ionicons name="settings-outline" size={22} color={colors.textPrimary} />
           </Pressable>
         </View>
 
@@ -128,12 +130,12 @@ export default function ProfileScreen() {
             </Pressable>
           </View>
 
-          <Text style={styles.userName}>{profile.name}</Text>
-          <Text style={styles.userEmail}>{profile.email}</Text>
+          <Text style={[styles.userName, { color: colors.textPrimary }]}>{profile.name}</Text>
+          <Text style={[styles.userEmail, { color: colors.textSecondary }]}>{profile.email}</Text>
         </View>
 
         {/* ── Unified Menu List Card ── */}
-        <View style={styles.menuCard}>
+        <View style={[styles.menuCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           {/* 1. Personal Information */}
           <MenuItem
             iconName="person-outline"
@@ -142,7 +144,7 @@ export default function ProfileScreen() {
             title="Personal Information"
             onPress={() => router.push('/profile/edit')}
           />
-          <View style={styles.menuDivider} />
+          <View style={[styles.menuDivider, { backgroundColor: colors.border }]} />
 
           {/* 2. Household Settings */}
           <MenuItem
@@ -152,17 +154,17 @@ export default function ProfileScreen() {
             title="Household Settings"
             onPress={() => router.push('/home' as any)}
           />
-          <View style={styles.menuDivider} />
+          <View style={[styles.menuDivider, { backgroundColor: colors.border }]} />
 
-          {/* 3. Notifications */}
+          {/* 3. App Settings */}
           <MenuItem
-            iconName="notifications-outline"
-            iconColor="#3B82F6"
-            iconBg="#E6F0FF"
-            title="Notifications"
-            onPress={() => {}}
+            iconName="settings-outline"
+            iconColor="#713DE8"
+            iconBg="#EDE9FE"
+            title="App Settings"
+            onPress={() => router.push('/home/settings' as any)}
           />
-          <View style={styles.menuDivider} />
+          <View style={[styles.menuDivider, { backgroundColor: colors.border }]} />
 
           {/* 4. Change Password */}
           <MenuItem
@@ -172,7 +174,7 @@ export default function ProfileScreen() {
             title="Change Password"
             onPress={() => router.push('/profile/change-password')}
           />
-          <View style={styles.menuDivider} />
+          <View style={[styles.menuDivider, { backgroundColor: colors.border }]} />
 
           {/* 5. App Preferences */}
           <MenuItem
@@ -180,9 +182,9 @@ export default function ProfileScreen() {
             iconColor="#0EA5E9"
             iconBg="#E0F2FE"
             title="App Preferences"
-            onPress={() => {}}
+            onPress={() => router.push('/home/preferences' as any)}
           />
-          <View style={styles.menuDivider} />
+          <View style={[styles.menuDivider, { backgroundColor: colors.border }]} />
 
           {/* 6. Support & Help */}
           <MenuItem
@@ -284,6 +286,7 @@ function MenuItem({
   title: string;
   onPress: () => void;
 }) {
+  const { colors } = useAppTheme();
   return (
     <Pressable
       onPress={onPress}
@@ -293,9 +296,9 @@ function MenuItem({
         <Ionicons name={iconName} size={20} color={iconColor} />
       </View>
 
-      <Text style={styles.menuItemTitle}>{title}</Text>
+      <Text style={[styles.menuItemTitle, { color: colors.textPrimary }]}>{title}</Text>
 
-      <Ionicons name="chevron-forward" size={18} color="#A09DB1" />
+      <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
     </Pressable>
   );
 }

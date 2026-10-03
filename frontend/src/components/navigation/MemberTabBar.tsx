@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useAppTheme } from '@/context/ThemeContext';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -37,9 +38,19 @@ const TAB_CONFIGS: Record<string, TabConfig> = {
 
 export function MemberTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { colors } = useAppTheme();
 
   return (
-    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: colors.card,
+          borderTopColor: colors.border,
+          paddingBottom: Math.max(insets.bottom, 10),
+        },
+      ]}
+    >
       {state.routes
         .filter((route) => TAB_CONFIGS[route.name] !== undefined)
         .map((route) => {
@@ -60,8 +71,8 @@ export function MemberTabBar({ state, descriptors, navigation }: BottomTabBarPro
             }
           };
 
-          const activeColor = '#6C3BEA';
-          const inactiveColor = '#8A879A';
+          const activeColor = colors.primary;
+          const inactiveColor = colors.textSecondary;
           const currentColor = isFocused ? activeColor : inactiveColor;
           const iconName = isFocused ? tabConfig.activeIcon : tabConfig.inactiveIcon;
 

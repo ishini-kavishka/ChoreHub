@@ -14,8 +14,10 @@ export interface NotificationSettings {
 
 export interface UserPreferences {
   user_id?: string;
-  theme: 'light' | 'dark';
+  theme: 'light' | 'dark' | 'system';
   language: 'en' | 'si' | 'ta';
+  brightness?: number;
+  auto_brightness?: boolean;
 }
 
 const DEFAULT_SETTINGS: NotificationSettings = {
@@ -29,6 +31,8 @@ const DEFAULT_SETTINGS: NotificationSettings = {
 const DEFAULT_PREFS: UserPreferences = {
   theme: 'light',
   language: 'en',
+  brightness: 70,
+  auto_brightness: false,
 };
 
 async function token() {

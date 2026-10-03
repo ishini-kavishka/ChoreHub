@@ -6,6 +6,7 @@ export default function HomeLayout() {
   return (
     <Tabs
       tabBar={(props: any) => <MemberTabBar {...props} />}
+      backBehavior="history"
       screenOptions={{
         headerShown: false,
       }}
@@ -49,34 +50,6 @@ export default function HomeLayout() {
       {/* Hidden Screens - Progress & Settings */}
       <Tabs.Screen
         name="completed-chores"
-        options={{
-          href: null,
-        }}
-      />
-
-      <Tabs.Screen
-        name="settings"
-        options={{
-          href: null,
-        }}
-      />
-
-      <Tabs.Screen
-        name="notification-settings"
-        options={{
-          href: null,
-        }}
-      />
-
-      <Tabs.Screen
-        name="preferences"
-        options={{
-          href: null,
-        }}
-      />
-
-      <Tabs.Screen
-        name="about"
         options={{
           href: null,
         }}

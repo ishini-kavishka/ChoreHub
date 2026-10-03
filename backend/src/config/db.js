@@ -147,8 +147,15 @@ async function ensureAuthSchema() {
       message TEXT NOT NULL,
       type TEXT DEFAULT 'info',
       is_read BOOLEAN NOT NULL DEFAULT FALSE,
+      reminder_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
+  `);
+
+  // Add reminder_at for databases created before this column existed
+  await pool.query(`
+    ALTER TABLE public.notifications
+    ADD COLUMN IF NOT EXISTS reminder_at TIMESTAMPTZ
   `);
 
   // =========================================================
@@ -176,8 +183,17 @@ async function ensureAuthSchema() {
         REFERENCES public.users(id) ON DELETE CASCADE,
       theme TEXT NOT NULL DEFAULT 'light',
       language TEXT NOT NULL DEFAULT 'en',
+      brightness INTEGER NOT NULL DEFAULT 70,
+      auto_brightness BOOLEAN NOT NULL DEFAULT FALSE,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
+  `);
+
+  await pool.query(`
+    ALTER TABLE public.user_preferences
+    ADD COLUMN IF NOT EXISTS brightness INTEGER NOT NULL DEFAULT 70;
+    ALTER TABLE public.user_preferences
+    ADD COLUMN IF NOT EXISTS auto_brightness BOOLEAN NOT NULL DEFAULT FALSE;
   `);
 
   // =========================================================
