@@ -188,7 +188,7 @@ export function Component04Screen({ kind }: { kind: 'notifications'|'completed'|
 
   else if (kind === 'completed') content=<><Text style={[s.subtitle,{color:muted}]}>{t('completed_chores_subtitle')}</Text><TextInput value={query} onChangeText={setQuery} placeholder={t('search_placeholder')} placeholderTextColor={muted} style={[s.input,{backgroundColor:card,color:fg}]} accessibilityLabel={t('search_placeholder')}/><View style={s.chips}>{(['all','today','week','month'] as const).map(v=><Pressable key={v} onPress={()=>setRange(v)} style={[s.chip,range===v&&s.selected]}><Text style={{color:range===v?'#fff':fg}}>{v==='all'?t('filter_all'):v==='today'?t('filter_today'):v==='week'?t('filter_week'):t('filter_month')}</Text></Pressable>)}</View>{busy?<ActivityIndicator color={purple}/>:error?<Text style={{color:'#EF4444'}}>{error}</Text>:chores.length===0?<Text style={{color:muted}}>No completed chores match this search.</Text>:chores.map(c=>panel(<View key={c.id} style={s.row}><Ionicons name="checkmark-circle" size={24} color="#22C55E"/><View style={{flex:1}}><Text style={[s.rowTitle,{color:fg}]}>{c.title}</Text><Text style={{color:muted}}>By {c.assignee_name||c.creator_name||'Member'}</Text></View><Text style={{color:muted}}>{new Date(c.completed_at||c.updated_at).toLocaleDateString()}</Text></View>))}</>;
 
-  else if (kind === 'settings') content=<>{banner}{[['notification_settings','notification_settings_sub','notifications','/home/notification-settings'],['reminder_time','reminder_time_sub','time','/home/reminder-time'],['theme','theme_sub','color-palette','/home/preferences'],['language','language_sub','language','/home/preferences'],['about_app','about_app_sub','information-circle','/home/about']].map(([a,b,icon,path])=><Pressable key={a} onPress={()=>router.push(path as any)}>{panel(<View style={s.row}><Ionicons name={icon as any} size={24} color={purple}/><View style={{flex:1}}><Text style={[s.rowTitle,{color:fg}]}>{t(a as any)}</Text><Text style={{color:muted}}>{t(b as any)}</Text></View><Ionicons name="chevron-forward" size={20} color={muted}/></View>)}</Pressable>)}</>;
+  else if (kind === 'settings') content=<>{banner}{[['notification_settings','notification_settings_sub','notifications','/home/notification-settings'],['reminder_time','reminder_time_sub','time','/home/reminder-time'],['theme','theme_sub','color-palette','/home/preferences'],['language','language_sub','language','/home/language'],['about_app','about_app_sub','information-circle','/home/about']].map(([a,b,icon,path])=><Pressable key={a} onPress={()=>router.push(path as any)}>{panel(<View style={s.row}><Ionicons name={icon as any} size={24} color={purple}/><View style={{flex:1}}><Text style={[s.rowTitle,{color:fg}]}>{t(a as any)}</Text><Text style={{color:muted}}>{t(b as any)}</Text></View><Ionicons name="chevron-forward" size={20} color={muted}/></View>)}</Pressable>)}</>;
 
   // ── Notification Settings — four individual toggle cards matching the reference design ──
   // Auto-saves each toggle immediately via settingsService.saveNotificationSettings().
@@ -375,33 +375,6 @@ export function Component04Screen({ kind }: { kind: 'notifications'|'completed'|
             ios_backgroundColor={dark ? '#3D3A4E' : '#D1D5DB'}
             accessibilityLabel="Auto Brightness"
           />
-        </View>
-
-        {/* ── Language Section ── */}
-        <Text style={[s.sectionHead, { color: fg, marginTop: 18, marginBottom: 8 }]}>
-          {t('language')}
-        </Text>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          {(['en', 'si', 'ta'] as const).map((v) => (
-            <Pressable
-              key={v}
-              style={[
-                s.langChoice,
-                {
-                  backgroundColor: card,
-                  borderColor: language === v ? purple : colors.border,
-                },
-              ]}
-              onPress={async () => {
-                await setLanguage(v);
-                await settingsService.savePreferences({ language: v }).catch(() => {});
-              }}
-            >
-              <Text style={{ color: language === v ? purple : fg, fontWeight: '700' }}>
-                {v === 'en' ? t('english') : v === 'si' ? t('sinhala') : t('tamil')}
-              </Text>
-            </Pressable>
-          ))}
         </View>
 
         {/* ── Informational Card ── */}

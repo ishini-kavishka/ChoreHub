@@ -85,7 +85,7 @@ export const settingsService = {
     }
   },
 
-  async savePreferences(prefs: UserPreferences): Promise<UserPreferences> {
+  async savePreferences(prefs: Partial<UserPreferences>): Promise<Partial<UserPreferences>> {
     const res = await apiRequest<{ preferences: UserPreferences }>(
       '/api/settings/preferences',
       { method: 'PUT', body: JSON.stringify(prefs) },

@@ -4,33 +4,34 @@ import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '@/context/ThemeContext';
+import { useLanguage } from '@/context/LanguageContext';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
 interface TabConfig {
-  label: string;
+  labelKey: string;
   activeIcon: IconName;
   inactiveIcon: IconName;
 }
 
 const TAB_CONFIGS: Record<string, TabConfig> = {
   index: {
-    label: 'Home',
+    labelKey: 'tab_home',
     activeIcon: 'home',
     inactiveIcon: 'home-outline',
   },
   chores: {
-    label: 'Chores',
+    labelKey: 'tab_chores',
     activeIcon: 'clipboard',
     inactiveIcon: 'clipboard-outline',
   },
   calendar: {
-    label: 'Calendar',
+    labelKey: 'tab_calendar',
     activeIcon: 'calendar',
     inactiveIcon: 'calendar-outline',
   },
   profile: {
-    label: 'Profile',
+    labelKey: 'tab_profile',
     activeIcon: 'person',
     inactiveIcon: 'person-outline',
   },

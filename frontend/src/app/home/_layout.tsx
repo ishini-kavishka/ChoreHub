@@ -91,6 +91,32 @@ export default function HomeLayout() {
           href: null,
         }}
       />
+
+      {/* Hidden Screens - Settings */}
+      <Tabs.Screen
+        name="settings"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="notification-settings"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="preferences"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="reminder-time"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="language"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="about"
+        options={{ href: null }}
+      />
     </Tabs>
   );
 }

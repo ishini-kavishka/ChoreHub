@@ -1,6 +1,7 @@
 /**
  * i18n translations dictionary.
  * Supports: English (en), Sinhala (si), Tamil (ta).
+ * Only languages with COMPLETE translations are included.
  */
 
 export type Language = 'en' | 'si' | 'ta';
@@ -85,6 +86,8 @@ export const translations = {
     build: 'Build',
     privacy_policy: 'Privacy Policy',
     terms_of_service: 'Terms of Service',
+    language_screen_title: 'Language',
+    search_languages: 'Search languages…',
   },
 
   si: {
@@ -159,6 +162,8 @@ export const translations = {
     build: 'ගොඩනැගිල්ල',
     privacy_policy: 'රහස්‍යතා ප්‍රතිපත්තිය',
     terms_of_service: 'සේවා නියම',
+    language_screen_title: 'භාෂාව',
+    search_languages: 'භාෂා සොයන්න…',
   },
 
   ta: {
@@ -233,6 +238,8 @@ export const translations = {
     build: 'கட்டமைப்பு',
     privacy_policy: 'தனியுரிமைக் கொள்கை',
     terms_of_service: 'சேவை விதிமுறைகள்',
+    language_screen_title: 'மொழி',
+    search_languages: 'மொழிகளை தேடுங்கள்…',
   },
 } as const;
 

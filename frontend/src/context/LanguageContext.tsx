@@ -33,7 +33,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     readPersistedLang().then((saved) => {
-      if (saved === 'en' || saved === 'si' || saved === 'ta') setLangState(saved);
+      if (saved && (saved in translations)) setLangState(saved as Language);
     });
   }, []);
 
