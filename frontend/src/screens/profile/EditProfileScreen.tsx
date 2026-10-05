@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +15,8 @@ export default function EditProfileScreen() {
 	const [error, setError] = useState('');
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
+	const [showDeleteModal, setShowDeleteModal] = useState(false);
+	const [showDeletedModal, setShowDeletedModal] = useState(false);
 
 	useEffect(() => {
 		profileService
@@ -54,14 +56,8 @@ export default function EditProfileScreen() {
 			setError('');
 			await profileService.deleteProfile();
 			await authService.signOut();
-			if (Platform.OS === 'web') {
-				globalThis.alert('Your account has been removed.');
-				router.replace('/auth/login');
-			} else {
-				Alert.alert('Account deleted', 'Your account has been removed.', [
-					{ text: 'OK', onPress: () => router.replace('/auth/login') },
-				]);
-			}
+			setShowDeleteModal(false);
+			setShowDeletedModal(true);
 		} catch (requestError) {
 			setError(requestError instanceof Error ? requestError.message : 'We could not delete your account.');
 		} finally {
@@ -70,16 +66,7 @@ export default function EditProfileScreen() {
 	};
 
 	const deleteAccount = () => {
-		const message = 'This action permanently removes your account and cannot be undone. Continue?';
-		if (Platform.OS === 'web') {
-			if (globalThis.confirm(message)) void confirmDeleteAccount();
-			return;
-		}
-
-		Alert.alert('Delete account', message, [
-			{ text: 'Cancel', style: 'cancel' },
-			{ text: 'Delete', style: 'destructive', onPress: () => void confirmDeleteAccount() },
-		]);
+		setShowDeleteModal(true);
 	};
 
 	return (
@@ -161,6 +148,83 @@ export default function EditProfileScreen() {
 					<Text style={styles.deleteButtonText}>Delete account</Text>
 				</Pressable>
 			</ScrollView>
+			<Modal
+				visible={showDeleteModal}
+				transparent
+				animationType="fade"
+				onRequestClose={() => {
+					if (!saving) setShowDeleteModal(false);
+				}}
+			>
+				<View style={styles.modalOverlay}>
+					<Pressable
+						style={styles.modalBackdrop}
+						onPress={() => {
+							if (!saving) setShowDeleteModal(false);
+						}}
+					/>
+					<View style={styles.modalCard}>
+						<View style={styles.modalIconContainer}>
+							<Ionicons name="trash-outline" size={30} color="#EF4444" />
+						</View>
+						<Text style={styles.modalTitle}>Delete Account?</Text>
+						<Text style={styles.modalMessage}>
+							This action permanently removes your account and cannot be undone. Continue?
+						</Text>
+						<View style={styles.modalActions}>
+							<Pressable
+								onPress={() => void confirmDeleteAccount()}
+								disabled={saving}
+								style={({ pressed }) => [
+									styles.modalDeleteBtn,
+									pressed && styles.modalBtnPressed,
+									saving && styles.modalBtnDisabled,
+								]}
+							>
+								{saving ? (
+									<ActivityIndicator color="#FFFFFF" size="small" />
+								) : (
+									<Text style={styles.modalPrimaryBtnText}>Delete account</Text>
+								)}
+							</Pressable>
+							<Pressable
+								onPress={() => setShowDeleteModal(false)}
+								disabled={saving}
+								style={({ pressed }) => [
+									styles.modalSecondaryBtn,
+									pressed && styles.modalBtnPressed,
+								]}
+							>
+								<Text style={styles.modalSecondaryBtnText}>Cancel</Text>
+							</Pressable>
+						</View>
+					</View>
+				</View>
+			</Modal>
+
+			<Modal visible={showDeletedModal} transparent animationType="fade">
+				<View style={styles.modalOverlay}>
+					<View style={styles.modalCard}>
+						<View style={styles.successIconContainer}>
+							<Ionicons name="checkmark-circle-outline" size={30} color="#10B981" />
+						</View>
+						<Text style={styles.modalTitle}>Account Deleted</Text>
+						<Text style={styles.modalMessage}>Your account has been removed.</Text>
+						<View style={styles.modalActions}>
+							<Pressable
+								onPress={() => {
+									setShowDeletedModal(false);
+									router.dismissAll();
+									router.replace('/auth/welcome');
+								}}
+								style={styles.modalPrimaryBtn}
+							>
+								<Text style={styles.modalPrimaryBtnText}>OK</Text>
+							</Pressable>
+						</View>
+					</View>
+				</View>
+			</Modal>
 		</SafeAreaView>
 	);
 }
@@ -187,4 +251,75 @@ const styles = StyleSheet.create({
 	deleteButtonText: { color: '#EF4444', fontSize: 16, fontWeight: '800' },
 	pressed: { opacity: 0.84 },
 	disabled: { opacity: 0.6 },
+	modalOverlay: {
+		flex: 1,
+		backgroundColor: 'rgba(15, 23, 42, 0.55)',
+		justifyContent: 'center',
+		alignItems: 'center',
+		padding: 24,
+	},
+	modalBackdrop: { ...StyleSheet.absoluteFill },
+	modalCard: {
+		width: '100%',
+		maxWidth: 340,
+		backgroundColor: '#FFFFFF',
+		borderRadius: 24,
+		paddingHorizontal: 24,
+		paddingVertical: 28,
+		alignItems: 'center',
+		shadowColor: '#000',
+		shadowOffset: { width: 0, height: 10 },
+		shadowOpacity: 0.15,
+		shadowRadius: 20,
+		elevation: 8,
+	},
+	modalIconContainer: {
+		width: 60,
+		height: 60,
+		borderRadius: 30,
+		backgroundColor: '#FEF2F2',
+		alignItems: 'center',
+		justifyContent: 'center',
+		marginBottom: 16,
+	},
+	successIconContainer: {
+		width: 60,
+		height: 60,
+		borderRadius: 30,
+		backgroundColor: '#D1FAE5',
+		alignItems: 'center',
+		justifyContent: 'center',
+		marginBottom: 16,
+	},
+	modalTitle: { fontSize: 20, fontWeight: '800', color: '#1E1B2E', marginBottom: 8, textAlign: 'center' },
+	modalMessage: { fontSize: 14, color: '#8A879A', textAlign: 'center', lineHeight: 21, marginBottom: 24 },
+	modalActions: { width: '100%', gap: 10 },
+	modalPrimaryBtn: {
+		width: '100%',
+		height: 48,
+		borderRadius: 14,
+		backgroundColor: '#713DE8',
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	modalDeleteBtn: {
+		width: '100%',
+		height: 48,
+		borderRadius: 14,
+		backgroundColor: '#EF4444',
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	modalPrimaryBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+	modalSecondaryBtn: {
+		width: '100%',
+		height: 48,
+		borderRadius: 14,
+		backgroundColor: '#F0EFF8',
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	modalSecondaryBtnText: { color: '#713DE8', fontSize: 15, fontWeight: '700' },
+	modalBtnPressed: { opacity: 0.82 },
+	modalBtnDisabled: { opacity: 0.65 },
 });
