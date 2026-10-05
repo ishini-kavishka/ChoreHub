@@ -195,17 +195,17 @@ export function Component04Screen({ kind }: { kind: 'notifications'|'completed'|
   // Reminder Time is intentionally excluded from this screen (it lives in its own Settings entry).
   else if (kind === 'notificationSettings') {
     const notifCards: {
-      key: 'chore_reminders' | 'chore_completions' | 'family_updates' | 'announcements';
+      key: keyof NotificationSettings;
       label: string;
       sub: string;
       icon: keyof typeof Ionicons.glyphMap;
       iconColor: string;
       iconBg: string;
     }[] = [
-      { key: 'chore_reminders',  label: 'Chore Reminders',  sub: 'Upcoming chores',              icon: 'alarm-outline',           iconColor: '#EF4444', iconBg: '#FEE2E2' },
-      { key: 'chore_completions',label: 'Chore Completions', sub: 'When chores are completed',    icon: 'checkmark-circle-outline', iconColor: '#22C55E', iconBg: '#DCFCE7' },
-      { key: 'family_updates',   label: 'Family Updates',    sub: 'Assignments and activity',     icon: 'people-outline',           iconColor: '#8B5CF6', iconBg: '#EDE9FE' },
-      { key: 'announcements',    label: 'Announcements',     sub: 'Important household updates',  icon: 'megaphone-outline',        iconColor: '#3B82F6', iconBg: '#DBEAFE' },
+      { key: 'chore_reminders',   label: t('chore_reminders'),       sub: t('chore_reminders'),          icon: 'alarm-outline',            iconColor: '#EF4444', iconBg: '#FEE2E2' },
+      { key: 'chore_completions', label: t('chore_completions'),     sub: t('chore_completions'),        icon: 'checkmark-circle-outline', iconColor: '#22C55E', iconBg: '#DCFCE7' },
+      { key: 'family_updates',    label: t('family_updates_label'),  sub: t('family_updates_label'),     icon: 'people-outline',           iconColor: '#8B5CF6', iconBg: '#EDE9FE' },
+      { key: 'announcements',     label: t('announcements'),         sub: t('announcements'),            icon: 'megaphone-outline',        iconColor: '#3B82F6', iconBg: '#DBEAFE' },
     ];
 
     const toggleNotif = async (key: typeof notifCards[number]['key'], value: boolean) => {
@@ -229,7 +229,7 @@ export function Component04Screen({ kind }: { kind: 'notifications'|'completed'|
         {banner}
         {/* Loading spinner while fetching settings from backend */}
         {busy && <ActivityIndicator color={purple} style={{ marginVertical: 8 }} />}
-        <Text style={[s.sectionHead, { color: fg }]}>Notification Types</Text>
+        <Text style={[s.sectionHead, { color: fg }]}>{t('notification_settings')}</Text>
         {notifCards.map(({ key, label, sub, icon, iconColor, iconBg }) => (
           <View key={key} style={[s.notifCard, { backgroundColor: card }]}>
             {/* Coloured icon badge */}
@@ -292,7 +292,7 @@ export function Component04Screen({ kind }: { kind: 'notifications'|'completed'|
             }}
           >
             <Ionicons name="sunny" size={32} color="#0284C7" />
-            <Text style={[s.themeCardText, { color: fg }]}>LIGHT</Text>
+            <Text style={[s.themeCardText, { color: fg }]}>{t('light_theme').toUpperCase()}</Text>
           </Pressable>
 
           {/* DARK CARD */}
@@ -313,13 +313,13 @@ export function Component04Screen({ kind }: { kind: 'notifications'|'completed'|
             }}
           >
             <Ionicons name="moon" size={28} color="#FFFFFF" />
-            <Text style={[s.themeCardText, { color: '#FFFFFF' }]}>DARK</Text>
+            <Text style={[s.themeCardText, { color: '#FFFFFF' }]}>{t('dark_theme').toUpperCase()}</Text>
           </Pressable>
         </View>
 
         {/* ── Brightness Section ── */}
         <Text style={[s.sectionHead, { color: fg, marginTop: 18, marginBottom: 8 }]}>
-          Brightness
+          {t('brightness')}
         </Text>
         <View style={s.brightnessRow}>
           <Ionicons name="sunny-outline" size={22} color={muted} />
@@ -362,9 +362,9 @@ export function Component04Screen({ kind }: { kind: 'notifications'|'completed'|
             <Ionicons name="sunny-outline" size={22} color={muted} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[s.rowTitle, { color: fg }]}>Auto Brightness</Text>
+            <Text style={[s.rowTitle, { color: fg }]}>{t('auto_brightness')}</Text>
             <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>
-              Adjust brightness based on your device settings
+              {t('auto_brightness_sub')}
             </Text>
           </View>
           <Switch
@@ -415,7 +415,7 @@ export function Component04Screen({ kind }: { kind: 'notifications'|'completed'|
         <View style={s.overlay}>
           <View style={[s.formCard, { backgroundColor: card }]}>
             <Text style={[s.rowTitle, { color: fg, fontSize: 18, marginBottom: 4 }]}>
-              {editId ? 'Edit Reminder' : 'New Reminder'}
+              {editId ? t('edit') : t('new_reminder')}
             </Text>
 
             <TextInput
@@ -449,10 +449,10 @@ export function Component04Screen({ kind }: { kind: 'notifications'|'completed'|
             {!!error && <Text style={{ color: '#EF4444', fontSize: 13 }}>{error}</Text>}
 
             <Pressable style={[s.primary, saving && { opacity: 0.6 }]} onPress={saveForm} disabled={saving} accessibilityRole="button">
-              <Text style={s.primaryText}>{saving ? 'Saving…' : 'Save Reminder'}</Text>
+              <Text style={s.primaryText}>{saving ? t('saving') : t('save')}</Text>
             </Pressable>
             <Pressable style={{ marginTop: 6, alignItems: 'center', paddingVertical: 10 }} onPress={() => { setShowForm(false); setError(''); }} accessibilityRole="button">
-              <Text style={{ color: muted, fontWeight: '600' }}>Cancel</Text>
+              <Text style={{ color: muted, fontWeight: '600' }}>{t('cancel')}</Text>
             </Pressable>
           </View>
         </View>

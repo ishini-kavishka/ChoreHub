@@ -40,6 +40,7 @@ const TAB_CONFIGS: Record<string, TabConfig> = {
 export function MemberTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const { colors } = useAppTheme();
+  const { t } = useLanguage();
 
   return (
     <View
@@ -59,6 +60,7 @@ export function MemberTabBar({ state, descriptors, navigation }: BottomTabBarPro
           const { options } = descriptors[route.key];
           const isFocused = state.index === index;
           const tabConfig = TAB_CONFIGS[route.name];
+          const tabLabel = t(tabConfig.labelKey as any);
 
           const onPress = () => {
             const event = navigation.emit({
@@ -84,7 +86,7 @@ export function MemberTabBar({ state, descriptors, navigation }: BottomTabBarPro
               style={({ pressed }) => [styles.tabItem, pressed && styles.tabPressed]}
               accessibilityRole="button"
               accessibilityState={isFocused ? { selected: true } : {}}
-              accessibilityLabel={tabConfig.label}
+              accessibilityLabel={tabLabel}
             >
               <Ionicons name={iconName} size={22} color={currentColor} style={styles.icon} />
               <Text
@@ -94,7 +96,7 @@ export function MemberTabBar({ state, descriptors, navigation }: BottomTabBarPro
                   isFocused && styles.activeLabel,
                 ]}
               >
-                {tabConfig.label}
+                {tabLabel}
               </Text>
             </Pressable>
           );

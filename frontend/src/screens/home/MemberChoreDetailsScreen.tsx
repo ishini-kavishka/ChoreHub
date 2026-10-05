@@ -11,9 +11,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useLanguage } from '@/context/LanguageContext';
 import { choreService, ChoreItem } from '@/services/choreService';
 
 export default function MemberChoreDetailsScreen() {
+  const { t } = useLanguage();
   const params = useLocalSearchParams<{ id?: string; choreData?: string }>();
   const choreId = params.id;
 
@@ -80,9 +82,9 @@ export default function MemberChoreDetailsScreen() {
   };
 
   const formatDate = (dateString?: string | null) => {
-    if (!dateString) return 'Not set';
+    if (!dateString) return t('not_set');
     const date = new Date(dateString);
-    if (isNaN(date.getTime())) return 'Not set';
+    if (isNaN(date.getTime())) return t('not_set');
     return date.toLocaleDateString('en-GB', {
       day: 'numeric',
       month: 'short',
@@ -93,35 +95,35 @@ export default function MemberChoreDetailsScreen() {
   const getPriorityStyle = (priority?: string) => {
     switch (priority) {
       case 'high':
-        return { bg: '#FEE2E2', text: '#DC2626', label: 'High' };
+        return { bg: '#FEE2E2', text: '#DC2626', label: t('priority_high') };
       case 'low':
-        return { bg: '#DCFCE7', text: '#16A34A', label: 'Low' };
+        return { bg: '#DCFCE7', text: '#16A34A', label: t('priority_low') };
       default:
-        return { bg: '#EDE9FE', text: '#713DE8', label: 'Medium' };
+        return { bg: '#EDE9FE', text: '#713DE8', label: t('priority_medium') };
     }
   };
 
   const getStatusStyle = (status?: string) => {
     switch (status) {
       case 'completed':
-        return { bg: '#DCFCE7', text: '#16A34A', label: 'Completed' };
+        return { bg: '#DCFCE7', text: '#16A34A', label: t('status_completed') };
       case 'overdue':
-        return { bg: '#FEE2E2', text: '#DC2626', label: 'Overdue' };
+        return { bg: '#FEE2E2', text: '#DC2626', label: t('status_overdue') };
       default:
-        return { bg: '#FEF3C7', text: '#D97706', label: 'Pending' };
+        return { bg: '#FEF3C7', text: '#D97706', label: t('status_pending') };
     }
   };
 
   const getRepeatLabel = (rec?: string) => {
     switch (rec) {
       case 'daily':
-        return 'Daily';
+        return t('repeat_daily');
       case 'weekly':
-        return 'Weekly';
+        return t('repeat_weekly');
       case 'monthly':
-        return 'Monthly';
+        return t('repeat_monthly');
       default:
-        return 'No repeat';
+        return t('repeat_none');
     }
   };
 
@@ -153,16 +155,16 @@ export default function MemberChoreDetailsScreen() {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Pressable onPress={() => router.back()} style={styles.backBtn} accessibilityLabel={t('go_back')}>
             <Ionicons name="chevron-back" size={24} color="#1E1B2E" />
           </Pressable>
-          <Text style={styles.headerTitle}>Chore Details</Text>
+          <Text style={styles.headerTitle}>{t('chore_details_title')}</Text>
           <View style={{ width: 32 }} />
         </View>
         <View style={styles.centerContainer}>
-          <Text style={styles.errorText}>Chore not found.</Text>
+          <Text style={styles.errorText}>{t('chore_not_found')}</Text>
           <Pressable onPress={() => router.back()} style={styles.returnBtn}>
-            <Text style={styles.returnBtnText}>Go Back</Text>
+            <Text style={styles.returnBtnText}>{t('go_back')}</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -181,11 +183,11 @@ export default function MemberChoreDetailsScreen() {
         <Pressable
           onPress={() => router.back()}
           style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
-          accessibilityLabel="Back"
+          accessibilityLabel={t('go_back')}
         >
           <Ionicons name="chevron-back" size={24} color="#1E1B2E" />
         </Pressable>
-        <Text style={styles.headerTitle}>Chore Details</Text>
+        <Text style={styles.headerTitle}>{t('chore_details_title')}</Text>
         <View style={{ width: 32 }} />
       </View>
 
@@ -238,7 +240,7 @@ export default function MemberChoreDetailsScreen() {
           <View style={styles.detailRow}>
             <View style={styles.detailLabelRow}>
               <Ionicons name="cog-outline" size={18} color="#1E1B2E" />
-              <Text style={styles.detailLabel}>Priority</Text>
+              <Text style={styles.detailLabel}>{t('priority_label')}</Text>
             </View>
             <View
               style={[
@@ -256,7 +258,7 @@ export default function MemberChoreDetailsScreen() {
           <View style={styles.detailRow}>
             <View style={styles.detailLabelRow}>
               <Ionicons name="calendar-outline" size={18} color="#1E1B2E" />
-              <Text style={styles.detailLabel}>Due Date</Text>
+              <Text style={styles.detailLabel}>{t('due_date_label')}</Text>
             </View>
             <Text style={styles.detailValueText}>{formatDate(chore.due_date)}</Text>
           </View>
@@ -265,7 +267,7 @@ export default function MemberChoreDetailsScreen() {
           <View style={styles.detailRow}>
             <View style={styles.detailLabelRow}>
               <Ionicons name="refresh-outline" size={18} color="#1E1B2E" />
-              <Text style={styles.detailLabel}>Repeat</Text>
+              <Text style={styles.detailLabel}>{t('repeat_label')}</Text>
             </View>
             <Text style={styles.detailValueText}>{getRepeatLabel(chore.recurrence)}</Text>
           </View>
@@ -274,19 +276,19 @@ export default function MemberChoreDetailsScreen() {
           <View style={styles.detailRowNoBorder}>
             <View style={styles.detailLabelRow}>
               <Ionicons name="swap-horizontal-outline" size={18} color="#1E1B2E" />
-              <Text style={styles.detailLabel}>Assigned by</Text>
+              <Text style={styles.detailLabel}>{t('assigned_by_label')}</Text>
             </View>
             <Text style={styles.detailValueText}>
-              {chore.creator_name ? `${chore.creator_name} (Admin)` : 'Ishini (Admin)'}
+              {chore.creator_name ? `${chore.creator_name} (${t('role_admin')})` : `Admin (${t('role_admin')})`}
             </Text>
           </View>
         </View>
 
         {/* ── Description Card Box ── */}
         <View style={styles.descriptionCard}>
-          <Text style={styles.descriptionHeader}>Description</Text>
+          <Text style={styles.descriptionHeader}>{t('description_label')}</Text>
           <Text style={styles.descriptionBody}>
-            {chore.description || 'No additional description provided for this chore.'}
+            {chore.description || t('no_description_provided')}
           </Text>
         </View>
 
@@ -316,7 +318,7 @@ export default function MemberChoreDetailsScreen() {
                     isCompleted && styles.completedActionBtnText,
                   ]}
                 >
-                  {isCompleted ? 'Mark as Pending' : 'Mark as Completed'}
+                  {isCompleted ? t('mark_as_pending') : t('mark_as_completed')}
                 </Text>
               </>
             )}

@@ -22,11 +22,12 @@ import { authService, Member } from '@/services/authService';
 import { profileService } from '@/services/profileService';
 import { choreService, ChoreItem } from '@/services/choreService';
 import { notificationService } from '@/services/notificationService';
+import { useLanguage } from '@/context/LanguageContext';
 
 type TimeRange = 'week' | 'month' | 'all';
 
 // ─── Green Donut Ring Chart Component ─────────────────────────────────────────
-function DonutRing({ percentage, size = 140 }: { percentage: number; size?: number }) {
+function DonutRing({ percentage, size = 140, completedLabel = 'Completed' }: { percentage: number; size?: number; completedLabel?: string }) {
   const strokeWidth = 14;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -69,7 +70,7 @@ function DonutRing({ percentage, size = 140 }: { percentage: number; size?: numb
           {Math.round(pct)}%
         </Text>
         <Text style={{ fontSize: 13, fontWeight: '600', color: '#8A879A' }}>
-          Completed
+          {completedLabel}
         </Text>
       </View>
     </View>
@@ -77,6 +78,7 @@ function DonutRing({ percentage, size = 140 }: { percentage: number; size?: numb
 }
 
 export default function ProgressDashboardScreen() {
+  const { t } = useLanguage();
   const [profile, setProfile] = useState<Member | null>(null);
   const [chores, setChores] = useState<ChoreItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -235,12 +237,12 @@ export default function ProgressDashboardScreen() {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning,';
-    if (hour < 18) return 'Good afternoon,';
-    return 'Good evening,';
+    if (hour < 12) return t('greeting_morning');
+    if (hour < 18) return t('greeting_afternoon');
+    return t('greeting_evening');
   };
 
-  const firstName = profile?.name ? profile.name.trim().split(' ')[0] : 'Ishini';
+  const firstName = profile?.name ? profile.name.trim().split(' ')[0] : t('role_member');
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -265,7 +267,7 @@ export default function ProgressDashboardScreen() {
           <View style={styles.headerTextGroup}>
             <Text style={styles.greetingSub}>{getGreeting()}</Text>
             <Text style={styles.greetingTitle}>{firstName}! 👋</Text>
-            <Text style={styles.greetingCaption}>Here's your progress</Text>
+            <Text style={styles.greetingCaption}>{t('heres_your_progress')}</Text>
           </View>
 
           {/* Right Bell Icon */}
@@ -289,9 +291,9 @@ export default function ProgressDashboardScreen() {
           {(['week', 'month', 'all'] as TimeRange[]).map((tab) => {
             const isSelected = timeRange === tab;
             const labels: Record<TimeRange, string> = {
-              week: 'This Week',
-              month: 'This Month',
-              all: 'All Time',
+              week: t('this_week'),
+              month: t('this_month'),
+              all: t('all_time'),
             };
 
             return (
@@ -320,7 +322,7 @@ export default function ProgressDashboardScreen() {
             {/* ── Main Progress Donut Card ── */}
             <View style={styles.donutCard}>
               {/* Left Green Ring */}
-              <DonutRing percentage={stats.completionPercentage} size={145} />
+              <DonutRing percentage={stats.completionPercentage} size={145} completedLabel={t('status_completed')} />
 
               {/* Right Breakdowns Column */}
               <View style={styles.breakdownColumn}>
@@ -329,7 +331,7 @@ export default function ProgressDashboardScreen() {
                   <Ionicons name="checkmark-circle" size={22} color="#10B981" />
                   <View style={styles.statGroup}>
                     <Text style={styles.statNum}>{stats.completed}</Text>
-                    <Text style={styles.statLabel}>Completed</Text>
+                    <Text style={styles.statLabel}>{t('status_completed')}</Text>
                   </View>
                 </View>
 
@@ -340,7 +342,7 @@ export default function ProgressDashboardScreen() {
                   </View>
                   <View style={styles.statGroup}>
                     <Text style={styles.statNum}>{stats.pending}</Text>
-                    <Text style={styles.statLabel}>Pending</Text>
+                    <Text style={styles.statLabel}>{t('status_pending')}</Text>
                   </View>
                 </View>
 
@@ -349,13 +351,13 @@ export default function ProgressDashboardScreen() {
                   <Ionicons name="alert-circle" size={22} color="#EF4444" />
                   <View style={styles.statGroup}>
                     <Text style={styles.statNum}>{stats.overdue}</Text>
-                    <Text style={styles.statLabel}>Overdue</Text>
+                    <Text style={styles.statLabel}>{t('status_overdue')}</Text>
                   </View>
                 </View>
 
                 {/* Total Footnote */}
                 <Text style={styles.totalFootnote}>
-                  Total: {stats.total} {stats.total === 1 ? 'chore' : 'chores'}
+                  {t('total_chores_count')}: {stats.total} {stats.total === 1 ? t('chores') : t('chores')}
                 </Text>
               </View>
             </View>
@@ -367,9 +369,9 @@ export default function ProgressDashboardScreen() {
               </View>
 
               <View style={styles.streakTextGroup}>
-                <Text style={styles.streakCaption}>Streak</Text>
-                <Text style={styles.streakTitle}>{streakDays} Days</Text>
-                <Text style={styles.streakSub}>Keep going! 🎉</Text>
+                <Text style={styles.streakCaption}>{t('streak')}</Text>
+                <Text style={styles.streakTitle}>{streakDays} {t('days')}</Text>
+                <Text style={styles.streakSub}>{t('keep_going')}</Text>
               </View>
             </View>
 
@@ -382,7 +384,7 @@ export default function ProgressDashboardScreen() {
                 </View>
                 <View style={styles.gridTextGroup}>
                   <Text style={styles.gridNum}>{stats.completed}</Text>
-                  <Text style={styles.gridLabel}>Completed</Text>
+                  <Text style={styles.gridLabel}>{t('status_completed')}</Text>
                 </View>
               </View>
 
@@ -393,7 +395,7 @@ export default function ProgressDashboardScreen() {
                 </View>
                 <View style={styles.gridTextGroup}>
                   <Text style={styles.gridNum}>{stats.pending}</Text>
-                  <Text style={styles.gridLabel}>Pending</Text>
+                  <Text style={styles.gridLabel}>{t('status_pending')}</Text>
                 </View>
               </View>
 
@@ -404,7 +406,7 @@ export default function ProgressDashboardScreen() {
                 </View>
                 <View style={styles.gridTextGroup}>
                   <Text style={styles.gridNum}>{stats.overdue}</Text>
-                  <Text style={styles.gridLabel}>Overdue</Text>
+                  <Text style={styles.gridLabel}>{t('status_overdue')}</Text>
                 </View>
               </View>
 
@@ -415,7 +417,7 @@ export default function ProgressDashboardScreen() {
                 </View>
                 <View style={styles.gridTextGroup}>
                   <Text style={styles.gridNum}>{stats.total}</Text>
-                  <Text style={styles.gridLabel}>Total</Text>
+                  <Text style={styles.gridLabel}>{t('total_chores_count')}</Text>
                 </View>
               </View>
             </View>

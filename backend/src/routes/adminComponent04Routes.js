@@ -48,8 +48,15 @@ router.get('/progress', async (req, res, next) => {
     ) SELECT
       (SELECT COALESCE(json_agg(s ORDER BY s.due_date NULLS LAST, s.id), '[]') FROM scoped s) AS chores,
       (SELECT COALESCE(json_agg(m ORDER BY m.name), '[]') FROM (
-        SELECT u.id, u.full_name AS name, u.profile_image_url AS avatar
-        FROM family_members fm JOIN users u ON u.id = fm.user_id WHERE fm.family_id = $1
+        SELECT u.id, u.full_name AS name, u.profile_image_url AS avatar,
+          COUNT(s.id)::int AS total,
+          COUNT(s.id) FILTER (WHERE s.bucket = 'completed')::int AS completed,
+          COALESCE(ROUND(100.0 * COUNT(s.id) FILTER (WHERE s.bucket = 'completed')
+            / NULLIF(COUNT(s.id), 0)), 0)::int AS percentage
+        FROM family_members fm JOIN users u ON u.id = fm.user_id
+        LEFT JOIN scoped s ON s.assigned_to = u.id
+        WHERE fm.family_id = $1
+        GROUP BY u.id, u.full_name, u.profile_image_url
       ) m) AS members`, [req.adminFamily.id, unit]);
     const { chores, members } = result.rows[0];
     const total = chores.length;
@@ -59,8 +66,7 @@ router.get('/progress', async (req, res, next) => {
     chores.forEach(c => categories.set(c.category || 'General', (categories.get(c.category || 'General') || 0) + 1));
     res.json({ household: req.adminFamily, range,
       summary: { total, completed, pending: count('pending'), overdue: count('overdue'), percentage: total ? Math.round(completed / total * 100) : 0 },
-      members: members.map(m => { const assigned = chores.filter(c => c.assigned_to === m.id); const done = assigned.filter(c => c.bucket === 'completed').length;
-        return { ...m, total: assigned.length, completed: done, percentage: assigned.length ? Math.round(done / assigned.length * 100) : 0 }; }),
+      members,
       categories: Array.from(categories, ([name, count]) => ({ name, count })), chores });
   } catch (error) { next(error); }
 });

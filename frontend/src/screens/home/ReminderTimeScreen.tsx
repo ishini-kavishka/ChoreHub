@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '@/context/ThemeContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { settingsService, NotificationSettings } from '@/services/settingsService';
 
 const purple = '#7C5CFC';
@@ -21,14 +22,14 @@ type ReminderTimeKey = '10min' | '30min' | '1hour' | '1day';
 
 interface ReminderOption {
   key: ReminderTimeKey;
-  label: string;
+  labelKey: '10_min' | '30_min' | '1_hour' | '1_day';
 }
 
 const REMINDER_OPTIONS: ReminderOption[] = [
-  { key: '10min', label: '10 minutes before' },
-  { key: '30min', label: '30 minutes before' },
-  { key: '1hour', label: '1 hour before' },
-  { key: '1day', label: '1 day before' },
+  { key: '10min', labelKey: '10_min' },
+  { key: '30min', labelKey: '30_min' },
+  { key: '1hour', labelKey: '1_hour' },
+  { key: '1day', labelKey: '1_day' },
 ];
 
 const DEFAULT_SETTINGS: NotificationSettings = {
@@ -41,6 +42,7 @@ const DEFAULT_SETTINGS: NotificationSettings = {
 
 export default function ReminderTimeScreen() {
   const { theme, colors } = useAppTheme();
+  const { t } = useLanguage();
   const dark = colors.isDark;
 
   const bg = colors.background;

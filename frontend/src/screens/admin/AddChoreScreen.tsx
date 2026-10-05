@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { choreService, AdminUser } from '@/services/choreService';
+import { choreService } from '@/services/choreService';
 import { familyService } from '@/services/familyService';
 
 export default function AddChoreScreen() {
@@ -37,46 +37,11 @@ export default function AddChoreScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
-    choreService
-      .getAdminAllUsers()
-      .then((res) => {
-        if (res?.users && res.users.length > 0) {
-          setMembers(
-            res.users.map((u: AdminUser) => ({
-              id: u.id,
-              name: u.name || u.email,
-              email: u.email,
-            }))
-          );
-        } else {
-          familyService
-            .getMyFamily()
-            .then((fRes) =>
-              setMembers(
-                (fRes.members || []).map((m: any) => ({
-                  id: m.id,
-                  name: m.name || m.email,
-                  email: m.email,
-                }))
-              )
-            )
-            .catch(() => {});
-        }
-      })
-      .catch(() => {
-        familyService
-          .getMyFamily()
-          .then((res) =>
-            setMembers(
-              (res.members || []).map((m: any) => ({
-                id: m.id,
-                name: m.name || m.email,
-                email: m.email,
-              }))
-            )
-          )
-          .catch(() => {});
-      });
+    familyService.getMyFamily()
+      .then((res) => setMembers(res.members.map((m) => ({
+        id: m.id, name: m.name || m.email, email: m.email,
+      }))))
+      .catch(() => setError('Failed to load household members.'));
   }, []);
 
   const handleCreateChore = async () => {

@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
 import { useLanguage } from '@/context/LanguageContext';
@@ -60,23 +60,26 @@ function Progress({ household }: { household: Household }) {
     member?: string;
   } | null>(null);
 
+  const requestVersion = useRef(0);
   const load = useCallback(async () => {
+    const version = ++requestVersion.current;
     setBusy(true);
     setError('');
     setData(null);
     try {
       const result = await adminComponent04Service.progress(household.id, range);
-      setData(result);
+      if (version === requestVersion.current) setData(result);
     } catch {
-      setError(t('admin_error'));
+      if (version === requestVersion.current) setError(t('admin_error'));
     } finally {
-      setBusy(false);
+      if (version === requestVersion.current) setBusy(false);
     }
   }, [household.id, range, t]);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     void load();
-  }, [load]);
+    return () => { requestVersion.current += 1; };
+  }, [load]));
 
   // Donut circumference for r=50 (100px diameter inside 140x140 view)
   const radius = 50;
@@ -287,6 +290,8 @@ function Progress({ household }: { household: Household }) {
             ) : (
               <View style={styles.memberList}>
                 {data.members.map((member, index) => {
+                  const percentage = Number.isFinite(member.percentage)
+                    ? Math.min(100, Math.max(0, member.percentage)) : 0;
                   const avatarTheme =
                     MEMBER_AVATAR_COLORS[index % MEMBER_AVATAR_COLORS.length];
                   const initial =
@@ -323,12 +328,14 @@ function Progress({ household }: { household: Household }) {
                       </View>
 
                       {/* Member Name */}
-                      <Text
-                        numberOfLines={1}
-                        style={[styles.memberName, { color: c.text }]}
-                      >
-                        {member.name}
-                      </Text>
+                      <View style={styles.memberIdentity}>
+                        <Text numberOfLines={1} style={[styles.memberName, { color: c.text }]}>
+                          {member.name}
+                        </Text>
+                        <Text style={[styles.memberCounts, { color: c.muted }]}>
+                          {member.completed}/{member.total} {t('admin_completed')}
+                        </Text>
+                      </View>
 
                       {/* Horizontal Progress Bar */}
                       <View
@@ -337,7 +344,7 @@ function Progress({ household }: { household: Household }) {
                         accessibilityValue={{
                           min: 0,
                           max: 100,
-                          now: member.percentage,
+                          now: percentage,
                         }}
                         style={[
                           styles.memberBarTrack,
@@ -348,10 +355,7 @@ function Progress({ household }: { household: Household }) {
                           style={[
                             styles.memberBarFill,
                             {
-                              width: `${Math.min(
-                                100,
-                                Math.max(0, member.percentage)
-                              )}%`,
+                              width: `${percentage}%`,
                               backgroundColor: c.accent,
                             },
                           ]}
@@ -360,7 +364,7 @@ function Progress({ household }: { household: Household }) {
 
                       {/* Percentage */}
                       <Text style={[styles.memberPercentage, { color: c.muted }]}>
-                        {member.percentage}%
+                        {percentage}%
                       </Text>
                     </Pressable>
                   );
@@ -554,27 +558,6 @@ function Progress({ household }: { household: Household }) {
         }
       />
 
-      {/* ── Quick Links Row ─────────────────────────────────────────────── */}
-      <View style={s.wrap}>
-        <Action
-          label={t('notifications')}
-          onPress={() =>
-            router.push({
-              pathname: '/admin/notifications',
-              params: { family_id: household.id },
-            })
-          }
-        />
-        <Action
-          label={t('admin_settings')}
-          onPress={() =>
-            router.push({
-              pathname: '/admin/settings',
-              params: { family_id: household.id },
-            })
-          }
-        />
-      </View>
     </AdminPage>
   );
 }
@@ -682,13 +665,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
   },
+  memberIdentity: {
+    width: 130,
+    flexShrink: 1,
+    gap: 3,
+  },
+  memberCounts: {
+    fontSize: 11,
+  },
   memberName: {
-    width: 82,
     fontSize: 14,
     fontWeight: '600',
   },
   memberBarTrack: {
     flex: 1,
+    minWidth: 24,
     height: 8,
     borderRadius: 4,
     overflow: 'hidden',
@@ -699,6 +690,7 @@ const styles = StyleSheet.create({
   },
   memberPercentage: {
     width: 40,
+    flexShrink: 0,
     textAlign: 'right',
     fontSize: 13,
     fontWeight: '700',

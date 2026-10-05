@@ -101,4 +101,44 @@ export const settingsService = {
     if (!res.preferences) throw new Error('Missing saved preferences.');
     return res.preferences;
   },
+
+  async getSupportedLanguages(): Promise<SupportedLanguageItem[]> {
+    try {
+      const authToken = await token().catch(() => null);
+      const res = await apiRequest<{ languages: SupportedLanguageItem[] }>(
+        '/api/settings/languages',
+        {},
+        authToken ?? undefined
+      );
+      return res.languages ?? DEFAULT_SUPPORTED_LANGUAGES;
+    } catch {
+      return DEFAULT_SUPPORTED_LANGUAGES;
+    }
+  },
+
+  async updateSupportedLanguage(code: 'en' | 'si' | 'ta', is_enabled: boolean): Promise<SupportedLanguageItem> {
+    const res = await apiRequest<{ language: SupportedLanguageItem }>(
+      '/api/settings/languages',
+      { method: 'PUT', body: JSON.stringify({ code, is_enabled }) },
+      await token()
+    );
+    if (!res.language) throw new Error('Could not update language availability.');
+    return res.language;
+  },
 };
+
+export interface SupportedLanguageItem {
+  code: 'en' | 'si' | 'ta';
+  name: string;
+  native_name: string;
+  flag: string;
+  is_enabled: boolean;
+  sort_order: number;
+}
+
+export const DEFAULT_SUPPORTED_LANGUAGES: SupportedLanguageItem[] = [
+  { code: 'en', name: 'English', native_name: 'English', flag: '🌐', is_enabled: true, sort_order: 1 },
+  { code: 'si', name: 'Sinhala', native_name: 'සිංහල',  flag: '🇱🇰', is_enabled: true, sort_order: 2 },
+  { code: 'ta', name: 'Tamil',   native_name: 'தமிழ்',  flag: '🇮🇳', is_enabled: true, sort_order: 3 },
+];
+

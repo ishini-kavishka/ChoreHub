@@ -11,12 +11,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
+import { useLanguage } from '@/context/LanguageContext';
 import { choreService, ChoreItem } from '@/services/choreService';
 import { MemberChoreCard } from '@/components/chores/MemberChoreCard';
 
 type StatusFilter = 'all' | 'pending' | 'completed';
 
 export default function MemberChoresScreen() {
+  const { t } = useLanguage();
   const [chores, setChores] = useState<ChoreItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -96,9 +98,9 @@ export default function MemberChoresScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>My Chores</Text>
+          <Text style={styles.headerTitle}>{t('my_chores_title')}</Text>
           <Text style={styles.headerSubtitle}>
-            View and manage chores assigned specifically to you
+            {t('my_chores_sub')}
           </Text>
         </View>
 
@@ -107,7 +109,7 @@ export default function MemberChoresScreen() {
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
             style={styles.searchInput}
-            placeholder="Search my chores..."
+            placeholder={t('search_my_chores')}
             placeholderTextColor="#9592A6"
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -118,6 +120,7 @@ export default function MemberChoresScreen() {
         <View style={styles.filterRow}>
           {(['all', 'pending', 'completed'] as StatusFilter[]).map((f) => {
             const active = statusFilter === f;
+            const label = f === 'all' ? t('filter_all') : f === 'pending' ? t('filter_pending') : t('filter_completed');
             return (
               <Pressable
                 key={f}
@@ -125,7 +128,7 @@ export default function MemberChoresScreen() {
                 style={[styles.filterPill, active && styles.activePill]}
               >
                 <Text style={[styles.filterText, active && styles.activeFilterText]}>
-                  {f.charAt(0).toUpperCase() + f.slice(1)}
+                  {label}
                 </Text>
               </Pressable>
             );
@@ -138,11 +141,11 @@ export default function MemberChoresScreen() {
         ) : filteredChores.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyIcon}>✨</Text>
-            <Text style={styles.emptyTitle}>No chores found</Text>
+            <Text style={styles.emptyTitle}>{t('no_chores_found')}</Text>
             <Text style={styles.emptySubtitle}>
               {searchQuery || statusFilter !== 'all'
-                ? 'Try changing your search or filter settings.'
-                : 'No chores are currently assigned to you.'}
+                ? t('try_changing_filter')
+                : t('no_chores_assigned')}
             </Text>
           </View>
         ) : (

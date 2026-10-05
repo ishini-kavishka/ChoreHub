@@ -1,10 +1,12 @@
 const express = require('express');
-const { requireAuth } = require('../middleware/authMiddleware');
+const { requireAuth, requireAdmin } = require('../middleware/authMiddleware');
 const {
   getNotificationSettings,
   updateNotificationSettings,
   getPreferences,
   updatePreferences,
+  getSupportedLanguages,
+  updateSupportedLanguage,
 } = require('../controllers/settingsController');
 
 const router = express.Router();
@@ -16,5 +18,8 @@ router.put('/notifications', updateNotificationSettings);
 
 router.get('/preferences', getPreferences);
 router.put('/preferences', updatePreferences);
+
+router.get('/languages', getSupportedLanguages);
+router.put('/languages', requireAdmin, updateSupportedLanguage);
 
 module.exports = router;

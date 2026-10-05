@@ -21,7 +21,7 @@ export const adminTranslations = {
     admin_members: 'Members',
   },
   si: {
-    admin_notification_preferences: '?????????? ????', admin_system_theme: '???????',
+    admin_notification_preferences: 'දැනුම්දීම් මනාප', admin_system_theme: 'පද්ධතිය',
     admin_progress: 'ප්‍රගතිය', admin_settings: 'සැකසුම්', admin_household: 'ගෘහස්ථ සැකසුම්',
     admin_name: 'නිවසේ නම', admin_personal: 'පුද්ගලික මනාප · ඔබගේ ගිණුමට පමණි',
     admin_shared: 'සියලු ගෘහ සාමාජිකයන්ට පෙනේ', admin_categories: 'කාණ්ඩ අනුව වැඩ',
@@ -42,7 +42,7 @@ export const adminTranslations = {
     admin_members: 'සාමාජිකයන්',
   },
   ta: {
-    admin_notification_preferences: '????????? ????????????', admin_system_theme: '?????',
+    admin_notification_preferences: 'அறிவிப்பு விருப்பங்கள்', admin_system_theme: 'கணினி',
     admin_progress: 'முன்னேற்றம்', admin_settings: 'அமைப்புகள்', admin_household: 'குடும்ப அமைப்புகள்',
     admin_name: 'குடும்பப் பெயர்', admin_personal: 'தனிப்பட்ட விருப்பங்கள் · உங்கள் கணக்கிற்கு மட்டும்',
     admin_shared: 'குடும்பம் முழுவதும் · அனைத்து உறுப்பினர்களுக்கும் தெரியும்', admin_categories: 'வகை வாரியான வேலைகள்',

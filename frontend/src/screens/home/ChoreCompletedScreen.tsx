@@ -3,10 +3,12 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useLanguage } from '@/context/LanguageContext';
 
 export default function ChoreCompletedScreen() {
+  const { t } = useLanguage();
   const params = useLocalSearchParams<{ title?: string; completedAt?: string }>();
-  const choreTitle = params.title || 'Chore';
+  const choreTitle = params.title || t('chores');
 
   const formatCompletionTime = (isoString?: string) => {
     const d = isoString ? new Date(isoString) : new Date();
@@ -55,9 +57,9 @@ export default function ChoreCompletedScreen() {
 
         {/* Text Content */}
         <View style={styles.textGroup}>
-          <Text style={styles.mainTitle}>Chore Completed!</Text>
+          <Text style={styles.mainTitle}>{t('chore_completed_title')}</Text>
           <Text style={styles.subText}>
-            Great job! You have completed{'\n'}
+            {t('great_job_completed')}{'\n'}
             <Text style={styles.choreTitleHighlight}>"{choreTitle}"</Text>.
           </Text>
         </View>
@@ -68,7 +70,7 @@ export default function ChoreCompletedScreen() {
             <Ionicons name="calendar-outline" size={24} color="#713DE8" />
           </View>
           <View style={styles.timestampTextGroup}>
-            <Text style={styles.completedOnLabel}>Completed on</Text>
+            <Text style={styles.completedOnLabel}>{t('completed_on')}</Text>
             <Text style={styles.timestampValue}>{formattedTimestamp}</Text>
           </View>
         </View>
@@ -81,14 +83,14 @@ export default function ChoreCompletedScreen() {
             onPress={handleDone}
             style={({ pressed }) => [styles.doneBtn, pressed && { opacity: 0.88 }]}
           >
-            <Text style={styles.doneBtnText}>Done</Text>
+            <Text style={styles.doneBtnText}>{t('btn_done')}</Text>
           </Pressable>
 
           <Pressable
             onPress={handleViewMyChores}
             style={({ pressed }) => [styles.viewChoresBtn, pressed && { opacity: 0.88 }]}
           >
-            <Text style={styles.viewChoresBtnText}>View My Chores</Text>
+            <Text style={styles.viewChoresBtnText}>{t('btn_view_my_chores')}</Text>
           </Pressable>
         </View>
       </View>

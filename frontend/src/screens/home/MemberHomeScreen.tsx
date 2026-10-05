@@ -14,6 +14,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '@/components/profile/Avatar';
 import { useAppTheme } from '@/context/ThemeContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { NotificationPanel } from '@/components/notifications/NotificationPanel';
 import { authService, Member } from '@/services/authService';
 import { profileService } from '@/services/profileService';
@@ -22,6 +23,7 @@ import { notificationService } from '@/services/notificationService';
 
 export default function MemberHomeScreen() {
   const { colors } = useAppTheme();
+  const { t } = useLanguage();
   const [profile, setProfile] = useState<Member | null>(null);
   const [stats, setStats] = useState<ChoreStats>({
     completed: 0,
@@ -114,12 +116,12 @@ export default function MemberHomeScreen() {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning!';
-    if (hour < 18) return 'Good afternoon!';
-    return 'Good evening!';
+    if (hour < 12) return t('greeting_morning');
+    if (hour < 18) return t('greeting_afternoon');
+    return t('greeting_evening');
   };
 
-  const firstName = profile?.name ? profile.name.trim().split(' ')[0] : 'Member';
+  const firstName = profile?.name ? profile.name.trim().split(' ')[0] : t('role_member');
   const initial = firstName.charAt(0).toUpperCase();
   const completionPct = Math.round(stats.completionPercentage ?? 0);
 
@@ -138,37 +140,37 @@ export default function MemberHomeScreen() {
   };
 
   const formatDueTime = (dateString?: string | null) => {
-    if (!dateString) return 'Today, 10:00 AM';
+    if (!dateString) return `${t('filter_today')}, 10:00 AM`;
     const d = new Date(dateString);
-    if (isNaN(d.getTime())) return 'Today, 10:00 AM';
-    return `Today, ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+    if (isNaN(d.getTime())) return `${t('filter_today')}, 10:00 AM`;
+    return `${t('filter_today')}, ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
   };
 
   const QUICK_ACTIONS = [
     {
       id: 'chores',
-      label: 'View All\nChores',
+      label: t('quick_view_chores'),
       icon: 'clipboard-outline' as const,
       color: '#713DE8',
       onPress: () => router.push('/home/chores' as any),
     },
     {
       id: 'calendar',
-      label: 'View\nCalendar',
+      label: t('quick_view_calendar'),
       icon: 'calendar-outline' as const,
       color: '#EC4899',
       onPress: () => router.push('/home/calendar' as any),
     },
     {
       id: 'family',
-      label: 'Family\nMembers',
+      label: t('quick_family_members'),
       icon: 'people-outline' as const,
       color: '#2563EB',
       onPress: () => router.push('/home/family' as any),
     },
     {
       id: 'progress',
-      label: 'My\nProgress',
+      label: t('quick_my_progress'),
       icon: 'bar-chart-outline' as const,
       color: '#713DE8',
       onPress: () => router.push('/home/progress' as any),
@@ -241,20 +243,20 @@ export default function MemberHomeScreen() {
           </View>
         </View>
 
-        {/* ── Greeting Banner Section ── */}
+          {/* ── Greeting Banner Section ── */}
         <View style={styles.greetingSection}>
           <View style={styles.greetingTextGroup}>
             <Text style={[styles.greetingSub, { color: colors.textSecondary }]}>{getGreeting()} 👋</Text>
             <Text style={[styles.greetingTitle, { color: colors.textPrimary }]}>{firstName}!</Text>
             <Text style={[styles.greetingCaption, { color: colors.textSecondary }]}>
-              Let's make today productive together.
+              {t('make_today_productive')}
             </Text>
           </View>
 
           {/* Right Illustration Badge */}
           <View style={styles.illustrationWrap}>
             <View style={styles.speechBubble}>
-              <Text style={styles.speechBubbleText}>Small Steps{'\n'}Big Change!</Text>
+              <Text style={styles.speechBubbleText}>{t('small_steps_big_change')}</Text>
             </View>
             <View style={styles.avatarGraphicCircle}>
               <Text style={styles.graphicEmoji}>👩‍🌾</Text>
@@ -266,9 +268,9 @@ export default function MemberHomeScreen() {
         <View style={styles.progressCard}>
           {/* Card Header */}
           <View style={styles.progressCardHeader}>
-            <Text style={styles.progressCardTitle}>My Progress</Text>
+            <Text style={styles.progressCardTitle}>{t('my_progress')}</Text>
           <Pressable onPress={() => router.push('/home/progress' as any)} style={styles.viewLinkRow}>
-              <Text style={styles.viewLinkText}>View</Text>
+              <Text style={styles.viewLinkText}>{t('view')}</Text>
               <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
             </Pressable>
           </View>
@@ -290,7 +292,7 @@ export default function MemberHomeScreen() {
             {/* Progress Text & Icon */}
             <View style={styles.gaugeRightCol}>
               <Text style={styles.gaugeMessage}>
-                {stats.completed} of {stats.total} chores completed this week!
+                {stats.completed} / {stats.total} {t('chores_completed_this_week')}
               </Text>
               <View style={styles.chartIconBadge}>
                 <Ionicons name="bar-chart" size={20} color="#FFFFFF" />
@@ -306,7 +308,7 @@ export default function MemberHomeScreen() {
                 <Ionicons name="checkmark" size={16} color="#16A34A" />
               </View>
               <Text style={[styles.innerStatNum, { color: colors.textPrimary }]}>{stats.completed}</Text>
-              <Text style={styles.innerStatLabel}>Completed</Text>
+              <Text style={styles.innerStatLabel}>{t('status_completed')}</Text>
             </View>
 
             {/* Pending */}
@@ -315,7 +317,7 @@ export default function MemberHomeScreen() {
                 <Ionicons name="time" size={16} color="#D97706" />
               </View>
               <Text style={[styles.innerStatNum, { color: colors.textPrimary }]}>{stats.pending}</Text>
-              <Text style={styles.innerStatLabel}>Pending</Text>
+              <Text style={styles.innerStatLabel}>{t('status_pending')}</Text>
             </View>
 
             {/* Overdue */}
@@ -324,7 +326,7 @@ export default function MemberHomeScreen() {
                 <Ionicons name="alert" size={16} color="#DC2626" />
               </View>
               <Text style={[styles.innerStatNum, { color: colors.textPrimary }]}>{stats.overdue}</Text>
-              <Text style={styles.innerStatLabel}>Overdue</Text>
+              <Text style={styles.innerStatLabel}>{t('status_overdue')}</Text>
             </View>
           </View>
         </View>
@@ -332,12 +334,12 @@ export default function MemberHomeScreen() {
         {/* ── Today's Chores Section ── */}
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={[styles.sectionHeaderTitle, { color: colors.textPrimary }]}>Today's Chores</Text>
+            <Text style={[styles.sectionHeaderTitle, { color: colors.textPrimary }]}>{t('todays_chores')}</Text>
             <Pressable
               onPress={() => router.push('/home/chores' as any)}
               style={styles.viewAllRow}
             >
-              <Text style={styles.viewAllText}>View All</Text>
+              <Text style={styles.viewAllText}>{t('view_all')}</Text>
               <Ionicons name="chevron-forward" size={14} color="#713DE8" />
             </Pressable>
           </View>
@@ -345,8 +347,8 @@ export default function MemberHomeScreen() {
           {chores.length === 0 ? (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyIcon}>✨</Text>
-              <Text style={styles.emptyTitle}>All caught up!</Text>
-              <Text style={styles.emptySub}>No pending chores scheduled for today.</Text>
+              <Text style={styles.emptyTitle}>{t('all_caught_up')}</Text>
+              <Text style={styles.emptySub}>{t('no_pending_chores_today')}</Text>
             </View>
           ) : (
             <View style={styles.choresList}>
@@ -393,15 +395,15 @@ export default function MemberHomeScreen() {
                     <View style={styles.choreRightCol}>
                       {item.status === 'pending' ? (
                         <View style={styles.pendingPill}>
-                          <Text style={styles.pendingPillText}>Pending</Text>
+                          <Text style={styles.pendingPillText}>{t('status_pending')}</Text>
                         </View>
                       ) : item.priority === 'high' ? (
                         <View style={styles.highPriorityPill}>
-                          <Text style={styles.highPriorityText}>High</Text>
+                          <Text style={styles.highPriorityText}>{t('priority_high')}</Text>
                         </View>
                       ) : (
                         <View style={styles.mediumPriorityPill}>
-                          <Text style={styles.mediumPriorityText}>Medium</Text>
+                          <Text style={styles.mediumPriorityText}>{t('priority_medium')}</Text>
                         </View>
                       )}
                       <Ionicons name="chevron-forward" size={16} color="#C4C1D4" />
@@ -415,7 +417,7 @@ export default function MemberHomeScreen() {
 
         {/* ── Quick Actions Section ── */}
         <View style={styles.sectionContainer}>
-          <Text style={styles.sectionHeaderTitle}>Quick Actions</Text>
+          <Text style={styles.sectionHeaderTitle}>{t('quick_actions')}</Text>
           <View style={styles.quickGrid}>
             {QUICK_ACTIONS.map((action) => (
               <Pressable
@@ -438,9 +440,9 @@ export default function MemberHomeScreen() {
         {/* ── Recent Notifications Section ── */}
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionHeaderTitle}>Recent Notifications</Text>
-            <Pressable onPress={() => {}} style={styles.viewAllRow}>
-              <Text style={styles.viewAllText}>View All</Text>
+            <Text style={styles.sectionHeaderTitle}>{t('recent_notifications')}</Text>
+            <Pressable onPress={() => router.push('/home/notifications' as any)} style={styles.viewAllRow}>
+              <Text style={styles.viewAllText}>{t('view_all')}</Text>
               <Ionicons name="chevron-forward" size={14} color="#713DE8" />
             </Pressable>
           </View>
@@ -452,13 +454,13 @@ export default function MemberHomeScreen() {
             </View>
             <View style={styles.notifContent}>
               <View style={styles.notifTitleRow}>
-                <Text style={styles.notifTitle}>Chore Due Today</Text>
-                <Text style={styles.notifTime}>2 hours ago</Text>
+                <Text style={styles.notifTitle}>{t('chore_due_today')}</Text>
+                <Text style={styles.notifTime}>2h</Text>
               </View>
               <Text style={styles.notifSub}>
                 {chores[0]?.title
-                  ? `${chores[0].title} is due today at 10:00 AM.`
-                  : 'Water plants is due today at 10:00 AM.'}
+                  ? `${chores[0].title} ${t('due_today_at')} 10:00 AM.`
+                  : `Water plants ${t('due_today_at')} 10:00 AM.`}
               </Text>
             </View>
           </View>

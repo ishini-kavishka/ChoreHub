@@ -10,6 +10,16 @@ async function getUserFamilyId(userId) {
   return result.rows[0]?.family_id || null;
 }
 
+// Household progress only includes current household members.
+async function validateAssignee(familyId, assigneeId) {
+  if (!familyId || !assigneeId) return;
+  const result = await pool.query(
+    'SELECT 1 FROM family_members WHERE family_id = $1 AND user_id = $2',
+    [familyId, assigneeId]
+  );
+  if (!result.rows.length) throw appError('Assignee must be a member of this household.');
+}
+
 async function createChore(req, res, next) {
   try {
     const userId = req.userId;
@@ -34,6 +44,7 @@ async function createChore(req, res, next) {
     const selectedRecurrence = validRecurrence.includes(recurrence) ? recurrence : 'none';
 
     const familyId = await getUserFamilyId(userId);
+    await validateAssignee(familyId, assigned_to);
 
     const query = `
       INSERT INTO chores (
@@ -235,6 +246,9 @@ async function updateChore(req, res, next) {
     const updatedPriority = ['low', 'medium', 'high'].includes(priority) ? priority : chore.priority;
     const updatedDueDate = due_date !== undefined ? (due_date ? new Date(due_date) : null) : chore.due_date;
     const updatedAssigned = assigned_to !== undefined ? (assigned_to || null) : chore.assigned_to;
+    if (updatedAssigned !== chore.assigned_to) {
+      await validateAssignee(chore.family_id, updatedAssigned);
+    }
     const updatedRecurrence = ['none', 'daily', 'weekly', 'monthly'].includes(recurrence) ? recurrence : chore.recurrence;
     const updatedStatus = ['pending', 'completed'].includes(status) ? status : chore.status;
 

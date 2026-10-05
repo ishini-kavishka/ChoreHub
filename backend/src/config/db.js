@@ -203,6 +203,31 @@ async function ensureAuthSchema() {
   `);
 
   // =========================================================
+  // Supported Languages (Admin-managed client languages)
+  // =========================================================
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS public.supported_languages (
+      code TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      native_name TEXT NOT NULL,
+      flag TEXT NOT NULL DEFAULT '🌐',
+      is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await pool.query(`
+    INSERT INTO public.supported_languages (code, name, native_name, flag, is_enabled, sort_order)
+    VALUES
+      ('en', 'English', 'English', '🌐', TRUE, 1),
+      ('si', 'Sinhala', 'සිංහල', '🇱🇰', TRUE, 2),
+      ('ta', 'Tamil', 'தமிழ்', '🇮🇳', TRUE, 3)
+    ON CONFLICT (code) DO NOTHING
+  `);
+
+  // =========================================================
   // Indexes
   // =========================================================
   await pool.query(`

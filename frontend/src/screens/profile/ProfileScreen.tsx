@@ -13,11 +13,13 @@ import { router, useFocusEffect, useSegments } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '@/components/profile/Avatar';
 import { useAppTheme } from '@/context/ThemeContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { authService, Member } from '@/services/authService';
 import { profileService } from '@/services/profileService';
 
 export default function ProfileScreen() {
   const { colors } = useAppTheme();
+  const { t } = useLanguage();
   const segments = useSegments();
   const [profile, setProfile] = useState<Member | null>(null);
   const [error, setError] = useState('');
@@ -107,12 +109,13 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
           </Pressable>
 
-          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Profile</Text>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>{t('profile_title')}</Text>
 
           <Pressable
             onPress={() => router.push('/profile/edit')}
             style={styles.headerIconButton}
             hitSlop={10}
+            accessibilityLabel={t('edit_profile_title')}
           >
             <Ionicons name="settings-outline" size={22} color={colors.textPrimary} />
           </Pressable>
@@ -142,7 +145,7 @@ export default function ProfileScreen() {
             iconName="person-outline"
             iconColor="#10B981"
             iconBg="#E6F9F0"
-            title="Personal Information"
+            title={t('menu_personal_info')}
             onPress={() => router.push('/profile/edit')}
           />
           <View style={[styles.menuDivider, { backgroundColor: colors.border }]} />
@@ -152,7 +155,7 @@ export default function ProfileScreen() {
             iconName="home-outline"
             iconColor="#713DE8"
             iconBg="#EDE9FE"
-            title="Household Settings"
+            title={t('menu_household_settings')}
             onPress={() => router.push('/home' as any)}
           />
           <View style={[styles.menuDivider, { backgroundColor: colors.border }]} />
@@ -162,7 +165,7 @@ export default function ProfileScreen() {
             iconName="settings-outline"
             iconColor="#713DE8"
             iconBg="#EDE9FE"
-            title="App Settings"
+            title={t('menu_app_settings')}
             onPress={() => router.push(segments[0] === 'admin' ? '/admin/settings' : '/home/settings')}
           />
           <View style={[styles.menuDivider, { backgroundColor: colors.border }]} />
@@ -172,7 +175,7 @@ export default function ProfileScreen() {
             iconName="lock-closed-outline"
             iconColor="#8B5CF6"
             iconBg="#F3E8FF"
-            title="Change Password"
+            title={t('menu_change_password')}
             onPress={() => router.push('/profile/change-password')}
           />
           <View style={[styles.menuDivider, { backgroundColor: colors.border }]} />
@@ -182,7 +185,7 @@ export default function ProfileScreen() {
             iconName="settings-outline"
             iconColor="#0EA5E9"
             iconBg="#E0F2FE"
-            title="App Preferences"
+            title={t('menu_app_preferences')}
             onPress={() => router.push('/home/preferences' as any)}
           />
           <View style={[styles.menuDivider, { backgroundColor: colors.border }]} />
@@ -192,7 +195,7 @@ export default function ProfileScreen() {
             iconName="help-buoy-outline"
             iconColor="#F59E0B"
             iconBg="#FEF3C7"
-            title="Support & Help"
+            title={t('menu_support_help')}
             onPress={() => router.push('/support' as any)}
           />
         </View>
@@ -207,7 +210,7 @@ export default function ProfileScreen() {
             ]}
           >
             <Ionicons name="log-out-outline" size={22} color="#EF4444" />
-            <Text style={styles.logoutButtonText}>Logout</Text>
+            <Text style={styles.logoutButtonText}>{t('btn_logout')}</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -234,9 +237,9 @@ export default function ProfileScreen() {
               <Ionicons name="log-out-outline" size={30} color="#713DE8" />
             </View>
 
-            <Text style={styles.modalTitle}>Log Out?</Text>
+            <Text style={styles.modalTitle}>{t('logout_confirm_title')}</Text>
             <Text style={styles.modalMessage}>
-              Are you sure you want to log out from your ChoreHub account?
+              {t('logout_confirm_message')}
             </Text>
 
             <View style={styles.modalActions}>
@@ -252,7 +255,7 @@ export default function ProfileScreen() {
                 {loggingOut ? (
                   <ActivityIndicator color="#FFFFFF" size="small" />
                 ) : (
-                  <Text style={styles.modalPrimaryBtnText}>Log out</Text>
+                  <Text style={styles.modalPrimaryBtnText}>{t('btn_logout')}</Text>
                 )}
               </Pressable>
 
@@ -264,7 +267,7 @@ export default function ProfileScreen() {
                   pressed && styles.modalBtnPressed,
                 ]}
               >
-                <Text style={styles.modalSecondaryBtnText}>Cancel</Text>
+                <Text style={styles.modalSecondaryBtnText}>{t('cancel')}</Text>
               </Pressable>
             </View>
           </View>
