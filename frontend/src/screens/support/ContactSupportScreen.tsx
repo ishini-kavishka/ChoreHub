@@ -15,7 +15,7 @@ import { SupportBottomNav } from '@/components/support/SupportBottomNav';
 
 export default function ContactSupportScreen() {
   const handleEmailPress = () => {
-    const email = 'support@chorehub.com';
+    const email = 'supportchorehub@gmail.com';
     Linking.openURL(`mailto:${email}`).catch(() => {
       Alert.alert(
         'Email Support',
@@ -88,7 +88,7 @@ export default function ContactSupportScreen() {
             </View>
             <View style={styles.cardContent}>
               <Text style={styles.cardTitle}>Email</Text>
-              <Text style={styles.cardDetail}>support@chorehub.com</Text>
+              <Text style={styles.cardDetail}>supportchorehub@gmail.com</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#8A879A" />
           </Pressable>
