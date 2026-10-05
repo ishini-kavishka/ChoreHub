@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '@/components/profile/Avatar';
+import { useAppTheme } from '@/context/ThemeContext';
 import { NotificationPanel } from '@/components/notifications/NotificationPanel';
 import { authService, Member } from '@/services/authService';
 import { profileService } from '@/services/profileService';
@@ -20,6 +21,7 @@ import { choreService, ChoreItem, ChoreStats } from '@/services/choreService';
 import { notificationService } from '@/services/notificationService';
 
 export default function MemberHomeScreen() {
+  const { colors } = useAppTheme();
   const [profile, setProfile] = useState<Member | null>(null);
   const [stats, setStats] = useState<ChoreStats>({
     completed: 0,
@@ -184,7 +186,7 @@ export default function MemberHomeScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -209,11 +211,15 @@ export default function MemberHomeScreen() {
           <View style={styles.headerRight}>
             {/* Notification Bell */}
             <Pressable
-              style={({ pressed }) => [styles.bellBtn, pressed && { opacity: 0.7 }]}
+              style={({ pressed }) => [
+                styles.bellBtn,
+                { backgroundColor: colors.card, borderColor: colors.border },
+                pressed && { opacity: 0.7 },
+              ]}
               onPress={() => setShowNotifications(true)}
               accessibilityLabel="Open notifications"
             >
-              <Ionicons name="notifications-outline" size={24} color="#1E1B2E" />
+              <Ionicons name="notifications-outline" size={24} color={colors.textPrimary} />
               {unreadNotifsCount > 0 ? (
                 <View style={styles.bellBadgeDot}>
                   <Text style={styles.bellBadgeText}>
@@ -238,9 +244,9 @@ export default function MemberHomeScreen() {
         {/* ── Greeting Banner Section ── */}
         <View style={styles.greetingSection}>
           <View style={styles.greetingTextGroup}>
-            <Text style={styles.greetingSub}>{getGreeting()} 👋</Text>
-            <Text style={styles.greetingTitle}>{firstName}!</Text>
-            <Text style={styles.greetingCaption}>
+            <Text style={[styles.greetingSub, { color: colors.textSecondary }]}>{getGreeting()} 👋</Text>
+            <Text style={[styles.greetingTitle, { color: colors.textPrimary }]}>{firstName}!</Text>
+            <Text style={[styles.greetingCaption, { color: colors.textSecondary }]}>
               Let's make today productive together.
             </Text>
           </View>
@@ -295,29 +301,29 @@ export default function MemberHomeScreen() {
           {/* Bottom 3 Stat Cards inside container */}
           <View style={styles.innerStatsRow}>
             {/* Completed */}
-            <View style={styles.innerStatCard}>
+            <View style={[styles.innerStatCard, { backgroundColor: colors.card }]}>
               <View style={[styles.innerStatIconCircle, { backgroundColor: '#DCFCE7' }]}>
                 <Ionicons name="checkmark" size={16} color="#16A34A" />
               </View>
-              <Text style={styles.innerStatNum}>{stats.completed}</Text>
+              <Text style={[styles.innerStatNum, { color: colors.textPrimary }]}>{stats.completed}</Text>
               <Text style={styles.innerStatLabel}>Completed</Text>
             </View>
 
             {/* Pending */}
-            <View style={styles.innerStatCard}>
+            <View style={[styles.innerStatCard, { backgroundColor: colors.card }]}>
               <View style={[styles.innerStatIconCircle, { backgroundColor: '#FEF3C7' }]}>
                 <Ionicons name="time" size={16} color="#D97706" />
               </View>
-              <Text style={styles.innerStatNum}>{stats.pending}</Text>
+              <Text style={[styles.innerStatNum, { color: colors.textPrimary }]}>{stats.pending}</Text>
               <Text style={styles.innerStatLabel}>Pending</Text>
             </View>
 
             {/* Overdue */}
-            <View style={styles.innerStatCard}>
+            <View style={[styles.innerStatCard, { backgroundColor: colors.card }]}>
               <View style={[styles.innerStatIconCircle, { backgroundColor: '#FEE2E2' }]}>
                 <Ionicons name="alert" size={16} color="#DC2626" />
               </View>
-              <Text style={styles.innerStatNum}>{stats.overdue}</Text>
+              <Text style={[styles.innerStatNum, { color: colors.textPrimary }]}>{stats.overdue}</Text>
               <Text style={styles.innerStatLabel}>Overdue</Text>
             </View>
           </View>
@@ -326,7 +332,7 @@ export default function MemberHomeScreen() {
         {/* ── Today's Chores Section ── */}
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionHeaderTitle}>Today's Chores</Text>
+            <Text style={[styles.sectionHeaderTitle, { color: colors.textPrimary }]}>Today's Chores</Text>
             <Pressable
               onPress={() => router.push('/home/chores' as any)}
               style={styles.viewAllRow}
