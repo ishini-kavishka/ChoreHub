@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useSegments } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '@/components/profile/Avatar';
 import { useAppTheme } from '@/context/ThemeContext';
@@ -18,6 +18,7 @@ import { profileService } from '@/services/profileService';
 
 export default function ProfileScreen() {
   const { colors } = useAppTheme();
+  const segments = useSegments();
   const [profile, setProfile] = useState<Member | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -162,7 +163,7 @@ export default function ProfileScreen() {
             iconColor="#713DE8"
             iconBg="#EDE9FE"
             title="App Settings"
-            onPress={() => router.push('/home/settings' as any)}
+            onPress={() => router.push(segments[0] === 'admin' ? '/admin/settings' : '/home/settings')}
           />
           <View style={[styles.menuDivider, { backgroundColor: colors.border }]} />
 

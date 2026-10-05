@@ -4,10 +4,15 @@
  * Only languages with COMPLETE translations are included.
  */
 
+import { adminTranslations } from './adminTranslations';
+import { crudTranslations } from './crudTranslations';
+
 export type Language = 'en' | 'si' | 'ta';
 
 export const translations = {
   en: {
+    ...adminTranslations.en,
+    ...crudTranslations.en,
     // Tab bar
     home: 'Home',
     chores: 'Chores',
@@ -91,6 +96,8 @@ export const translations = {
   },
 
   si: {
+    ...adminTranslations.si,
+    ...crudTranslations.si,
     home: 'මුල් පිටුව',
     chores: 'කාර්යයන්',
     calendar: 'දින දර්ශනය',
@@ -167,6 +174,8 @@ export const translations = {
   },
 
   ta: {
+    ...adminTranslations.ta,
+    ...crudTranslations.ta,
     home: 'முகப்பு',
     chores: 'வீட்டு வேலைகள்',
     calendar: 'நாட்காட்டி',

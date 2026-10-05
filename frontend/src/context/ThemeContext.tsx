@@ -34,7 +34,7 @@ export interface ThemeContextValue {
   autoBrightness: boolean;
   /** Semantic theme colors calculated dynamically from theme & brightness */
   colors: ThemeColors;
-  setTheme: (t: AppTheme) => Promise<void>;
+  setTheme: (t: AppTheme, syncRemote?: boolean) => Promise<void>;
   setBrightness: (b: number) => Promise<void>;
   setAutoBrightness: (a: boolean) => Promise<void>;
 }
@@ -176,10 +176,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     [resolvedTheme, activeBrightness]
   );
 
-  const setTheme = useCallback(async (t: AppTheme) => {
+  const setTheme = useCallback(async (t: AppTheme, syncRemote = true) => {
     setPreference(t);
     await AsyncStorage.setItem(THEME_KEY, t);
-    settingsService.savePreferences({ theme: t }).catch(() => {});
+    if (syncRemote) settingsService.savePreferences({ theme: t }).catch(() => {});
   }, []);
 
   const setBrightness = useCallback(async (b: number) => {

@@ -73,6 +73,10 @@ app.use('/api/families', familyRoutes);
 
 app.use('/api/notifications', notificationRoutes);
 
+app.use('/api/reminders', require('./routes/reminderRoutes'));
+app.use('/api/announcements', require('./routes/announcementRoutes'));
+app.use('/api/admin/component04', require('./routes/adminComponent04Routes'));
+
 app.use('/api/progress', progressRoutes);
 
 app.use('/api/settings', settingsRoutes);

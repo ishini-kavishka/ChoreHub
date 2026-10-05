@@ -6,6 +6,8 @@ export let settingsDemoMode = false;
 export interface NotificationSettings {
   user_id?: string;
   chore_reminders: boolean;
+  due_date_alerts?: boolean;
+  weekly_summary?: boolean;
   chore_completions: boolean;
   family_updates: boolean;
   announcements: boolean;
@@ -22,6 +24,8 @@ export interface UserPreferences {
 
 const DEFAULT_SETTINGS: NotificationSettings = {
   chore_reminders: true,
+  due_date_alerts: true,
+  weekly_summary: true,
   chore_completions: true,
   family_updates: true,
   announcements: false,
@@ -42,7 +46,7 @@ async function token() {
 }
 
 export const settingsService = {
-  async getNotificationSettings(): Promise<NotificationSettings> {
+  async getNotificationSettings(requireBackend = false): Promise<NotificationSettings> {
     const authToken = await token();
     try {
       const res = await apiRequest<{ settings: NotificationSettings }>(
@@ -51,9 +55,10 @@ export const settingsService = {
         authToken
       );
       settingsDemoMode = false;
+      if (requireBackend && !res.settings) throw new Error('Missing notification settings.');
       return res.settings ?? DEFAULT_SETTINGS;
     } catch (error) {
-      if (!(error instanceof ApiError) || error.status !== undefined) throw error;
+      if (requireBackend || !(error instanceof ApiError) || error.status !== undefined) throw error;
       settingsDemoMode = true;
       return DEFAULT_SETTINGS;
     }
@@ -65,10 +70,11 @@ export const settingsService = {
       { method: 'PUT', body: JSON.stringify(settings) },
       await token()
     );
-    return res.settings ?? settings;
+    if (!res.settings) throw new Error('Missing saved notification settings.');
+    return res.settings;
   },
 
-  async getPreferences(): Promise<UserPreferences> {
+  async getPreferences(requireBackend = false): Promise<UserPreferences> {
     const authToken = await token();
     try {
       const res = await apiRequest<{ preferences: UserPreferences }>(
@@ -77,20 +83,22 @@ export const settingsService = {
         authToken
       );
       settingsDemoMode = false;
+      if (requireBackend && !res.preferences) throw new Error('Missing preferences.');
       return res.preferences ?? DEFAULT_PREFS;
     } catch (error) {
-      if (!(error instanceof ApiError) || error.status !== undefined) throw error;
+      if (requireBackend || !(error instanceof ApiError) || error.status !== undefined) throw error;
       settingsDemoMode = true;
       return DEFAULT_PREFS;
     }
   },
 
-  async savePreferences(prefs: Partial<UserPreferences>): Promise<Partial<UserPreferences>> {
+  async savePreferences(prefs: Partial<UserPreferences>): Promise<UserPreferences> {
     const res = await apiRequest<{ preferences: UserPreferences }>(
       '/api/settings/preferences',
       { method: 'PUT', body: JSON.stringify(prefs) },
       await token()
     );
-    return res.preferences ?? prefs;
+    if (!res.preferences) throw new Error('Missing saved preferences.');
+    return res.preferences;
   },
 };

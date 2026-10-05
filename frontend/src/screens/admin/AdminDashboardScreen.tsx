@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -15,9 +15,12 @@ import { Avatar } from '@/components/profile/Avatar';
 import { authService, Member } from '@/services/authService';
 import { profileService } from '@/services/profileService';
 import { choreService, ChoreStats } from '@/services/choreService';
+import { notificationService } from '@/services/notificationService';
+import { useLanguage } from '@/context/LanguageContext';
 import { AddChoreModal } from '@/components/chores/AddChoreModal';
 
 export default function AdminDashboardScreen() {
+  const { t } = useLanguage();
   const [profile, setProfile] = useState<Member | null>(null);
   const [stats, setStats] = useState<ChoreStats>({
     completed: 0,
@@ -30,6 +33,15 @@ export default function AdminDashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+
+  useEffect(() => {
+    const unsub = notificationService.subscribeUnreadCount(setUnreadCount);
+    notificationService.getUnreadCount().then(setUnreadCount).catch(() => {});
+    return () => {
+      unsub();
+    };
+  }, []);
 
   const loadData = useCallback(async () => {
     try {
