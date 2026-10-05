@@ -108,21 +108,6 @@ export default function ContactSupportScreen() {
             <Ionicons name="chevron-forward" size={20} color="#8A879A" />
           </Pressable>
 
-          {/* Form Message Card */}
-          <Pressable
-            onPress={() => router.push('/support/contact-us' as any)}
-            style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
-            accessibilityRole="button"
-          >
-            <View style={styles.cardIconWrap}>
-              <Ionicons name="chatbox-ellipses-outline" size={22} color="#6C3BEA" />
-            </View>
-            <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>Send a message</Text>
-              <Text style={styles.cardDetail}>Submit an inquiry directly</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#8A879A" />
-          </Pressable>
         </View>
       </ScrollView>
 
