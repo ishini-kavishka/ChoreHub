@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -48,27 +48,37 @@ export default function EditProfileScreen() {
 		}
 	};
 
-	const deleteAccount = async () => {
-		Alert.alert('Delete account', 'This action permanently removes your account and cannot be undone. Continue?', [
+	const confirmDeleteAccount = async () => {
+		try {
+			setSaving(true);
+			setError('');
+			await profileService.deleteProfile();
+			await authService.signOut();
+			if (Platform.OS === 'web') {
+				globalThis.alert('Your account has been removed.');
+				router.replace('/auth/login');
+			} else {
+				Alert.alert('Account deleted', 'Your account has been removed.', [
+					{ text: 'OK', onPress: () => router.replace('/auth/login') },
+				]);
+			}
+		} catch (requestError) {
+			setError(requestError instanceof Error ? requestError.message : 'We could not delete your account.');
+		} finally {
+			setSaving(false);
+		}
+	};
+
+	const deleteAccount = () => {
+		const message = 'This action permanently removes your account and cannot be undone. Continue?';
+		if (Platform.OS === 'web') {
+			if (globalThis.confirm(message)) void confirmDeleteAccount();
+			return;
+		}
+
+		Alert.alert('Delete account', message, [
 			{ text: 'Cancel', style: 'cancel' },
-			{
-				text: 'Delete',
-				style: 'destructive',
-				onPress: async () => {
-					try {
-						setSaving(true);
-						await profileService.deleteProfile();
-						await authService.signOut();
-						Alert.alert('Account deleted', 'Your account has been removed.', [
-							{ text: 'OK', onPress: () => router.replace('/auth/login') },
-						]);
-					} catch (requestError) {
-						setError(requestError instanceof Error ? requestError.message : 'We could not delete your account.');
-					} finally {
-						setSaving(false);
-					}
-				},
-			},
+			{ text: 'Delete', style: 'destructive', onPress: () => void confirmDeleteAccount() },
 		]);
 	};
 
