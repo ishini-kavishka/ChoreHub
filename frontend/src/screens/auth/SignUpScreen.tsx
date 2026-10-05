@@ -195,7 +195,7 @@ export default function SignUpScreen() {
               <View style={styles.dividerLine} />
             </View>
 
-            {/* ── Continue with Google (no-op until Google OAuth is configured) ── */}
+            {/* ── Continue with Google ── */}
             <Pressable
               onPress={() => {}}
               style={({ pressed }) => [styles.googleBtn, pressed && { opacity: 0.88 }]}
