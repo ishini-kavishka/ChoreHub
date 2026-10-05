@@ -38,7 +38,7 @@ export default function SignUpScreen() {
 
     try {
       await authService.signUp(name.trim(), email.trim(), password);
-      router.replace('/profile');
+      router.replace('/home' as any);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Could not create your account. Please try again.';
       setError(msg);
