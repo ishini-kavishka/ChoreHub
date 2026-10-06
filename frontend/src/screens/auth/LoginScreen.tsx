@@ -51,8 +51,8 @@ export default function LoginScreen() {
       } else {
         router.replace('/home' as any);
       }
-    } catch (err) {
-      const msg = t('admin_error');
+    } catch (err: any) {
+      const msg = err?.message || t('admin_error');
       setError(msg);
     } finally {
       setLoading(false);
@@ -151,6 +151,8 @@ export default function LoginScreen() {
                   }}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
+                  returnKeyType="go"
+                  onSubmitEditing={handleLogin}
                 />
                 <Pressable
                   onPress={() => setShowPassword(!showPassword)}

@@ -52,7 +52,6 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       const user = await getUser();
       if (!active || request !== version.current) return;
       cacheKey.current = 'chorehub.language.' + (user?.id || 'guest');
-      setReady(false);
       const saved = await AsyncStorage.getItem(cacheKey.current);
       const cached = await AsyncStorage.getItem('chorehub.languageAvailability');
       let langs = fallbackLanguages;
