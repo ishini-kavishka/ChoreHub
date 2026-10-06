@@ -58,11 +58,16 @@ export default function UpdateProfilePictureScreen() {
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8,
+      quality: 0.7,
+      base64: true,
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      setUri(result.assets[0].uri);
+      const asset = result.assets[0];
+      const imageUri = asset.base64
+        ? `data:image/jpeg;base64,${asset.base64}`
+        : asset.uri;
+      setUri(imageUri);
     }
   };
 

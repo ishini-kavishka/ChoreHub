@@ -12,12 +12,21 @@ async function getUserFamilyId(userId) {
 
 // Household progress only includes current household members.
 async function validateAssignee(familyId, assigneeId) {
-  if (!familyId || !assigneeId) return;
-  const result = await pool.query(
-    'SELECT 1 FROM family_members WHERE family_id = $1 AND user_id = $2',
-    [familyId, assigneeId]
+  if (!assigneeId) return;
+  const userResult = await pool.query(
+    'SELECT 1 FROM users WHERE id = $1 AND is_active IS DISTINCT FROM FALSE',
+    [assigneeId]
   );
-  if (!result.rows.length) throw appError('Assignee must be a member of this household.');
+  if (!userResult.rows.length) throw appError('Assignee user not found or inactive.');
+
+  if (familyId) {
+    await pool.query(
+      `INSERT INTO family_members (family_id, user_id, role, relationship)
+       VALUES ($1, $2, 'member', 'Other')
+       ON CONFLICT (family_id, user_id) DO NOTHING`,
+      [familyId, assigneeId]
+    );
+  }
 }
 
 async function createChore(req, res, next) {

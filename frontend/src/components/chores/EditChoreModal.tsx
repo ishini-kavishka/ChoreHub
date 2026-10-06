@@ -53,9 +53,22 @@ export function EditChoreModal({
       setStatus(chore.status || 'pending');
       setAssignedTo(chore.assigned_to || null);
 
-      familyService.getMyFamily()
-        .then((res) => setMembers(res.members))
-        .catch(() => setError(t('ui_failed_to_load_household_members')));
+      choreService.getAdminAllUsers()
+        .then((res) => setMembers(res.users.map((u) => ({
+          id: u.id,
+          family_id: null,
+          user_id: u.id,
+          role: u.role || 'member',
+          relationship: 'Other',
+          name: u.name || u.email,
+          email: u.email,
+          avatar: u.avatar,
+        }))))
+        .catch(() => {
+          familyService.getMyFamily()
+            .then((res) => setMembers(res.members))
+            .catch(() => setError(t('ui_failed_to_load_household_members')));
+        });
     }
   }, [visible, chore]);
 

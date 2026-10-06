@@ -141,7 +141,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       const request=++version.current;
       const user=await getUser();
       if(!active||request!==version.current)return;
-      const id=user?.id || 'guest';account.current=id;setReady(false);
+      const id=user?.id || 'guest';account.current=id;
       const values=await Promise.all(keys(id).map(key=>AsyncStorage.getItem(key)));
       if(id==='guest'&&!values[0]){
         const legacy=await Promise.all([THEME_KEY,BRIGHTNESS_KEY,AUTO_BRIGHTNESS_KEY].map(key=>AsyncStorage.getItem(key)));

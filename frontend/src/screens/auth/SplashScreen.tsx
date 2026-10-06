@@ -16,7 +16,15 @@ export default function SplashScreen() {
     let active = true;
     ExpoSplashScreen.hideAsync();
     authService.getCurrentMember().then((member) => {
-      if (active) router.replace(member ? '/profile' : '/auth/welcome');
+      if (active) {
+        if (!member) {
+          router.replace('/auth/welcome');
+        } else if (member.role === 'admin') {
+          router.replace('/admin/dashboard');
+        } else {
+          router.replace('/home' as any);
+        }
+      }
     }).catch(() => {
       if (active) router.replace('/auth/welcome');
     });

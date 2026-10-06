@@ -45,11 +45,17 @@ export default function AddChoreScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
-    familyService.getMyFamily()
-      .then((res) => setMembers(res.members.map((m) => ({
-        id: m.id, name: m.name || m.email, email: m.email,
+    choreService.getAdminAllUsers()
+      .then((res) => setMembers(res.users.map((u) => ({
+        id: u.id, name: u.name || u.email, email: u.email,
       }))))
-      .catch(() => setError(t('ui_failed_to_load_household_members')));
+      .catch(() => {
+        familyService.getMyFamily()
+          .then((res) => setMembers(res.members.map((m) => ({
+            id: m.id, name: m.name || m.email, email: m.email,
+          }))))
+          .catch(() => setError(t('ui_failed_to_load_household_members')));
+      });
   }, []);
 
   const handleCreateChore = async () => {
