@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS personal_reminders (
 );
 CREATE INDEX IF NOT EXISTS personal_reminders_owner_time ON personal_reminders(user_id, remind_at);
 ALTER TABLE personal_reminders ADD COLUMN IF NOT EXISTS vibrate BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE personal_reminders ADD COLUMN IF NOT EXISTS sound BOOLEAN NOT NULL DEFAULT TRUE;
 CREATE TABLE IF NOT EXISTS household_announcements (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   family_id UUID NOT NULL REFERENCES families(id) ON DELETE CASCADE,

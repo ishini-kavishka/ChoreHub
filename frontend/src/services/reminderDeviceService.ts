@@ -14,13 +14,14 @@ function native() {
   if (Platform.OS !== 'android' && Platform.OS !== 'ios') return null;
   const notifications: typeof import('expo-notifications') = require('expo-notifications');
   if (!initialized) {
-    notifications.setNotificationHandler({ handleNotification: async () => ({
-      shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false,
+    notifications.setNotificationHandler({ handleNotification: async notification => ({
+      shouldShowBanner: true, shouldShowList: true, shouldPlaySound: notification.request.content.data?.alertSound !== false, shouldSetBadge: false,
     }) });
     initialized = true;
   }
   return notifications;
 }
+const channel = (sound: boolean, vibrate: boolean) => sound ? (vibrate ? 'personal-reminders-vibrate-v1' : 'personal-reminders-quiet-v1') : (vibrate ? 'personal-reminders-silent-vibrate-v1' : 'personal-reminders-silent-quiet-v1');
 const identifier = (user: string, reminder: string) => `${source}:${user}:${reminder}`;
 
 async function sync(snapshot: Snapshot, askPermission: boolean): Promise<DeviceReminderStatus> {
@@ -34,14 +35,14 @@ async function sync(snapshot: Snapshot, askPermission: boolean): Promise<DeviceR
   for (const p of own) if (!desired.has(p.identifier)) await n.cancelScheduledNotificationAsync(p.identifier);
   if (!snapshot.enabled || !snapshot.userId) return 'disabled';
   if (Platform.OS === 'android') {
-    await n.setNotificationChannelAsync('personal-reminders-vibrate-v1', {
-      name: 'Personal reminders (vibration)', importance: n.AndroidImportance.HIGH,
-      sound: 'default', enableVibrate: true, vibrationPattern: [0, 300, 200, 300],
-    });
-    await n.setNotificationChannelAsync('personal-reminders-quiet-v1', {
-      name: 'Personal reminders (no vibration)', importance: n.AndroidImportance.HIGH,
-      sound: 'default', enableVibrate: false,
-    });
+    for (const sound of [true, false]) for (const vibrate of [true, false]) {
+      await n.setNotificationChannelAsync(channel(sound, vibrate), {
+        name: 'Personal reminders (' + (sound ? 'sound' : 'silent') + ', ' + (vibrate ? 'vibration' : 'no vibration') + ')',
+        importance: n.AndroidImportance.HIGH, sound: sound ? 'default' : null,
+        enableVibrate: vibrate, ...(vibrate ? { vibrationPattern: [0, 300, 200, 300] } : {}),
+        lockscreenVisibility: n.AndroidNotificationVisibility.PRIVATE,
+      });
+    }
   }
   let permission = await n.getPermissionsAsync();
   if (!permission.granted && askPermission && permission.canAskAgain && permission.status === 'undetermined') {
@@ -53,14 +54,14 @@ async function sync(snapshot: Snapshot, askPermission: boolean): Promise<DeviceR
   }
   for (const [id, r] of desired) {
     const body = [r.chore_name, r.chore_due_date ? new Date(r.chore_due_date).toLocaleString() : '', r.note].filter(Boolean).join('\n');
-    const signature = JSON.stringify([r.title, body, r.remind_at, r.vibrate !== false]);
+    const signature = JSON.stringify([r.title, body, r.remind_at, r.vibrate !== false, r.sound !== false]);
     if (own.some(p => p.identifier === id && p.content.data?.signature === signature)) continue;
     await n.cancelScheduledNotificationAsync(id);
     await n.scheduleNotificationAsync({ identifier: id,
-      content: { title: r.title, body, sound: 'default', ...(r.vibrate !== false ? { vibrationPattern: [0, 300, 200, 300] } : {}),
-        data: { source, signature, userId: snapshot.userId, reminderId: r.id } },
+      content: { title: r.title, body, sound: r.sound !== false ? 'default' : false, ...(r.vibrate !== false ? { vibrationPattern: [0, 300, 200, 300] } : {}),
+        data: { source, signature, alertSound: r.sound !== false, userId: snapshot.userId, reminderId: r.id } },
       trigger: { type: n.SchedulableTriggerInputTypes.DATE, date: new Date(r.remind_at),
-        ...(Platform.OS === 'android' ? { channelId: r.vibrate !== false ? 'personal-reminders-vibrate-v1' : 'personal-reminders-quiet-v1' } : {}) },
+        ...(Platform.OS === 'android' ? { channelId: channel(r.sound !== false, r.vibrate !== false) } : {}) },
     });
   }
   return 'scheduled';

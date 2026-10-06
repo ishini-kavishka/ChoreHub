@@ -3,7 +3,7 @@ import { authService } from './authService';
 import { reminderDeviceService } from './reminderDeviceService';
 import { settingsService } from './settingsService';
 
-export type Reminder = { id: string; chore_id: string | null; chore_name: string | null; chore_due_date?: string | null; vibrate?: boolean; title: string; note: string; remind_at: string; status: 'pending' | 'past' | 'unavailable'; created_at: string; updated_at: string };
+export type Reminder = { id: string; chore_id: string | null; chore_name: string | null; chore_due_date?: string | null; vibrate?: boolean; sound?: boolean; title: string; note: string; remind_at: string; status: 'pending' | 'past' | 'unavailable'; created_at: string; updated_at: string };
 export type Announcement = { id: string; title: string; message: string; status: 'draft' | 'published'; published_at: string | null; created_at: string; updated_at: string };
 async function request<T>(path: string, method = 'GET', body?: object) {
   const token = await authService.getAuthToken();
@@ -14,7 +14,7 @@ export const reminderService = {
   list: () => request<{ reminders: Reminder[] }>('/reminders'),
   chores: () => request<{ chores: { id: string; title: string; due_date?: string | null }[] }>('/reminders/chores'),
   get: (id: string) => request<{ reminder: Reminder }>(`/reminders/${id}`),
-  save: (id: string | undefined, body: { title: string; note: string; remind_at: string; chore_id?: string; vibrate?: boolean }) => reminderDeviceService.mutate(id, reminderSnapshot,
+  save: (id: string | undefined, body: { title: string; note: string; remind_at: string; chore_id?: string; vibrate?: boolean; sound?: boolean }) => reminderDeviceService.mutate(id, reminderSnapshot,
     () => request<{ reminder: Reminder }>(id ? `/reminders/${id}` : '/reminders', id ? 'PATCH' : 'POST', body)),
   delete: (id: string) => reminderDeviceService.mutate(id, reminderSnapshot, () => request<{ id: string }>(`/reminders/${id}`, 'DELETE'), false),
 };

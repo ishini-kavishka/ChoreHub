@@ -2,7 +2,7 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 require.extensions['.ts']=(m,file)=>m._compile(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,file);
 const platform={OS:'android'},scheduled=new Map(),events=[],channels=new Map();
 let permission={granted:true,status:'granted',canAskAgain:true},requests=0,failSchedule=false,handler;
-const notifications={AndroidImportance:{HIGH:4},IosAuthorizationStatus:{PROVISIONAL:3},SchedulableTriggerInputTypes:{DATE:'date'},
+const notifications={AndroidNotificationVisibility:{PRIVATE:0},AndroidImportance:{HIGH:4},IosAuthorizationStatus:{PROVISIONAL:3},SchedulableTriggerInputTypes:{DATE:'date'},
   setNotificationHandler:value=>{handler=value;},getAllScheduledNotificationsAsync:async()=>[...scheduled.values()],
   setNotificationChannelAsync:async(id,value)=>channels.set(id,value),getPermissionsAsync:async()=>permission,
   requestPermissionsAsync:async()=>{requests++;return permission={granted:false,status:'denied',canAskAgain:false};},
@@ -21,7 +21,7 @@ test('real scheduler persists OS identifiers, uses due time/note and correct cha
   const first=[...scheduled.values()][0];assert.equal(first.trigger.type,'date');assert.ok(first.trigger.date instanceof Date);assert.equal(first.trigger.date.getHours(),19);assert.equal(first.trigger.date.getMinutes(),50);
   assert.ok(first.content.body.includes('Clean Room'));assert.ok(first.content.body.includes('Take cleaning supplies'));assert.equal(first.trigger.channelId,'personal-reminders-vibrate-v1');
   assert.equal(channels.get('personal-reminders-vibrate-v1').enableVibrate,true);assert.equal(channels.get('personal-reminders-quiet-v1').enableVibrate,false);
-  assert.equal((await handler.handleNotification()).shouldShowBanner,true);
+  assert.equal((await handler.handleNotification({request:{content:{data:{}}}})).shouldShowBanner,true);
   events.length=0;await device.reconcile(load);assert.equal(events.length,0,'Reconciliation never duplicates unchanged schedules');
   await device.mutate(records[0].id,load,async()=>{assert.equal(scheduled.size,0,'Cancelled before update');records=[{...records[0],vibrate:false,remind_at:new Date(2099,9,10,19,45).toISOString()}];return{reminder:records[0]};});
   const edited=[...scheduled.values()][0];assert.equal(edited.identifier,first.identifier);assert.equal(edited.trigger.date.getMinutes(),45);assert.equal(edited.trigger.channelId,'personal-reminders-quiet-v1');assert.equal(edited.content.vibrationPattern,undefined);
@@ -45,5 +45,12 @@ test('permission denial still saves without repeat prompts; web saves with an ex
   assert.equal((await device.mutate(undefined,load,create)).device_status,'denied');assert.equal(records.length,1);assert.equal(requests,1);
   assert.equal((await device.mutate(undefined,load,create)).device_status,'denied');assert.equal(requests,1);
   platform.OS='web';assert.equal((await device.mutate(undefined,load,create)).device_status,'unsupported');assert.equal(requests,1);
+});
+test('standalone silent reminder preserves privacy and uses silent vibration channel',async()=>{
+  permission={granted:true,status:'granted'};platform.OS='android';enabled=true;userId='member';
+  records=[{...reminder(),chore_name:null,chore_due_date:null,sound:false}];await device.reconcile(load);
+  const request=[...scheduled.values()].find(n=>n.content.data?.userId==='member');assert.equal(request.content.body,'Take cleaning supplies');assert.equal(request.content.sound,false);assert.equal(request.trigger.channelId,'personal-reminders-silent-vibrate-v1');
+  assert.equal((await handler.handleNotification({request})).shouldPlaySound,false);
+  assert.equal(channels.get(request.trigger.channelId).sound,null);
 });
 test.after(()=>{Module._load=original;});

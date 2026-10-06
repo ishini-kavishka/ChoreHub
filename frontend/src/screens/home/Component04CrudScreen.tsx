@@ -31,6 +31,7 @@ export default function Component04CrudScreen({ kind, familyId, admin = false }:
   const scroll = useRef<ScrollView>(null);
   const reveal = () => requestAnimationFrame(() => scroll.current?.scrollTo({ y: 0, animated: true }));
   const [items, setItems] = useState<RecordItem[]>([]), [chores, setChores] = useState<{ id: string; title: string; due_date?: string | null }[]>([]);
+  const [sound, setSound] = useState(true);
   const [vibrate, setVibrate] = useState(true), [quickMinutes, setQuickMinutes] = useState<number | null>(null);
   const [picker, setPicker] = useState<'date' | 'time' | null>(null);
   const [family, setFamily] = useState(familyId || ''), [canManage, setCanManage] = useState(reminders);
@@ -78,14 +79,15 @@ export default function Component04CrudScreen({ kind, familyId, admin = false }:
     setTitle(item?.title || ''); setBody(item ? ('note' in item ? item.note : item.message) : '');
     setTime(item && 'remind_at' in item ? localInput(item.remind_at) : localInput(new Date(Date.now() + 3600000).toISOString()));
     setChore(item && 'chore_id' in item ? item.chore_id || '' : ''); setStatus(item?.status || 'draft');
+    setSound(item && 'sound' in item ? item.sound !== false : true);
     setVibrate(item && 'vibrate' in item ? item.vibrate !== false : true); setQuickMinutes(null); setPicker(null);
     reveal();
   };
   const save = () => void action(async () => {
-    if (!title.trim() || title.trim().length > 200 || body.trim().length > (reminders ? 2000 : 5000) || (!reminders && !body.trim()) || (reminders && !editor?.id && !chore)) throw new Error(t('crud_required'));
+    if (!title.trim() || title.trim().length > 200 || body.trim().length > (reminders ? 2000 : 5000) || (!reminders && !body.trim())) throw new Error(t('crud_required'));
     if (reminders) {
     const iso = parseLocalTime(time); if (!iso) throw new Error(t('crud_future'));
-      const result = await reminderService.save(editor?.id, { title, note: body, remind_at: iso, ...(!admin ? { vibrate } : {}), ...(!editor?.id ? { chore_id: chore } : {}) });
+      const result = await reminderService.save(editor?.id, { title, note: body, remind_at: iso, ...(!admin ? { vibrate, sound } : {}), ...(!editor?.id ? { chore_id: chore || undefined } : {}) });
       if (!admin) setNotice(`${t('crud_saved')} ${result?.device_status ? t(`reminder_device_${result.device_status}` as TranslationKey) : ''}`);
     } else await announcementService.save(family, editor?.id, { title, message: body, status });
     if (reminders && !admin) { setQuery(''); setFilter('all'); }
@@ -146,9 +148,10 @@ export default function Component04CrudScreen({ kind, familyId, admin = false }:
         {editor ? card(<>
           {field(`${t('reminder_title')} *`, title, setTitle, 200)}
           {field(t('crud_note'), body, setBody, 2000, '', true)}
-          {text(`${t('reminder_chore')} *`)}
-          {editor.id ? text(chores.find(ch => ch.id === chore)?.title || (items.find(item => item.id === editor.id) as Reminder | undefined)?.chore_name || t('crud_unavailable')) : <>
-            {!chores.length && text(t('crud_no_chores'), true)}
+          {text(`${t('reminder_chore')} (${t('reminder_optional')})`)}
+          {editor.id ? text(chores.find(ch => ch.id === chore)?.title || (items.find(item => item.id === editor.id) as Reminder | undefined)?.chore_name || t(chore ? 'crud_unavailable' : 'reminder_no_chore')) : <>
+            {!chores.length && text(t('reminder_chore_optional'), true)}
+            {button(t('reminder_no_chore'), () => { setChore(''); setQuickMinutes(null); })}
             {chores.map(ch => <Pressable key={ch.id} accessibilityRole="radio" accessibilityLabel={ch.title} accessibilityState={{ checked: chore === ch.id, disabled: saving }} disabled={saving} onPress={() => chooseChore(ch.id)}
               style={[s.action, { borderWidth: 1, borderColor: chore === ch.id ? colors.primary : colors.border, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 10 }]}>
               <Ionicons name={chore === ch.id ? 'radio-button-on' : 'radio-button-off'} color={colors.primary} size={20}/><View style={{ flex: 1 }}>{text(ch.title)}</View>
@@ -163,13 +166,16 @@ export default function Component04CrudScreen({ kind, familyId, admin = false }:
             onChange: (event: { type: string }, value?: Date) => { setPicker(null); if (event.type !== 'dismissed' && value) { setTime(localInput(value.toISOString())); setQuickMinutes(null); } },
           })}
           {text(t('reminder_local_time'), true)}
+          {text(t('reminder_alert'), false, true)}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>{text(t('reminder_sound'))}<Switch accessibilityLabel={t('reminder_sound')} value={sound} disabled={saving} onValueChange={setSound} trackColor={{ true: colors.primary }} /></View>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>{text(t('reminder_vibrate'))}<Switch accessibilityLabel={t('reminder_vibrate')} value={vibrate} disabled={saving} onValueChange={setVibrate} trackColor={{ true: colors.primary }} /></View>
-          {button(t(saving ? 'crud_saving' : editor.id ? 'reminder_save_changes' : 'reminder_create'), save, true, saving || (!editor.id && !chores.length))}
+          {button(t(saving ? 'crud_saving' : editor.id ? 'reminder_save_changes' : 'reminder_create'), save, true, saving)}
           {button(t('crud_cancel'), clientBack)}
         </>) : detail && 'remind_at' in detail ? card(<>
           {text(detail.title, false, true)}
           {!!detail.note && <>{text(t('crud_note'), true)}{text(detail.note)}</>}
-          {text(t('reminder_chore'), true)}{text(detail.chore_name || t('crud_unavailable'))}
+          {text(`${t('reminder_sound')}: ${detail.sound !== false ? '?' : '?'} ? ${t('reminder_vibrate')}: ${detail.vibrate !== false ? '?' : '?'}`, true)}
+          {text(t('reminder_chore'), true)}{text(detail.chore_name || t(detail.chore_id ? 'crud_unavailable' : 'reminder_no_chore'))}
           {schedule(detail)}{text(labelStatus(detail), true)}
           {text(`${t('crud_created')}: ${date(detail.created_at)}`, true)}
           {text(`${t('crud_updated')}: ${date(detail.updated_at)}`, true)}
@@ -184,7 +190,7 @@ export default function Component04CrudScreen({ kind, familyId, admin = false }:
           </>}
           {!busy && !error && !items.length && card(<View style={{ gap: 12, alignItems: 'center', paddingVertical: 12 }}><Ionicons name="alarm-outline" size={40} color={colors.primary}/>{text(t('reminder_empty'), false, true)}{text(t('reminder_empty_body'), true)}</View>)}
           {!busy && items.length > 0 && !shown.length && text(t('crud_empty'), true)}
-          {shown.map(item => 'remind_at' in item && <View key={item.id}>{card(<>{text(item.title, false, true)}{text(item.chore_name || t('crud_unavailable'), true)}{schedule(item)}
+          {shown.map(item => 'remind_at' in item && <View key={item.id}>{card(<>{text(item.title, false, true)}{text(item.chore_name || t(item.chore_id ? 'crud_unavailable' : 'reminder_no_chore'), true)}{schedule(item)}
             <View style={{ alignSelf: 'flex-start', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5, backgroundColor: colors.surface }}>{text(item.status === 'pending' ? t('crud_upcoming') : labelStatus(item))}</View>
             {recordActions(item)}</>)}</View>)}
         </>}

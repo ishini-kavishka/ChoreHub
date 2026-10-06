@@ -108,7 +108,16 @@ test('quick offsets use the actual assigned due time and the vibration selection
     await act(async()=>quick.props.onPress());
     assert.equal(r.root.findAllByType('input').find(n=>n.props.accessibilityLabel==='Reminder Time *').props.value,'19:50');
     await enter(r,'Reminder Title *','Get ready to clean the room');await enter(r,'Note (optional)','Take cleaning supplies');
-    await act(async()=>r.root.findByType('switch').props.onValueChange(false));await press(r,'Create Reminder');
+    await act(async()=>r.root.findAllByType('switch').find(n=>n.props.accessibilityLabel==='Vibrate when reminder arrives').props.onValueChange(false));await press(r,'Create Reminder');
     assert.equal(calls.at(-1)[2].vibrate,false);assert.equal(new Date(calls.at(-1)[2].remind_at).getHours(),19);assert.equal(new Date(calls.at(-1)[2].remind_at).getMinutes(),50);
   }finally{if(r)await act(async()=>r.unmount());}
+});
+
+test('personal reminder saves without a chore and persists sound selection',async()=>{
+ if(liveService)return;let r;const old=service.chores;service.chores=async()=>({chores:[]});records=[];calls=[];
+ try{await act(async()=>{r=create(React.createElement(Screen,{kind:'reminders'}));});await press(r,'+ Add Reminder');
+ await enter(r,'Reminder Title *','Private task');await enter(r,'Note (optional)','Owner note');await enter(r,'Reminder Date *','2099-10-10');await enter(r,'Reminder Time *','21:50');
+ await act(async()=>r.root.findAllByType('switch').find(n=>n.props.accessibilityLabel==='Sound').props.onValueChange(false));await press(r,'Create Reminder');
+ assert.equal(calls.at(-1)[2].chore_id,undefined);assert.equal(calls.at(-1)[2].sound,false);assert.equal(records.length,1);
+ }finally{service.chores=old;if(r)await act(async()=>r.unmount());}
 });

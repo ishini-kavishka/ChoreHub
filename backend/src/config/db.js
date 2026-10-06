@@ -277,6 +277,7 @@ async function ensureNotificationMessageSchema() {
 
 async function ensurePersonalReminderDeviceSchema() {
   await pool.query('ALTER TABLE IF EXISTS public.personal_reminders ADD COLUMN IF NOT EXISTS vibrate BOOLEAN NOT NULL DEFAULT TRUE');
+  await pool.query('ALTER TABLE IF EXISTS public.personal_reminders ADD COLUMN IF NOT EXISTS sound BOOLEAN NOT NULL DEFAULT TRUE');
 }
 
 module.exports = {

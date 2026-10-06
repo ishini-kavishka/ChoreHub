@@ -30,7 +30,7 @@ Packages installed through Expo's SDK 57 compatibility resolver: `expo-notificat
 
 ## API and database
 
-The existing authenticated `/api/reminders` GET/POST, `/api/reminders/:id` GET/PATCH/DELETE and `/api/reminders/chores` GET routes are reused. Eligible chores include their actual `due_date`; saved reminder reads include `chore_due_date`. The only schema addition is `personal_reminders.vibrate BOOLEAN NOT NULL DEFAULT TRUE`, applied idempotently by the existing backend startup schema workflow and included in the existing SQL setup file. No new table or endpoint is required.
+The existing authenticated `/api/reminders` GET/POST, `/api/reminders/:id` GET/PATCH/DELETE and `/api/reminders/chores` GET routes are reused. Eligible chores include their actual `due_date`; saved reminder reads include `chore_due_date`. The existing vibration column is preserved. The standalone update adds `personal_reminders.sound BOOLEAN NOT NULL DEFAULT TRUE` through the existing startup/SQL workflow and makes delivery-receipt chore links nullable. No new table or endpoint is required.
 
 The backend rejects a non-boolean vibration value, invalid/past schedules, foreign assignments and foreign reminder owners. JWT authentication determines the owner; supplied user IDs do not override it. All reminder changes leave the Admin's Chore untouched.
 
@@ -98,3 +98,32 @@ No physical Android device was available to this tool session. Actual foreground
 An offline/backgrounded phone cannot learn about deletion, reassignment or preference changes made on another device until it reconnects and reconciles. The OS may delay/suppress alarms due to denied exact-alarm access, force-stop, battery restrictions, focus or user channel settings. iOS also limits pending notifications. These platform limits cannot be bypassed with JavaScript timers. The existing backend in-app reminder delivery remains separate from OS presentation and is preserved.
 
 No changes were pushed.
+
+
+## Standalone personal reminders (current update)
+
+Assigned Chore is optional. A title and future device-local date/time are required; the private note is optional. Sound and Vibrate are persisted separately. All reminder API reads/mutations use the JWT owner ID. Admin and household membership do not grant access to another user's personal reminder. The delivery worker inserts the reminder only into its owner's existing inbox; an optional chore link is still validated against that owner.
+
+Android uses separate immutable channel IDs for sound/vibration combinations. Sound off sets both the channel sound and notification sound off; foreground presentation also respects this choice. Notification settings, Do Not Disturb, battery restrictions and exact-alarm permission can affect delivery. These are one-off OS notifications, not continuously ringing alarm clocks. Dismiss with the phone's normal notification controls; there is no infinite sound/vibration loop.
+
+The OS scheduled-notification registry retains deterministic account/reminder identifiers. Edit cancels the old ID before saving/rescheduling; delete cancels before deletion. Failed API mutations restore the previous saved schedule. Denied permissions keep the saved record and show an explanation without repeatedly prompting. Web stores reminders but does not produce phone alarms.
+
+### Android phone test commands
+
+From the frontend directory, with a phone-compatible Expo Go installed:
+
+~~~powershell
+npx.cmd expo start --go --clear
+~~~
+
+Scan the QR code on the phone. Local notifications are supported in Expo Go; remote push is a separate feature. For testing this project's own Android manifest and exact-alarm permission, use Android Studio/SDK, enable USB debugging, connect your phone, then:
+
+~~~powershell
+npx.cmd expo run:android --device
+~~~
+
+This generates/builds the native Android app using the existing app.json plugins and permissions. Native build commands require Android SDK/JDK tools and a connected device. No new package or EAS account is required for this local native build. Enable Notifications and, if requested, Alarms & reminders in Android app settings.
+
+Create a reminder without a chore, with a private note, 1?2 minutes ahead, Sound and Vibrate on. Save, background the app, wait, and dismiss the OS notification. Repeat after an edit and a deletion, and with permissions denied. Force-stopping an Android app or denying exact-alarm access may suppress/delay delivery. A continuous alarm clock would require a separate native alarm implementation; this feature does not claim that behavior.
+
+Physical phone sound, vibration, background delivery and dismissal have not been verified in this agent environment: Android SDK/adb and a connected phone are unavailable. Automated scheduler checks and native bundle exports do not replace that test.

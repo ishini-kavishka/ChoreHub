@@ -13,11 +13,12 @@ async function ensureReminderDeliverySchema(db = pool) {
   await db.query(`CREATE TABLE IF NOT EXISTS notification_reminder_deliveries (
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     delivery_key TEXT NOT NULL,
-    chore_id UUID NOT NULL REFERENCES chores(id) ON DELETE CASCADE,
+    chore_id UUID REFERENCES chores(id) ON DELETE CASCADE,
     trigger_at TIMESTAMPTZ NOT NULL,
     delivered_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY(user_id, delivery_key)
   )`);
+  await db.query('ALTER TABLE notification_reminder_deliveries ALTER COLUMN chore_id DROP NOT NULL');
 }
 
 async function lockNotificationPreferences(db, userId) {
@@ -43,10 +44,10 @@ async function deliverUser(userId, now, dbPool) {
       AND c.due_date - ($3 * interval '1 minute') <= $2
       ORDER BY c.id FOR SHARE OF c`, [userId, now, minutes]);
     const personal = await db.query(`SELECT r.id, r.chore_id, r.title, r.note, r.remind_at AS trigger_at
-      FROM personal_reminders r JOIN chores c ON c.id=r.chore_id
-      WHERE r.user_id=$1 AND ${eligible} AND r.remind_at <= $2
+      FROM personal_reminders r LEFT JOIN chores c ON c.id=r.chore_id
+      WHERE r.user_id=$1 AND (r.chore_id IS NULL OR (${eligible})) AND r.remind_at <= $2
       AND (c.due_date IS NULL OR c.due_date > $2)
-      ORDER BY r.id FOR SHARE OF r, c`, [userId, now]);
+      ORDER BY r.id FOR SHARE OF r`, [userId, now]);
     let delivered = 0;
     for (const row of [...automatic.rows, ...personal.rows]) {
       const isPersonal = row.chore_id !== undefined;
@@ -69,7 +70,8 @@ async function deliverUser(userId, now, dbPool) {
 
 async function processDueReminders({ userId, now = new Date(), dbPool = pool } = {}) {
   const users = userId ? [userId] : (await dbPool.query(`SELECT DISTINCT assigned_to AS id FROM chores
-    WHERE assigned_to IS NOT NULL AND status='pending' AND (due_date IS NULL OR due_date>$1)`, [now])).rows.map(row => row.id);
+    WHERE assigned_to IS NOT NULL AND status='pending' AND (due_date IS NULL OR due_date>$1)
+    UNION SELECT user_id AS id FROM personal_reminders WHERE remind_at <= $1`, [now])).rows.map(row => row.id);
   let delivered = 0;
   for (const id of users) delivered += await deliverUser(id, now, dbPool);
   return delivered;
