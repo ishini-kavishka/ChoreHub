@@ -1,3 +1,6 @@
+import { translateFeedback } from '@/i18n/translations';
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
+import { useLanguage } from '@/context/LanguageContext';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -17,6 +20,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { authService } from '@/services/authService';
 
 export default function LoginScreen() {
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
+  const { t } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -26,12 +32,12 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email.trim() || !password) {
-      setError('Please enter both email and password.');
+      setError(t('enter_email_password'));
       return;
     }
 
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
-      setError('Please enter a valid email address.');
+      setError(t('valid_email'));
       return;
     }
 
@@ -46,7 +52,7 @@ export default function LoginScreen() {
         router.replace('/home' as any);
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'We could not sign you in. Please try again.';
+      const msg = t('admin_error');
       setError(msg);
     } finally {
       setLoading(false);
@@ -70,7 +76,7 @@ export default function LoginScreen() {
               <Text style={styles.logoChore}>Chore</Text>
               <Text style={styles.logoHub}>Hub</Text>
             </View>
-            <Text style={styles.tagline}>Organize Chores, Build Happier Homes</Text>
+            <Text style={styles.tagline}>{t('tagline_hero')}</Text>
           </View>
 
           {/* ── Center House Illustration Graphic ── */}
@@ -107,7 +113,7 @@ export default function LoginScreen() {
             {error ? (
               <View style={styles.errorCard}>
                 <Ionicons name="alert-circle" size={18} color="#DC2626" />
-                <Text style={styles.errorText}>{error}</Text>
+                <Text style={styles.errorText}>{translateFeedback(error, t)}</Text>
               </View>
             ) : null}
 
@@ -115,11 +121,11 @@ export default function LoginScreen() {
             <View style={styles.formGroup}>
               {/* Email Field */}
               <View style={styles.inputCard}>
-                <Ionicons name="mail-outline" size={20} color="#8A879A" style={styles.fieldIcon} />
+                <Ionicons name="mail-outline" size={20} color={themeColors.isDark ? themeColors.textSecondary : "#8A879A"} style={styles.fieldIcon} />
                 <TextInput
                   style={styles.textInput}
-                  placeholder="Email"
-                  placeholderTextColor="#A09DB1"
+                  placeholder={t('email')}
+                  placeholderTextColor={themeColors.isDark ? themeColors.textSecondary : "#A09DB1"}
                   value={email}
                   onChangeText={(text) => {
                     setEmail(text);
@@ -133,11 +139,11 @@ export default function LoginScreen() {
 
               {/* Password Field */}
               <View style={styles.inputCard}>
-                <Ionicons name="lock-closed-outline" size={20} color="#8A879A" style={styles.fieldIcon} />
+                <Ionicons name="lock-closed-outline" size={20} color={themeColors.isDark ? themeColors.textSecondary : "#8A879A"} style={styles.fieldIcon} />
                 <TextInput
                   style={styles.textInput}
-                  placeholder="Password"
-                  placeholderTextColor="#A09DB1"
+                  placeholder={t('password')}
+                  placeholderTextColor={themeColors.isDark ? themeColors.textSecondary : "#A09DB1"}
                   value={password}
                   onChangeText={(text) => {
                     setPassword(text);
@@ -154,7 +160,7 @@ export default function LoginScreen() {
                   <Ionicons
                     name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                     size={20}
-                    color="#8A879A"
+                    color={themeColors.isDark ? themeColors.textSecondary : "#8A879A"}
                   />
                 </Pressable>
               </View>
@@ -167,7 +173,7 @@ export default function LoginScreen() {
               <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
                 {rememberMe ? <Ionicons name="checkmark" size={14} color="#FFFFFF" /> : null}
               </View>
-              <Text style={styles.rememberText}>Remember me</Text>
+              <Text style={styles.rememberText}>{t('remember_me')}</Text>
             </Pressable>
 
             {/* ── Login Primary Button ── */}
@@ -179,14 +185,14 @@ export default function LoginScreen() {
               {loading ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
-                <Text style={styles.loginBtnText}>Login</Text>
+                <Text style={styles.loginBtnText}>{t('login')}</Text>
               )}
             </Pressable>
 
             {/* ── Divider ── */}
             <View style={styles.dividerRow}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>OR</Text>
+              <Text style={styles.dividerText}>{t('or')}</Text>
               <View style={styles.dividerLine} />
             </View>
 
@@ -198,14 +204,14 @@ export default function LoginScreen() {
               <View style={styles.googleGContainer}>
                 <Text style={styles.googleGText}>G</Text>
               </View>
-              <Text style={styles.googleBtnText}>Continue with Google</Text>
+              <Text style={styles.googleBtnText}>{t('continue_google')}</Text>
             </Pressable>
 
             {/* ── Footer Link ── */}
             <View style={styles.footerRow}>
-              <Text style={styles.footerText}>Don't have an account?</Text>
+              <Text style={styles.footerText}>{t('dont_have_account')}</Text>
               <Pressable onPress={() => router.push('/auth/signup' as any)}>
-                <Text style={styles.signUpLinkText}>Sign Up</Text>
+                <Text style={styles.signUpLinkText}>{t('sign_up')}</Text>
               </Pressable>
             </View>
           </View>
@@ -215,10 +221,10 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#FAFAFD'),
   },
   container: {
     flex: 1,
@@ -255,7 +261,7 @@ const styles = StyleSheet.create({
   tagline: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     textAlign: 'center',
   },
 
@@ -270,7 +276,7 @@ const styles = StyleSheet.create({
   },
   cloud: {
     position: 'absolute',
-    backgroundColor: '#E0F2FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#E0F2FE'),
     borderRadius: 20,
     opacity: 0.7,
   },
@@ -337,7 +343,7 @@ const styles = StyleSheet.create({
   houseBody: {
     width: 110,
     height: 65,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderWidth: 2,
     borderColor: '#818CF8',
     borderRadius: 8,
@@ -364,7 +370,7 @@ const styles = StyleSheet.create({
   innerRoofWindowDot: {
     width: 8,
     height: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 2,
   },
   door: {
@@ -398,7 +404,7 @@ const styles = StyleSheet.create({
   // ── Error Card ──
   errorCard: {
     width: '100%',
-    backgroundColor: '#FEE2E2',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEE2E2'),
     borderRadius: 12,
     padding: 12,
     flexDirection: 'row',
@@ -410,7 +416,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 13,
-    color: '#DC2626',
+    color: (themeColors.isDark ? themeColors.error : '#DC2626'),
     fontWeight: '600',
     flex: 1,
   },
@@ -418,7 +424,7 @@ const styles = StyleSheet.create({
   // ── Form Card ──
   formCard: {
     width: '100%',
-    backgroundColor: '#F3EEFF',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F3EEFF'),
     borderRadius: 26,
     padding: 18,
     shadowColor: '#000',
@@ -437,13 +443,13 @@ const styles = StyleSheet.create({
   inputCard: {
     width: '100%',
     height: 54,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 16,
     paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.03,
@@ -457,7 +463,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontWeight: '600',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   eyeBtn: {
     padding: 4,
@@ -479,7 +485,7 @@ const styles = StyleSheet.create({
     borderColor: '#713DE8',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
   },
   checkboxChecked: {
     backgroundColor: '#713DE8',
@@ -487,7 +493,7 @@ const styles = StyleSheet.create({
   rememberText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
   },
 
   // ── Login Button ──
@@ -522,18 +528,18 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#EAE7F5',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EAE7F5'),
   },
   dividerText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#A09DB1',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#A09DB1'),
   },
 
   // ── Google Button ──
   googleBtn: {
     width: '100%',
-    backgroundColor: '#F8F7FF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#F8F7FF'),
     borderRadius: 18,
     height: 54,
     flexDirection: 'row',
@@ -541,7 +547,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 12,
     borderWidth: 1,
-    borderColor: '#E9E3FF',
+    borderColor: (themeColors.isDark ? themeColors.border : '#E9E3FF'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -560,12 +566,12 @@ const styles = StyleSheet.create({
   googleGText: {
     fontSize: 14,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#FFFFFF'),
   },
   googleBtnText: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
 
   // ── Footer Sign Up Link ──
@@ -577,7 +583,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
     fontWeight: '500',
   },
   signUpLinkText: {

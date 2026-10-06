@@ -72,6 +72,7 @@ app.use('/api/chores', choreRoutes);
 app.use('/api/families', familyRoutes);
 
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/chore-time-requests', require('./routes/choreTimeRequestRoutes'));
 
 app.use('/api/reminders', require('./routes/reminderRoutes'));
 app.use('/api/announcements', require('./routes/announcementRoutes'));

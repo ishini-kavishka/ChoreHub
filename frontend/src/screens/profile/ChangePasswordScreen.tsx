@@ -1,3 +1,7 @@
+import { translateFeedback } from '@/i18n/translations';
+import { useAppAlert } from '@/components/ui/AppDialog';
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
+import { useLanguage } from '@/context/LanguageContext';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -17,6 +21,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { profileService } from '@/services/profileService';
 
 export default function ChangePasswordScreen() {
+  const alert = useAppAlert();
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
+  const { t } = useLanguage();
   const [current, setCurrent] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -28,19 +36,19 @@ export default function ChangePasswordScreen() {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const submit = async () => {
-    if (!current) return setError('Enter your current password.');
-    if (password.length < 8) return setError('Your new password must be at least 8 characters.');
-    if (password !== confirm) return setError('Your new passwords do not match.');
+    if (!current) return setError(t('ui_enter_your_current_password'));
+    if (password.length < 8) return setError(t('ui_your_new_password_must_be_at_least_8_characters'));
+    if (password !== confirm) return setError(t('ui_your_new_passwords_do_not_match'));
 
     setLoading(true);
     setError('');
     try {
       await profileService.changePassword(current, password);
-      Alert.alert('Password updated 🎉', 'Your password has been changed successfully.', [
-        { text: 'Done', onPress: () => router.back() },
+      alert(t('ui_password_updated'), t('password_updated_success'), [
+        { text: t('btn_done'), onPress: () => router.back() },
       ]);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'We could not update your password.');
+      setError(t('admin_error'));
     } finally {
       setLoading(false);
     }
@@ -64,12 +72,12 @@ export default function ChangePasswordScreen() {
               style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
               hitSlop={10}
               accessibilityRole="button"
-              accessibilityLabel="Go back"
+              accessibilityLabel={t('admin_back')}
             >
-              <Ionicons name="chevron-back" size={24} color="#1E1B2E" />
+              <Ionicons name="chevron-back" size={24} color={themeColors.isDark ? themeColors.textPrimary : "#1E1B2E"} />
             </Pressable>
 
-            <Text style={styles.headerTitle}>Change Password</Text>
+            <Text style={styles.headerTitle}>{t('change_password_title')}</Text>
 
             <View style={styles.headerPlaceholder} />
           </View>
@@ -101,19 +109,17 @@ export default function ChangePasswordScreen() {
           {error ? (
             <View style={styles.errorCard}>
               <Ionicons name="alert-circle" size={18} color="#DC2626" />
-              <Text style={styles.errorText}>{error}</Text>
+              <Text style={styles.errorText}>{translateFeedback(error, t)}</Text>
             </View>
           ) : null}
 
           {/* ── Main Lavender Card ── */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Choose a New Password</Text>
-            <Text style={styles.cardSubtitle}>
-              Enter and confirm your new password to regain access
-            </Text>
+            <Text style={styles.cardTitle}>{t('ui_choose_a_new_password')}</Text>
+            <Text style={styles.cardSubtitle}>{t('ui_enter_and_confirm_your_new_password_to_regain_access')}</Text>
 
             {/* 1. Old Password */}
-            <Text style={styles.inputLabel}>Old Password</Text>
+            <Text style={styles.inputLabel}>{t('ui_old_password')}</Text>
             <View style={styles.inputWrapper}>
               <TextInput
                 value={current}
@@ -121,8 +127,8 @@ export default function ChangePasswordScreen() {
                   setCurrent(text);
                   if (error) setError('');
                 }}
-                placeholder="Enter current password"
-                placeholderTextColor="#A09DB1"
+                placeholder={t('ui_enter_current_password')}
+                placeholderTextColor={themeColors.isDark ? themeColors.textSecondary : "#A09DB1"}
                 secureTextEntry={!showCurrent}
                 style={styles.textInput}
                 autoCapitalize="none"
@@ -132,18 +138,18 @@ export default function ChangePasswordScreen() {
                 style={styles.eyeBtn}
                 hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel={showCurrent ? 'Hide password' : 'Show password'}
+                accessibilityLabel={showCurrent ? t('ui_hide_password') : t('ui_show_password')}
               >
                 <Ionicons
                   name={showCurrent ? 'eye-off-outline' : 'eye-outline'}
                   size={20}
-                  color="#8A879A"
+                  color={themeColors.isDark ? themeColors.textSecondary : "#8A879A"}
                 />
               </Pressable>
             </View>
 
             {/* 2. New Password */}
-            <Text style={[styles.inputLabel, { marginTop: 14 }]}>New Password</Text>
+            <Text style={[styles.inputLabel, { marginTop: 14 }]}>{t('new_password')}</Text>
             <View style={styles.inputWrapper}>
               <TextInput
                 value={password}
@@ -151,8 +157,8 @@ export default function ChangePasswordScreen() {
                   setPassword(text);
                   if (error) setError('');
                 }}
-                placeholder="At least 8 characters"
-                placeholderTextColor="#A09DB1"
+                placeholder={t('ui_at_least_8_characters')}
+                placeholderTextColor={themeColors.isDark ? themeColors.textSecondary : "#A09DB1"}
                 secureTextEntry={!showPassword}
                 style={styles.textInput}
                 autoCapitalize="none"
@@ -162,18 +168,18 @@ export default function ChangePasswordScreen() {
                 style={styles.eyeBtn}
                 hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                accessibilityLabel={showPassword ? t('ui_hide_password') : t('ui_show_password')}
               >
                 <Ionicons
                   name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                   size={20}
-                  color="#8A879A"
+                  color={themeColors.isDark ? themeColors.textSecondary : "#8A879A"}
                 />
               </Pressable>
             </View>
 
             {/* 3. Confirm Password */}
-            <Text style={[styles.inputLabel, { marginTop: 14 }]}>Confirm Password</Text>
+            <Text style={[styles.inputLabel, { marginTop: 14 }]}>{t('ui_confirm_password')}</Text>
             <View style={styles.inputWrapper}>
               <TextInput
                 value={confirm}
@@ -181,8 +187,8 @@ export default function ChangePasswordScreen() {
                   setConfirm(text);
                   if (error) setError('');
                 }}
-                placeholder="Repeat new password"
-                placeholderTextColor="#A09DB1"
+                placeholder={t('ui_repeat_new_password')}
+                placeholderTextColor={themeColors.isDark ? themeColors.textSecondary : "#A09DB1"}
                 secureTextEntry={!showConfirm}
                 style={styles.textInput}
                 autoCapitalize="none"
@@ -192,12 +198,12 @@ export default function ChangePasswordScreen() {
                 style={styles.eyeBtn}
                 hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel={showConfirm ? 'Hide password' : 'Show password'}
+                accessibilityLabel={showConfirm ? t('ui_hide_password') : t('ui_show_password')}
               >
                 <Ionicons
                   name={showConfirm ? 'eye-off-outline' : 'eye-outline'}
                   size={20}
-                  color="#8A879A"
+                  color={themeColors.isDark ? themeColors.textSecondary : "#8A879A"}
                 />
               </Pressable>
             </View>
@@ -221,7 +227,7 @@ export default function ChangePasswordScreen() {
               ) : (
                 <>
                   <Ionicons name="checkmark-circle-outline" size={22} color="#713DE8" />
-                  <Text style={styles.updateBtnText}>Update Password</Text>
+                  <Text style={styles.updateBtnText}>{t('update_password')}</Text>
                 </>
               )}
             </Pressable>
@@ -234,7 +240,7 @@ export default function ChangePasswordScreen() {
               accessibilityRole="button"
             >
               <Ionicons name="close-circle-outline" size={22} color="#EF4444" />
-              <Text style={styles.cancelBtnText}>Cancel</Text>
+              <Text style={styles.cancelBtnText}>{t('cancel')}</Text>
             </Pressable>
           </View>
         </ScrollView>
@@ -243,10 +249,10 @@ export default function ChangePasswordScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#FFFFFF'),
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -274,7 +280,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     letterSpacing: -0.3,
   },
   headerPlaceholder: {
@@ -327,7 +333,7 @@ const styles = StyleSheet.create({
     left: 7,
   },
   asteriskText: {
-    color: '#FFFFFF',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#FFFFFF'),
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1,
@@ -338,9 +344,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEF2F2'),
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: (themeColors.isDark ? themeColors.border : '#FECACA'),
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -348,19 +354,19 @@ const styles = StyleSheet.create({
   },
   errorText: {
     flex: 1,
-    color: '#DC2626',
+    color: (themeColors.isDark ? themeColors.error : '#DC2626'),
     fontSize: 13,
     fontWeight: '600',
   },
 
   // ── Lavender Card Container ──
   card: {
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE'),
     borderRadius: 24,
     paddingHorizontal: 20,
     paddingVertical: 22,
     borderWidth: 1,
-    borderColor: '#E4DCFD',
+    borderColor: (themeColors.isDark ? themeColors.border : '#E4DCFD'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.06,
@@ -370,36 +376,36 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     marginBottom: 4,
   },
   cardSubtitle: {
     fontSize: 13,
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
     lineHeight: 18,
     marginBottom: 18,
   },
   inputLabel: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#374151',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#374151'),
     marginBottom: 6,
   },
   inputWrapper: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 14,
     height: 50,
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#FFFFFF',
+    borderColor: (themeColors.isDark ? themeColors.border : '#FFFFFF'),
   },
   textInput: {
     flex: 1,
     height: '100%',
     fontSize: 14,
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     fontWeight: '600',
   },
   eyeBtn: {
@@ -416,7 +422,7 @@ const styles = StyleSheet.create({
   updateBtn: {
     width: '100%',
     height: 54,
-    backgroundColor: '#F5F3FF',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F5F3FF'),
     borderRadius: 18,
     borderWidth: 1.5,
     borderColor: '#C4B5FD',
@@ -433,7 +439,7 @@ const styles = StyleSheet.create({
   cancelBtn: {
     width: '100%',
     height: 54,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEF2F2'),
     borderRadius: 18,
     borderWidth: 1.5,
     borderColor: '#FCA5A5',

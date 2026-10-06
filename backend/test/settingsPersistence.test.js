@@ -14,6 +14,9 @@ test('Settings round-trip, member compatibility, and partial preferences', { ski
   let server;
   try {
     await client.query('BEGIN');
+    // Round trips require an available language. Live Admin availability is
+    // deliberately restored by the transaction rollback below.
+    await client.query("UPDATE supported_languages SET is_enabled=TRUE WHERE code IN ('en','si','ta')");
     await client.query(`ALTER TABLE notification_settings
       ADD COLUMN IF NOT EXISTS due_date_alerts BOOLEAN NOT NULL DEFAULT TRUE,
       ADD COLUMN IF NOT EXISTS weekly_summary BOOLEAN NOT NULL DEFAULT TRUE`);

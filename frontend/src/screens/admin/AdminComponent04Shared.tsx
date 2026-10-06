@@ -17,11 +17,12 @@ export function useAdminColors() {
     ? { bg: '#14121F', card: '#211D30', text: '#F9F7FF', muted: '#C0B9D2', soft: '#342C4C', accent: '#BEABFF', border: '#494059', error: '#FFAAA8' }
     : { bg: '#F8F7FC', card: '#FFFFFF', text: '#211C35', muted: '#655E78', soft: '#EFEAFF', accent: '#6340D4', border: '#E7E0F2', error: '#B3261E' };
 }
-export function Action({ label, onPress, selected, disabled = false }: { label: string; onPress: () => void; selected?: boolean; disabled?: boolean }) {
+export function Action({ label, onPress, selected, disabled = false, tone }: { label: string; onPress: () => void; selected?: boolean; disabled?: boolean; tone?: 'primary' | 'danger' }) {
   const c = useAdminColors();
+  const filled = selected || tone === 'primary';
   return <Pressable accessibilityRole="button" accessibilityState={{ selected, disabled }} disabled={disabled} onPress={onPress}
-    style={({ pressed }) => [s.action, { backgroundColor: selected ? c.accent : c.soft, opacity: disabled ? .45 : pressed ? .75 : 1 }]}>
-    <Text style={{ color: selected ? (c.bg === '#14121F' ? '#211C35' : '#fff') : c.accent, fontWeight: '700', textAlign: 'center' }}>{label}</Text>
+    style={({ pressed }) => [s.action, { backgroundColor: tone === 'danger' ? (c.bg === '#14121F' ? '#3A1A1A' : '#FEF2F2') : filled ? c.accent : c.soft, opacity: disabled ? .45 : pressed ? .75 : 1 }]}>
+    <Text style={{ color: tone === 'danger' ? c.error : filled ? (c.bg === '#14121F' ? '#211C35' : '#fff') : c.accent, fontWeight: '700', textAlign: 'center' }}>{label}</Text>
   </Pressable>;
 }
 export function Card({ children }: { children: React.ReactNode }) {
@@ -87,7 +88,7 @@ export function AdminPage({ title, household, busy, error, refresh, children, co
   useEffect(() => { const off = notificationService.subscribeUnreadCount(setUnread); return () => { off(); }; }, []);
   useFocusEffect(useCallback(() => {
     let active = true;
-    const update = () => { void notificationService.getUnreadCount().then(n => { if (active) setUnread(n); }).catch(() => { if (active) setUnread(null); }); };
+    const update = () => { void notificationService.getUnreadCount(true).then(n => { if (active) setUnread(n); }).catch(() => { if (active) setUnread(null); }); };
     update(); const timer = setInterval(update, 30000);
     return () => { active = false; clearInterval(timer); };
   }, []));

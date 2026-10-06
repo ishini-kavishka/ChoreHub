@@ -1,3 +1,4 @@
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
 /**
  * ProgressDashboardScreen.tsx
  * Client side Progress Dashboard matching user design screenshot.
@@ -27,7 +28,9 @@ import { useLanguage } from '@/context/LanguageContext';
 type TimeRange = 'week' | 'month' | 'all';
 
 // ─── Green Donut Ring Chart Component ─────────────────────────────────────────
-function DonutRing({ percentage, size = 140, completedLabel = 'Completed' }: { percentage: number; size?: number; completedLabel?: string }) {
+function DonutRing({ percentage, size = 140, completedLabel }: { percentage: number; size?: number; completedLabel?: string }) {
+  const themeColors = useClientTheme().colors;
+  const { t } = useLanguage();
   const strokeWidth = 14;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -46,7 +49,7 @@ function DonutRing({ percentage, size = 140, completedLabel = 'Completed' }: { p
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke="#E6F7EC"
+          stroke={themeColors.isDark ? themeColors.border : "#E6F7EC"}
           strokeWidth={strokeWidth}
           fill="none"
         />
@@ -66,11 +69,11 @@ function DonutRing({ percentage, size = 140, completedLabel = 'Completed' }: { p
 
       {/* Donut Center Content */}
       <View style={{ alignItems: 'center', gap: 2 }}>
-        <Text style={{ fontSize: 28, fontWeight: '900', color: '#1E1B2E' }}>
+        <Text style={{ fontSize: 28, fontWeight: '900', color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E') }}>
           {Math.round(pct)}%
         </Text>
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#8A879A' }}>
-          {completedLabel}
+        <Text style={{ fontSize: 13, fontWeight: '600', color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A') }}>
+          {completedLabel ?? t('filter_completed')}
         </Text>
       </View>
     </View>
@@ -78,6 +81,8 @@ function DonutRing({ percentage, size = 140, completedLabel = 'Completed' }: { p
 }
 
 export default function ProgressDashboardScreen() {
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
   const { t } = useLanguage();
   const [profile, setProfile] = useState<Member | null>(null);
   const [chores, setChores] = useState<ChoreItem[]>([]);
@@ -379,7 +384,7 @@ export default function ProgressDashboardScreen() {
             <View style={styles.statsGrid}>
               {/* Grid 1: Completed */}
               <View style={styles.gridCard}>
-                <View style={[styles.gridIconCircle, { backgroundColor: '#DCFCE7' }]}>
+                <View style={[styles.gridIconCircle, { backgroundColor: (themeColors.isDark ? themeColors.surface : '#DCFCE7') }]}>
                   <Ionicons name="checkmark-circle" size={20} color="#10B981" />
                 </View>
                 <View style={styles.gridTextGroup}>
@@ -390,7 +395,7 @@ export default function ProgressDashboardScreen() {
 
               {/* Grid 2: Pending */}
               <View style={styles.gridCard}>
-                <View style={[styles.gridIconCircle, { backgroundColor: '#EDE9FE' }]}>
+                <View style={[styles.gridIconCircle, { backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE') }]}>
                   <Ionicons name="time" size={20} color="#8B5CF6" />
                 </View>
                 <View style={styles.gridTextGroup}>
@@ -401,7 +406,7 @@ export default function ProgressDashboardScreen() {
 
               {/* Grid 3: Overdue */}
               <View style={styles.gridCard}>
-                <View style={[styles.gridIconCircle, { backgroundColor: '#FEE2E2' }]}>
+                <View style={[styles.gridIconCircle, { backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEE2E2') }]}>
                   <Ionicons name="alert-circle" size={20} color="#EF4444" />
                 </View>
                 <View style={styles.gridTextGroup}>
@@ -412,7 +417,7 @@ export default function ProgressDashboardScreen() {
 
               {/* Grid 4: Total */}
               <View style={styles.gridCard}>
-                <View style={[styles.gridIconCircle, { backgroundColor: '#DBEAFE' }]}>
+                <View style={[styles.gridIconCircle, { backgroundColor: (themeColors.isDark ? themeColors.surface : '#DBEAFE') }]}>
                   <Ionicons name="list" size={20} color="#2563EB" />
                 </View>
                 <View style={styles.gridTextGroup}>
@@ -435,10 +440,10 @@ export default function ProgressDashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#FAFAFD'),
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -461,28 +466,28 @@ const styles = StyleSheet.create({
   greetingSub: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
   },
   greetingTitle: {
     fontSize: 24,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     letterSpacing: -0.3,
   },
   greetingCaption: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
   },
   bellBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     position: 'relative',
   },
   bellBadge: {
@@ -506,7 +511,7 @@ const styles = StyleSheet.create({
   // 3-Segment Time Range Filter Tab Bar
   filterContainer: {
     flexDirection: 'row',
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#EDE9FE'),
     borderRadius: 16,
     padding: 4,
     gap: 4,
@@ -529,7 +534,7 @@ const styles = StyleSheet.create({
   filterPillText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
   },
   filterPillTextSelected: {
     color: '#FFFFFF',
@@ -538,14 +543,14 @@ const styles = StyleSheet.create({
 
   // Main Donut Card
   donutCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 22,
     padding: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.04,
@@ -578,30 +583,30 @@ const styles = StyleSheet.create({
   statNum: {
     fontSize: 17,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   statLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
   },
   totalFootnote: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
     marginTop: 4,
   },
 
   // Streak Card
   streakCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 20,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.04,
@@ -612,7 +617,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#FFF4E6',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#FFF4E6'),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -622,17 +627,17 @@ const styles = StyleSheet.create({
   streakCaption: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
   },
   streakTitle: {
     fontSize: 18,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   streakSub: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
   },
 
   // 2x2 Stats Grid
@@ -643,14 +648,14 @@ const styles = StyleSheet.create({
   },
   gridCard: {
     width: '48%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 18,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.03,
@@ -670,11 +675,11 @@ const styles = StyleSheet.create({
   gridNum: {
     fontSize: 18,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   gridLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
   },
 });

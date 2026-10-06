@@ -1,179 +1,107 @@
-/**
- * LanguageContext – manages app-wide language (i18n).
- * - Instant UI language switching via React state
- * - Local offline persistence via AsyncStorage for fast startup
- * - Backend PostgreSQL persistence via settingsService
- * - Dynamic admin-controlled language availability & safe English fallback
- */
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { AppState, View } from 'react-native';
+import languageCatalog from '../../../shared/languages.json';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Language, TranslationKey, translations } from '@/i18n/translations';
-import {
-  settingsService,
-  SupportedLanguageItem,
-  DEFAULT_SUPPORTED_LANGUAGES,
-} from '@/services/settingsService';
+import { Language, translations } from '@/i18n/translations';
+import { settingsService, SupportedLanguageItem, DEFAULT_SUPPORTED_LANGUAGES } from '@/services/settingsService';
+import { getUser, subscribeSession } from '@/services/authStorage';
 
+const fallbackLanguages = DEFAULT_SUPPORTED_LANGUAGES.filter(item => item.code === 'en');
+const supported = (code: string): code is Language => Object.prototype.hasOwnProperty.call(translations, code);
 interface LanguageContextValue {
+  ready: boolean;
   language: Language;
-  t: (key: TranslationKey | string, fallback?: string) => string;
-  setLanguage: (lang: Language, syncBackend?: boolean) => Promise<void>;
+  t: (key: string, fallback?: string) => string;
+  setLanguage: (language: Language, syncBackend?: boolean) => Promise<void>;
   availableLanguages: SupportedLanguageItem[];
   refreshAvailableLanguages: () => Promise<SupportedLanguageItem[]>;
   isLanguageEnabled: (code: Language) => boolean;
 }
-
-const LANG_KEY = 'chorehub.language';
-
-const LanguageContext = createContext<LanguageContextValue>({
-  language: 'en',
-  t: (key, fallback) => (translations.en as Record<string, string>)[key] ?? fallback ?? key,
-  setLanguage: async () => {},
-  availableLanguages: DEFAULT_SUPPORTED_LANGUAGES,
-  refreshAvailableLanguages: async () => DEFAULT_SUPPORTED_LANGUAGES,
-  isLanguageEnabled: () => true,
-});
-
-async function persistLang(value: string) {
-  try {
-    await AsyncStorage.setItem(LANG_KEY, value);
-  } catch {
-    // Ignore storage write errors
-  }
-}
-
-async function readPersistedLang(): Promise<string | null> {
-  try {
-    return await AsyncStorage.getItem(LANG_KEY);
-  } catch {
-    return null;
-  }
-}
+const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
+  const [ready, setReady] = useState(false);
   const [language, setLangState] = useState<Language>('en');
-  const [availableLanguages, setAvailableLanguages] = useState<SupportedLanguageItem[]>(DEFAULT_SUPPORTED_LANGUAGES);
-
-  const refreshAvailableLanguages = useCallback(async (): Promise<SupportedLanguageItem[]> => {
-    try {
-      const langs = await settingsService.getSupportedLanguages();
-      setAvailableLanguages(langs);
-
-      // Edge case: if current language was disabled by admin, fall back to English
-      const currentEntry = langs.find((l) => l.code === language);
-      if (currentEntry && !currentEntry.is_enabled && language !== 'en') {
-        setLangState('en');
-        await persistLang('en');
-        settingsService.savePreferences({ language: 'en' }).catch(() => {});
-      }
-      return langs;
-    } catch {
-      return DEFAULT_SUPPORTED_LANGUAGES;
-    }
-  }, [language]);
-
-  // Initial load: 1. read local cache for fast startup, 2. sync with backend
-  useEffect(() => {
-    let isMounted = true;
-
-    async function init() {
-      // 1. Instant local read
-      const saved = await readPersistedLang();
-      let initialLang: Language = 'en';
-      if (saved && saved in translations) {
-        initialLang = saved as Language;
-        if (isMounted) setLangState(initialLang);
-      }
-
-      // 2. Fetch admin-configured languages from backend
-      try {
-        const langs = await settingsService.getSupportedLanguages();
-        if (isMounted) setAvailableLanguages(langs);
-
-        // Check if saved language is disabled by admin
-        const entry = langs.find((l) => l.code === initialLang);
-        if (entry && !entry.is_enabled && initialLang !== 'en') {
-          initialLang = 'en';
-          if (isMounted) setLangState('en');
-          await persistLang('en');
-        }
-
-        // 3. If authenticated, sync with user preferences from backend
-        const prefs = await settingsService.getPreferences().catch(() => null);
-        if (prefs?.language && prefs.language in translations) {
-          const prefEntry = langs.find((l) => l.code === prefs.language);
-          if (!prefEntry || prefEntry.is_enabled) {
-            if (isMounted) setLangState(prefs.language);
-            await persistLang(prefs.language);
-          }
-        }
-      } catch {
-        // Soft fail to offline cache
-      }
-    }
-
-    void init();
-    return () => {
-      isMounted = false;
-    };
+  const [availableLanguages, setAvailableLanguages] = useState<SupportedLanguageItem[]>(fallbackLanguages);
+  const current = useRef<Language>('en');
+  const available = useRef(fallbackLanguages);
+  const version = useRef(0);
+  const cacheKey = useRef('chorehub.language.guest');
+  const apply = useCallback(async (code: Language) => {
+    current.current = code;
+    setLangState(code);
+    await AsyncStorage.setItem(cacheKey.current, code);
   }, []);
+  const allowed = useCallback((code: string) => supported(code) && available.current.some(item => item.code === code && item.is_enabled && item.translation_supported), []);
+  const refreshAvailableLanguages = useCallback(async () => {
+    const langs = await settingsService.getSupportedLanguages();
+    available.current = langs;
+    setAvailableLanguages(langs);
+    await AsyncStorage.setItem('chorehub.languageAvailability', JSON.stringify(langs));
+    if (!allowed(current.current)) {
+      await apply('en');
+      if (await getUser()) await settingsService.savePreferences({ language: 'en' });
+    }
+    return langs;
+  }, [allowed, apply]);
 
-  const setLanguage = useCallback(
-    async (lang: Language, syncBackend: boolean = true) => {
-      // 1. Immediately update React state for instant UI update
-      setLangState(lang);
-      // 2. Persist to AsyncStorage for instant reload
-      await persistLang(lang);
-      // 3. Persist to backend PostgreSQL if enabled
-      if (syncBackend) {
-        try {
-          await settingsService.savePreferences({ language: lang });
-        } catch {
-          // Soft fail backend save if offline
-        }
+  useEffect(() => {
+    let active = true;
+    const restore = async () => {
+      const request = ++version.current;
+      const user = await getUser();
+      if (!active || request !== version.current) return;
+      cacheKey.current = 'chorehub.language.' + (user?.id || 'guest');
+      setReady(false);
+      const saved = await AsyncStorage.getItem(cacheKey.current);
+      const cached = await AsyncStorage.getItem('chorehub.languageAvailability');
+      let langs = fallbackLanguages;
+      try { const parsed = cached && JSON.parse(cached); if (Array.isArray(parsed)) langs = parsed; } catch {}
+      if (!active || request !== version.current) return;
+      available.current = langs;
+      setAvailableLanguages(langs);
+      await apply(allowed(saved || '') ? saved as Language : 'en');
+      if (allowed(saved || '') && active && request === version.current) setReady(true);
+      try { langs = await settingsService.getSupportedLanguages(); } catch { /* Last successful configuration is used offline. */ }
+      if (!active || request !== version.current) return;
+      available.current = langs; setAvailableLanguages(langs);
+      await AsyncStorage.setItem('chorehub.languageAvailability', JSON.stringify(langs));
+      let selected: string = saved || 'en';
+      if (user) {
+        try { selected = (await settingsService.getPreferences(true)).language; } catch { /* Keep this user's cached preference offline. */ }
       }
-    },
-    []
-  );
+      if (!active || request !== version.current) return;
+      await apply(allowed(selected) ? selected as Language : 'en');
+      if (active && request === version.current) setReady(true);
+    };
+    const run = () => { const request = version.current + 1; void restore().catch(() => { if (active && request === version.current) { current.current = 'en'; setLangState('en'); setReady(true); } }); };
+    run();
+    const unsubscribe = subscribeSession(run);
+    const foreground = AppState.addEventListener('change', state => { if (state === 'active') run(); });
+    return () => { active = false; version.current++; unsubscribe(); foreground.remove(); };
+  }, [allowed, apply]);
 
-  const isLanguageEnabled = useCallback(
-    (code: Language): boolean => {
-      const match = availableLanguages.find((l) => l.code === code);
-      return match ? match.is_enabled : true;
-    },
-    [availableLanguages]
-  );
-
-  const t = useCallback(
-    (key: TranslationKey | string, fallback?: string): string => {
-      const activeDict = (translations[language] || translations.en) as Record<string, string>;
-      const englishDict = translations.en as Record<string, string>;
-
-      const val = activeDict[key] ?? englishDict[key];
-      if (val !== undefined && val !== null) {
-        return val;
-      }
-      return fallback ?? String(key);
-    },
-    [language]
-  );
-
-  return (
-    <LanguageContext.Provider
-      value={{
-        language,
-        t,
-        setLanguage,
-        availableLanguages,
-        refreshAvailableLanguages,
-        isLanguageEnabled,
-      }}
-    >
-      {children}
-    </LanguageContext.Provider>
-  );
+  const setLanguage = useCallback(async (code: Language, syncBackend = true) => {
+    if (!supported(code) || (syncBackend && !allowed(code))) throw new Error('Language is unavailable.');
+    const previous = current.current;
+    const request = ++version.current;
+    await apply(code);
+    const user = syncBackend ? await getUser() : null;
+    if (request !== version.current) return;
+    if (user) {
+      try { await settingsService.savePreferences({ language: code }); }
+      catch (error) { if (request === version.current) await apply(previous); throw error; }
+    }
+  }, [allowed, apply]);
+  const t = useCallback((key: string, fallback?: string): string => {
+    const value = (translations[language] as Record<string, string>)[key] ?? (translations.en as Record<string, string>)[key];
+    return value ?? fallback ?? translations.en.error;
+  }, [language]);
+  const rtl = languageCatalog.find(item => item.code === language)?.rtl ?? false;
+  return <LanguageContext.Provider value={{ ready, language, t, setLanguage, availableLanguages, refreshAvailableLanguages, isLanguageEnabled: allowed }}><View style={{ flex: 1, direction: rtl ? 'rtl' : 'ltr' }}>{children}</View></LanguageContext.Provider>;
 }
-
 export function useLanguage() {
-  return useContext(LanguageContext);
+  const context = useContext(LanguageContext);
+  if (!context) throw new Error('LanguageProvider is required.');
+  return context;
 }

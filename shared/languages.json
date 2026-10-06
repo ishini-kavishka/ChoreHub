@@ -1,0 +1,182 @@
+[
+  {
+    "code": "en",
+    "name": "English",
+    "native_name": "English",
+    "flag": "🌐",
+    "sort_order": 1,
+    "translation_supported": true,
+    "rtl": false
+  },
+  {
+    "code": "si",
+    "name": "Sinhala",
+    "native_name": "සිංහල",
+    "flag": "🇱🇰",
+    "sort_order": 2,
+    "translation_supported": true,
+    "rtl": false
+  },
+  {
+    "code": "ta",
+    "name": "Tamil",
+    "native_name": "தமிழ்",
+    "flag": "🇮🇳",
+    "sort_order": 3,
+    "translation_supported": true,
+    "rtl": false
+  },
+  {
+    "code": "hi",
+    "name": "Hindi",
+    "native_name": "हिन्दी",
+    "flag": "🌐",
+    "sort_order": 4,
+    "translation_supported": false,
+    "rtl": false
+  },
+  {
+    "code": "zh",
+    "name": "Chinese",
+    "native_name": "中文",
+    "flag": "🌐",
+    "sort_order": 5,
+    "translation_supported": false,
+    "rtl": false
+  },
+  {
+    "code": "ja",
+    "name": "Japanese",
+    "native_name": "日本語",
+    "flag": "🌐",
+    "sort_order": 6,
+    "translation_supported": false,
+    "rtl": false
+  },
+  {
+    "code": "ko",
+    "name": "Korean",
+    "native_name": "한국어",
+    "flag": "🌐",
+    "sort_order": 7,
+    "translation_supported": false,
+    "rtl": false
+  },
+  {
+    "code": "es",
+    "name": "Spanish",
+    "native_name": "Español",
+    "flag": "🌐",
+    "sort_order": 8,
+    "translation_supported": false,
+    "rtl": false
+  },
+  {
+    "code": "fr",
+    "name": "French",
+    "native_name": "Français",
+    "flag": "🌐",
+    "sort_order": 9,
+    "translation_supported": false,
+    "rtl": false
+  },
+  {
+    "code": "de",
+    "name": "German",
+    "native_name": "Deutsch",
+    "flag": "🌐",
+    "sort_order": 10,
+    "translation_supported": false,
+    "rtl": false
+  },
+  {
+    "code": "it",
+    "name": "Italian",
+    "native_name": "Italiano",
+    "flag": "🌐",
+    "sort_order": 11,
+    "translation_supported": false,
+    "rtl": false
+  },
+  {
+    "code": "pt",
+    "name": "Portuguese",
+    "native_name": "Português",
+    "flag": "🌐",
+    "sort_order": 12,
+    "translation_supported": false,
+    "rtl": false
+  },
+  {
+    "code": "ar",
+    "name": "Arabic",
+    "native_name": "العربية",
+    "flag": "🌐",
+    "sort_order": 13,
+    "translation_supported": false,
+    "rtl": true
+  },
+  {
+    "code": "ru",
+    "name": "Russian",
+    "native_name": "Русский",
+    "flag": "🌐",
+    "sort_order": 14,
+    "translation_supported": false,
+    "rtl": false
+  },
+  {
+    "code": "bn",
+    "name": "Bengali",
+    "native_name": "বাংলা",
+    "flag": "🌐",
+    "sort_order": 15,
+    "translation_supported": false,
+    "rtl": false
+  },
+  {
+    "code": "ur",
+    "name": "Urdu",
+    "native_name": "اردو",
+    "flag": "🌐",
+    "sort_order": 16,
+    "translation_supported": false,
+    "rtl": true
+  },
+  {
+    "code": "id",
+    "name": "Indonesian",
+    "native_name": "Bahasa Indonesia",
+    "flag": "🌐",
+    "sort_order": 17,
+    "translation_supported": false,
+    "rtl": false
+  },
+  {
+    "code": "ms",
+    "name": "Malay",
+    "native_name": "Bahasa Melayu",
+    "flag": "🌐",
+    "sort_order": 18,
+    "translation_supported": false,
+    "rtl": false
+  },
+  {
+    "code": "th",
+    "name": "Thai",
+    "native_name": "ไทย",
+    "flag": "🌐",
+    "sort_order": 19,
+    "translation_supported": false,
+    "rtl": false
+  },
+  {
+    "code": "vi",
+    "name": "Vietnamese",
+    "native_name": "Tiếng Việt",
+    "flag": "🌐",
+    "sort_order": 20,
+    "translation_supported": false,
+    "rtl": false
+  }
+]

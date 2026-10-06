@@ -1,3 +1,6 @@
+import { translateFeedback } from '@/i18n/translations';
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
+import { useLanguage } from '@/context/LanguageContext';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -25,6 +28,9 @@ export function EditChoreModal({
   onClose,
   onChoreUpdated,
 }: EditChoreModalProps) {
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
+  const { t } = useLanguage();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('General');
@@ -49,7 +55,7 @@ export function EditChoreModal({
 
       familyService.getMyFamily()
         .then((res) => setMembers(res.members))
-        .catch(() => setError('Failed to load household members.'));
+        .catch(() => setError(t('ui_failed_to_load_household_members')));
     }
   }, [visible, chore]);
 
@@ -61,7 +67,7 @@ export function EditChoreModal({
   const handleSubmit = async () => {
     if (!chore) return;
     if (!title.trim()) {
-      setError('Please enter a chore title.');
+      setError(t('ui_please_enter_a_chore_title'));
       return;
     }
 
@@ -82,7 +88,7 @@ export function EditChoreModal({
       onChoreUpdated();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update chore.');
+      setError(t('admin_error'));
     } finally {
       setLoading(false);
     }
@@ -103,7 +109,7 @@ export function EditChoreModal({
         <View style={styles.modalCard}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>Edit Chore</Text>
+            <Text style={styles.headerTitle}>{t('ui_edit_chore')}</Text>
             <Pressable onPress={handleClose} style={styles.closeBtn}>
               <Text style={styles.closeIcon}>✕</Text>
             </Pressable>
@@ -113,37 +119,37 @@ export function EditChoreModal({
             contentContainerStyle={styles.formContent}
             showsVerticalScrollIndicator={false}
           >
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+            {error ? <Text style={styles.errorText}>{translateFeedback(error, t)}</Text> : null}
 
             {/* Title */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Title *</Text>
+              <Text style={styles.label}>{t('ui_title')}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g. Wash the dinner dishes"
+                placeholder={t('ui_e_g_wash_the_dinner_dishes')}
                 value={title}
                 onChangeText={setTitle}
-                placeholderTextColor="#A0A0B0"
+                placeholderTextColor={themeColors.isDark ? themeColors.textSecondary : "#A0A0B0"}
               />
             </View>
 
             {/* Description */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Description</Text>
+              <Text style={styles.label}>{t('description_label')}</Text>
               <TextInput
                 style={[styles.input, styles.multilineInput]}
-                placeholder="Add any specific instructions..."
+                placeholder={t('ui_add_any_specific_instructions')}
                 value={description}
                 onChangeText={setDescription}
                 multiline
                 numberOfLines={3}
-                placeholderTextColor="#A0A0B0"
+                placeholderTextColor={themeColors.isDark ? themeColors.textSecondary : "#A0A0B0"}
               />
             </View>
 
             {/* Status */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Status</Text>
+              <Text style={styles.label}>{t('ui_status')}</Text>
               <View style={styles.pillRow}>
                 {(['pending', 'completed'] as const).map((s) => (
                   <Pressable
@@ -160,7 +166,7 @@ export function EditChoreModal({
                         status === s && styles.selectedPillText,
                       ]}
                     >
-                      {s.toUpperCase()}
+                      {t('status_' + s)}
                     </Text>
                   </Pressable>
                 ))}
@@ -169,7 +175,7 @@ export function EditChoreModal({
 
             {/* Priority */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Priority</Text>
+              <Text style={styles.label}>{t('priority_label')}</Text>
               <View style={styles.pillRow}>
                 {(['low', 'medium', 'high'] as const).map((p) => (
                   <Pressable
@@ -186,7 +192,7 @@ export function EditChoreModal({
                         priority === p && styles.selectedPillText,
                       ]}
                     >
-                      {p.toUpperCase()}
+                      {t('priority_' + p)}
                     </Text>
                   </Pressable>
                 ))}
@@ -195,7 +201,7 @@ export function EditChoreModal({
 
             {/* Category */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Category</Text>
+              <Text style={styles.label}>{t('ui_category')}</Text>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -203,7 +209,7 @@ export function EditChoreModal({
               >
                 {categories.map((cat) => (
                   <Pressable
-                    key={cat}
+                    key={t('ui_' + cat.toLowerCase(), cat)}
                     onPress={() => setCategory(cat)}
                     style={[
                       styles.pill,
@@ -225,7 +231,7 @@ export function EditChoreModal({
 
             {/* Repeat */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Repeat</Text>
+              <Text style={styles.label}>{t('repeat_label')}</Text>
               <View style={styles.pillRow}>
                 {(['none', 'daily', 'weekly', 'monthly'] as const).map((r) => (
                   <Pressable
@@ -242,7 +248,7 @@ export function EditChoreModal({
                         recurrence === r && styles.selectedPillText,
                       ]}
                     >
-                      {r.charAt(0).toUpperCase() + r.slice(1)}
+                      {t('repeat_' + r)}
                     </Text>
                   </Pressable>
                 ))}
@@ -252,7 +258,7 @@ export function EditChoreModal({
             {/* Assign Member */}
             {members.length > 0 ? (
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Assign To</Text>
+                <Text style={styles.label}>{t('ui_assign_to')}</Text>
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -270,9 +276,7 @@ export function EditChoreModal({
                         styles.pillText,
                         assignedTo === null && styles.selectedPillText,
                       ]}
-                    >
-                      Unassigned
-                    </Text>
+                    >{t('admin_unassigned')}</Text>
                   </Pressable>
 
                   {members.map((m) => (
@@ -312,7 +316,7 @@ export function EditChoreModal({
               {loading ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
-                <Text style={styles.submitBtnText}>Save Changes</Text>
+                <Text style={styles.submitBtnText}>{t('save_changes')}</Text>
               )}
             </Pressable>
           </View>
@@ -322,14 +326,14 @@ export function EditChoreModal({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.45)',
     justifyContent: 'flex-end',
   },
   modalCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     maxHeight: '85%',
@@ -343,19 +347,19 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0EFF8',
+    borderBottomColor: (themeColors.isDark ? themeColors.border : '#F0EFF8'),
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   closeBtn: {
     padding: 6,
   },
   closeIcon: {
     fontSize: 18,
-    color: '#757288',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#757288'),
     fontWeight: '800',
   },
   formContent: {
@@ -364,7 +368,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   errorText: {
-    color: '#DC2626',
+    color: (themeColors.isDark ? themeColors.error : '#DC2626'),
     fontSize: 14,
     fontWeight: '600',
   },
@@ -374,17 +378,17 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#4B485C',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#4B485C'),
   },
   input: {
-    backgroundColor: '#F8F7FC',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#F8F7FC'),
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   multilineInput: {
     minHeight: 70,
@@ -395,7 +399,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   pill: {
-    backgroundColor: '#F0EFF8',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F0EFF8'),
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
@@ -405,7 +409,7 @@ const styles = StyleSheet.create({
   pillText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
   },
   statusSelectedPill: {
     backgroundColor: '#713DE8',

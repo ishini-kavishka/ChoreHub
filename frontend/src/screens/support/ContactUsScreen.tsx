@@ -1,3 +1,6 @@
+import { useAppAlert } from '@/components/ui/AppDialog';
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
+import { useLanguage } from '@/context/LanguageContext';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -18,6 +21,10 @@ import { SupportBottomNav } from '@/components/support/SupportBottomNav';
 import { authService } from '@/services/authService';
 
 export default function ContactUsScreen() {
+  const alert = useAppAlert();
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
+  const { t } = useLanguage();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [subject, setSubject] = useState('');
@@ -37,19 +44,19 @@ export default function ContactUsScreen() {
 
   const handleSubmit = () => {
     if (!name.trim()) {
-      Alert.alert('Required Field', 'Please enter your full name.');
+      alert(t('ui_required_field'), t('ui_please_enter_your_full_name'));
       return;
     }
     if (!email.trim() || !email.includes('@')) {
-      Alert.alert('Required Field', 'Please enter a valid email address.');
+      alert(t('ui_required_field'), t('valid_email'));
       return;
     }
     if (!subject.trim()) {
-      Alert.alert('Required Field', 'Please specify a subject for your message.');
+      alert(t('ui_required_field'), t('ui_please_specify_a_subject_for_your_message'));
       return;
     }
     if (!message.trim()) {
-      Alert.alert('Required Field', 'Please enter your message.');
+      alert(t('ui_required_field'), t('ui_please_enter_your_message'));
       return;
     }
 
@@ -58,12 +65,12 @@ export default function ContactUsScreen() {
     setTimeout(() => {
       setSubmitting(false);
       setSubmitted(true);
-      Alert.alert(
-        'Message Sent!',
-        'Thank you for reaching out. Our support team will get back to you within 24 hours.',
+      alert(
+        t('ui_message_sent'),
+        t('ui_thank_you_for_reaching_out_our_support_team_will_get_back_to_you_within_24_hours'),
         [
           {
-            text: 'OK',
+            text: t('ui_ok'),
             onPress: () => {
               setSubject('');
               setMessage('');
@@ -85,11 +92,11 @@ export default function ContactUsScreen() {
           onPress={() => router.canGoBack() ? router.back() : router.replace('/support/contact-support' as any)}
           style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t('admin_back')}
         >
-          <Ionicons name="chevron-back" size={24} color="#1E1B2E" />
+          <Ionicons name="chevron-back" size={24} color={themeColors.isDark ? themeColors.textPrimary : "#1E1B2E"} />
         </Pressable>
-        <Text style={styles.headerTitle}>Contact Us</Text>
+        <Text style={styles.headerTitle}>{t('ui_contact_us')}</Text>
         <View style={styles.placeholderBtn} />
       </View>
 
@@ -116,32 +123,30 @@ export default function ContactUsScreen() {
 
           {/* Subtitle */}
           <View style={styles.textSection}>
-            <Text style={styles.sectionTitle}>Send us a message</Text>
-            <Text style={styles.sectionSubtitle}>
-              Fill in the form below and we'll get back to you as soon as possible
-            </Text>
+            <Text style={styles.sectionTitle}>{t('ui_send_us_a_message')}</Text>
+            <Text style={styles.sectionSubtitle}>{t('ui_fill_in_the_form_below_and_we_ll_get_back_to_you_as_soon_as_possible')}</Text>
           </View>
 
           {/* Form */}
           <View style={styles.formContainer}>
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Full Name</Text>
+              <Text style={styles.inputLabel}>{t('full_name')}</Text>
               <TextInput
                 value={name}
                 onChangeText={setName}
-                placeholder="Enter your name"
-                placeholderTextColor="#9EA5B1"
+                placeholder={t('ui_enter_your_name')}
+                placeholderTextColor={themeColors.isDark ? themeColors.textSecondary : "#9EA5B1"}
                 style={styles.textInput}
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Email Address</Text>
+              <Text style={styles.inputLabel}>{t('ui_email_address')}</Text>
               <TextInput
                 value={email}
                 onChangeText={setEmail}
-                placeholder="Enter your email"
-                placeholderTextColor="#9EA5B1"
+                placeholder={t('ui_enter_your_email')}
+                placeholderTextColor={themeColors.isDark ? themeColors.textSecondary : "#9EA5B1"}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 style={styles.textInput}
@@ -149,23 +154,23 @@ export default function ContactUsScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Subject</Text>
+              <Text style={styles.inputLabel}>{t('ui_subject')}</Text>
               <TextInput
                 value={subject}
                 onChangeText={setSubject}
-                placeholder="Type your subject"
-                placeholderTextColor="#9EA5B1"
+                placeholder={t('ui_type_your_subject')}
+                placeholderTextColor={themeColors.isDark ? themeColors.textSecondary : "#9EA5B1"}
                 style={styles.textInput}
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Your Message</Text>
+              <Text style={styles.inputLabel}>{t('ui_your_message')}</Text>
               <TextInput
                 value={message}
                 onChangeText={setMessage}
-                placeholder="Type your message here..."
-                placeholderTextColor="#9EA5B1"
+                placeholder={t('ui_type_your_message_here')}
+                placeholderTextColor={themeColors.isDark ? themeColors.textSecondary : "#9EA5B1"}
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
@@ -187,7 +192,7 @@ export default function ContactUsScreen() {
               {submitting ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <Text style={styles.submitBtnText}>Send Message</Text>
+                <Text style={styles.submitBtnText}>{t('ui_send_message')}</Text>
               )}
             </Pressable>
           </View>
@@ -200,10 +205,10 @@ export default function ContactUsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#FAFAFD'),
   },
   header: {
     flexDirection: 'row',
@@ -212,8 +217,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0EEF8',
-    backgroundColor: '#FFFFFF',
+    borderBottomColor: (themeColors.isDark ? themeColors.border : '#F0EEF8'),
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
   },
   backBtn: {
     width: 36,
@@ -228,7 +233,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -245,9 +250,9 @@ const styles = StyleSheet.create({
     width: 104,
     height: 104,
     borderRadius: 52,
-    backgroundColor: '#F3EEFF',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F3EEFF'),
     borderWidth: 2,
-    borderColor: '#E6DEFC',
+    borderColor: (themeColors.isDark ? themeColors.border : '#E6DEFC'),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -255,7 +260,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE'),
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -269,7 +274,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     paddingVertical: 2,
     borderWidth: 1.5,
-    borderColor: '#FFFFFF',
+    borderColor: (themeColors.isDark ? themeColors.border : '#FFFFFF'),
   },
   badge24Text: {
     fontSize: 8,
@@ -283,12 +288,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     marginBottom: 4,
   },
   sectionSubtitle: {
     fontSize: 13,
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
     textAlign: 'center',
     paddingHorizontal: 10,
     lineHeight: 18,
@@ -302,17 +307,17 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#4B485A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#4B485A'),
   },
   textInput: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 14,
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   textArea: {
     minHeight: 90,

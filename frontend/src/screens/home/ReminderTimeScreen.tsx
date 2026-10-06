@@ -1,3 +1,5 @@
+import { translateFeedback } from '@/i18n/translations';
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -41,6 +43,7 @@ const DEFAULT_SETTINGS: NotificationSettings = {
 };
 
 export default function ReminderTimeScreen() {
+  const styles = useThemedStyles(createStyles);
   const { theme, colors } = useAppTheme();
   const { t } = useLanguage();
   const dark = colors.isDark;
@@ -67,7 +70,7 @@ export default function ReminderTimeScreen() {
         setSelectedTime(fetched.reminder_time);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unable to load reminder time.');
+      setError(t('admin_error'));
     } finally {
       setLoading(false);
     }
@@ -110,7 +113,7 @@ export default function ReminderTimeScreen() {
     } catch (e) {
       // Revert optimistic selection on error
       setSelectedTime(previousTime);
-      setError(e instanceof Error ? e.message : 'Could not save reminder time.');
+      setError(t('admin_error'));
     } finally {
       setSaving(false);
     }
@@ -122,13 +125,13 @@ export default function ReminderTimeScreen() {
       <View style={styles.header}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t('admin_back')}
           onPress={() => router.navigate('/home/settings' as any)}
           style={styles.backBtn}
         >
           <Ionicons name="arrow-back" size={22} color={purple} />
         </Pressable>
-        <Text style={[styles.title, { color: fg }]}>Reminder Time</Text>
+        <Text style={[styles.title, { color: fg }]}>{t('reminder_time')}</Text>
       </View>
 
       <ScrollView
@@ -141,9 +144,7 @@ export default function ReminderTimeScreen() {
           />
         }
       >
-        <Text style={[styles.description, { color: muted }]}>
-          Choose when to be notified before a chore is due.
-        </Text>
+        <Text style={[styles.description, { color: muted }]}>{t('ui_choose_when_to_be_notified_before_a_chore_is_due')}</Text>
 
         {loading && <ActivityIndicator color={purple} style={{ marginVertical: 12 }} />}
 
@@ -155,7 +156,7 @@ export default function ReminderTimeScreen() {
               key={item.key}
               accessibilityRole="radio"
               accessibilityState={{ selected: isSelected }}
-              accessibilityLabel={item.label}
+              accessibilityLabel={t(item.labelKey)}
               onPress={() => void handleSelect(item.key)}
               style={({ pressed }) => [
                 styles.optionCard,
@@ -171,26 +172,24 @@ export default function ReminderTimeScreen() {
               )}
 
               {/* Option label on the right */}
-              <Text style={[styles.optionLabel, { color: fg }]}>{item.label}</Text>
+              <Text style={[styles.optionLabel, { color: fg }]}>{t(item.labelKey)}</Text>
             </Pressable>
           );
         })}
 
         {/* Error message if saving failed */}
-        {!!error && <Text style={styles.errorText}>{error}</Text>}
+        {!!error && <Text style={styles.errorText}>{translateFeedback(error, t)}</Text>}
 
         {/* Purple Informational Card at bottom (Not a button) */}
         <View style={[styles.infoCard, { backgroundColor: purple }]}>
-          <Text style={styles.infoCardText}>
-            Stay on track — reminders follow your selected time.
-          </Text>
+          <Text style={styles.infoCardText}>{t('ui_stay_on_track_reminders_follow_your_selected_time')}</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safe: {
     flex: 1,
   },
@@ -260,13 +259,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   infoCardText: {
-    color: '#FFFFFF',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#FFFFFF'),
     fontWeight: '700',
     fontSize: 14,
     textAlign: 'center',
   },
   errorText: {
-    color: '#EF4444',
+    color: (themeColors.isDark ? themeColors.error : '#EF4444'),
     fontSize: 13,
     marginTop: 4,
   },

@@ -119,15 +119,9 @@ async function getPreferences(req, res, next) {
     const row = result.rows[0];
     let resolvedLanguage = row.language || 'en';
 
-    // Edge case: If client previously had a language that is now disabled by admin, fall back safely to 'en'
-    try {
-      const langCheck = await pool.query('SELECT is_enabled FROM supported_languages WHERE code = $1', [resolvedLanguage]);
-      if (langCheck.rows[0] && !langCheck.rows[0].is_enabled) {
-        resolvedLanguage = 'en';
-      }
-    } catch (_e) {
-      // if table does not exist yet, keep stored language
-    }
+    if (!FULLY_SUPPORTED_CODES.includes(resolvedLanguage)) resolvedLanguage = 'en';
+    const langCheck = await pool.query('SELECT is_enabled FROM supported_languages WHERE code = $1', [resolvedLanguage]);
+    if (!langCheck.rows[0]?.is_enabled) resolvedLanguage = 'en';
 
     return res.json({
       preferences: {
@@ -151,20 +145,16 @@ async function updatePreferences(req, res, next) {
     const { theme, language, brightness, auto_brightness } = req.body || {};
 
     const validThemes = ['light', 'dark', 'system'];
-    const validLanguages = ['en', 'si', 'ta'];
+    const validLanguages = FULLY_SUPPORTED_CODES;
 
     if (theme !== undefined && !validThemes.includes(theme)) return res.status(400).json({ message: 'Theme is invalid.' });
     if (language !== undefined) {
       if (!validLanguages.includes(language)) return res.status(400).json({ message: 'Language is invalid.' });
 
       // Admin enabled language check: client cannot select a language that has been disabled
-      try {
-        const langCheck = await pool.query('SELECT is_enabled FROM supported_languages WHERE code = $1', [language]);
-        if (langCheck.rows[0] && !langCheck.rows[0].is_enabled) {
-          return res.status(400).json({ message: 'This language is currently not enabled by the administrator.' });
-        }
-      } catch (_e) {
-        // if table does not exist yet, allow fallback
+      const langCheck = await pool.query('SELECT is_enabled FROM supported_languages WHERE code = $1', [language]);
+      if (!langCheck.rows[0]?.is_enabled) {
+        return res.status(400).json({ message: 'This language is currently not enabled by the administrator.' });
       }
     }
 
@@ -194,7 +184,8 @@ async function updatePreferences(req, res, next) {
 
 // ─── Supported Languages ───────────────────────────────────────────────────────
 
-const FULLY_SUPPORTED_CODES = ['en', 'si', 'ta'];
+const languageCatalog = require('../../../shared/languages.json');
+const FULLY_SUPPORTED_CODES = languageCatalog.filter(item => item.translation_supported).map(item => item.code);
 
 /**
  * GET /api/settings/languages
@@ -202,30 +193,11 @@ const FULLY_SUPPORTED_CODES = ['en', 'si', 'ta'];
  */
 async function getSupportedLanguages(_req, res, next) {
   try {
-    // Ensure table exists and has default entries
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS public.supported_languages (
-        code TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        native_name TEXT NOT NULL,
-        flag TEXT NOT NULL DEFAULT '🌐',
-        is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
-        sort_order INTEGER NOT NULL DEFAULT 0,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
-      );
-      INSERT INTO public.supported_languages (code, name, native_name, flag, is_enabled, sort_order)
-      VALUES
-        ('en', 'English', 'English', '🌐', TRUE, 1),
-        ('si', 'Sinhala', 'සිංහල',  '🇱🇰', TRUE, 2),
-        ('ta', 'Tamil',   'தமிழ்',  '🇮🇳', TRUE, 3)
-      ON CONFLICT (code) DO NOTHING;
-    `);
-
+    // Startup schema initialization seeds these existing records. This public route is read-only.
     const result = await pool.query(
       'SELECT code, name, native_name, flag, is_enabled, sort_order FROM supported_languages ORDER BY sort_order ASC, code ASC'
     );
-    return res.json({ languages: result.rows });
+    return res.json({ languages: result.rows.map(row => ({ ...row, translation_supported: FULLY_SUPPORTED_CODES.includes(row.code) })) });
   } catch (error) {
     return next(error);
   }
@@ -240,11 +212,14 @@ async function updateSupportedLanguage(req, res, next) {
   try {
     const { code, is_enabled } = req.body || {};
 
-    if (!code || !FULLY_SUPPORTED_CODES.includes(code)) {
+    if (typeof code !== 'string' || !/^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/.test(code)) {
       return res.status(400).json({ message: `Language '${code}' is not supported. Supported codes: ${FULLY_SUPPORTED_CODES.join(', ')}` });
     }
     if (typeof is_enabled !== 'boolean') {
       return res.status(400).json({ message: 'is_enabled must be a boolean.' });
+    }
+    if (is_enabled && !FULLY_SUPPORTED_CODES.includes(code)) {
+      return res.status(400).json({ message: 'Translation resources are not available for this locale.' });
     }
     if (code === 'en' && !is_enabled) {
       return res.status(400).json({ message: "English ('en') is the default fallback language and cannot be disabled." });
@@ -262,10 +237,26 @@ async function updateSupportedLanguage(req, res, next) {
       return res.status(404).json({ message: `Language '${code}' not found.` });
     }
 
-    return res.json({ language: result.rows[0] });
+    return res.json({ language: { ...result.rows[0], translation_supported: FULLY_SUPPORTED_CODES.includes(code) } });
   } catch (error) {
     return next(error);
   }
+}
+
+async function addSupportedLanguage(req, res, next) {
+  try {
+    const { code, name, native_name } = req.body || {};
+    if (typeof code !== 'string' || !/^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/.test(code) || code.length > 35 ||
+        [name, native_name].some(value => typeof value !== 'string' || !value.trim() || value.trim().length > 80)) {
+      return res.status(400).json({ message: 'Provide a valid locale code, name and native name.' });
+    }
+    const result = await pool.query(
+      `INSERT INTO supported_languages (code, name, native_name, is_enabled, sort_order)
+       VALUES ($1, $2, $3, FALSE, 100) ON CONFLICT (code) DO NOTHING
+       RETURNING code, name, native_name, flag, is_enabled, sort_order`, [code, name.trim(), native_name.trim()]);
+    if (!result.rows.length) return res.status(409).json({ message: 'This locale already exists.' });
+    return res.status(201).json({ language: { ...result.rows[0], translation_supported: FULLY_SUPPORTED_CODES.includes(code) } });
+  } catch (error) { next(error); }
 }
 
 module.exports = {
@@ -275,4 +266,5 @@ module.exports = {
   updatePreferences,
   getSupportedLanguages,
   updateSupportedLanguage,
+  addSupportedLanguage,
 };

@@ -1,3 +1,4 @@
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -18,6 +19,8 @@ import { authService, Member } from '@/services/authService';
 import { profileService } from '@/services/profileService';
 
 export default function ProfileScreen() {
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
   const { t } = useLanguage();
   const segments = useSegments();
@@ -33,7 +36,7 @@ export default function ProfileScreen() {
     try {
       setProfile(await profileService.getProfile());
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to load your profile.');
+      setError(t('admin_error'));
     } finally {
       setLoading(false);
     }
@@ -50,7 +53,9 @@ export default function ProfileScreen() {
     try {
       await authService.signOut();
       setShowLogoutModal(false);
-      router.dismissAll();
+      // Deep-linked tab routes may have no dismissible Stack. Only emit
+      // POP_TO_TOP when the existing router has a stack it can actually pop.
+      if (router.canDismiss()) router.dismissAll();
       router.replace('/auth/welcome');
     } finally {
       setLoggingOut(false);
@@ -75,12 +80,12 @@ export default function ProfileScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
-          <Text style={styles.error}>{error || 'Your session has ended.'}</Text>
+          <Text style={styles.error}>{error || t('session_ended')}</Text>
           <Pressable
             onPress={() => router.replace('/auth/welcome')}
             style={styles.retryBtn}
           >
-            <Text style={styles.retryBtnText}>Back to Welcome</Text>
+            <Text style={styles.retryBtnText}>{t('back_to_welcome')}</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -144,7 +149,7 @@ export default function ProfileScreen() {
           <MenuItem
             iconName="person-outline"
             iconColor="#10B981"
-            iconBg="#E6F9F0"
+            iconBg={themeColors.isDark ? themeColors.surface : "#E6F9F0"}
             title={t('menu_personal_info')}
             onPress={() => router.push('/profile/edit')}
           />
@@ -154,7 +159,7 @@ export default function ProfileScreen() {
           <MenuItem
             iconName="home-outline"
             iconColor="#713DE8"
-            iconBg="#EDE9FE"
+            iconBg={themeColors.isDark ? themeColors.surface : "#EDE9FE"}
             title={t('menu_household_settings')}
             onPress={() => router.push('/home' as any)}
           />
@@ -164,7 +169,7 @@ export default function ProfileScreen() {
           <MenuItem
             iconName="settings-outline"
             iconColor="#713DE8"
-            iconBg="#EDE9FE"
+            iconBg={themeColors.isDark ? themeColors.surface : "#EDE9FE"}
             title={t('menu_app_settings')}
             onPress={() => router.push(segments[0] === 'admin' ? '/admin/settings' : '/home/settings')}
           />
@@ -174,7 +179,7 @@ export default function ProfileScreen() {
           <MenuItem
             iconName="lock-closed-outline"
             iconColor="#8B5CF6"
-            iconBg="#F3E8FF"
+            iconBg={themeColors.isDark ? themeColors.surface : "#F3E8FF"}
             title={t('menu_change_password')}
             onPress={() => router.push('/profile/change-password')}
           />
@@ -184,7 +189,7 @@ export default function ProfileScreen() {
           <MenuItem
             iconName="settings-outline"
             iconColor="#0EA5E9"
-            iconBg="#E0F2FE"
+            iconBg={themeColors.isDark ? themeColors.surface : "#E0F2FE"}
             title={t('menu_app_preferences')}
             onPress={() => router.push('/home/preferences' as any)}
           />
@@ -194,7 +199,7 @@ export default function ProfileScreen() {
           <MenuItem
             iconName="help-buoy-outline"
             iconColor="#F59E0B"
-            iconBg="#FEF3C7"
+            iconBg={themeColors.isDark ? themeColors.surface : "#FEF3C7"}
             title={t('menu_support_help')}
             onPress={() => router.push('/support' as any)}
           />
@@ -290,6 +295,7 @@ function MenuItem({
   title: string;
   onPress: () => void;
 }) {
+  const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
   return (
     <Pressable
@@ -307,10 +313,10 @@ function MenuItem({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#FAFAFD'),
   },
   center: {
     flex: 1,
@@ -320,7 +326,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   error: {
-    color: '#DC2626',
+    color: (themeColors.isDark ? themeColors.error : '#DC2626'),
     textAlign: 'center',
     fontSize: 15,
     fontWeight: '600',
@@ -360,7 +366,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     letterSpacing: -0.3,
   },
 
@@ -384,7 +390,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2.5,
-    borderColor: '#FFFFFF',
+    borderColor: (themeColors.isDark ? themeColors.border : '#FFFFFF'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
@@ -394,24 +400,24 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 22,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     letterSpacing: -0.4,
     marginBottom: 4,
   },
   userEmail: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
   },
 
   // ── Unified Menu Card ──
   menuCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 22,
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.04,
@@ -435,11 +441,11 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: '700',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   menuDivider: {
     height: 1,
-    backgroundColor: '#F5F3FF',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F5F3FF'),
     marginHorizontal: 4,
   },
 
@@ -450,7 +456,7 @@ const styles = StyleSheet.create({
   logoutButtonCard: {
     width: '100%',
     height: 54,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEF2F2'),
     borderRadius: 18,
     borderWidth: 1.5,
     borderColor: '#FCA5A5',
@@ -479,7 +485,7 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     maxWidth: 340,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 24,
     paddingHorizontal: 24,
     paddingVertical: 28,
@@ -494,7 +500,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#EDE9FE'),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -502,13 +508,13 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     marginBottom: 8,
     textAlign: 'center',
   },
   modalMessage: {
     fontSize: 14,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     textAlign: 'center',
     lineHeight: 21,
     marginBottom: 24,
@@ -539,7 +545,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 48,
     borderRadius: 14,
-    backgroundColor: '#F0EFF8',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F0EFF8'),
     alignItems: 'center',
     justifyContent: 'center',
   },

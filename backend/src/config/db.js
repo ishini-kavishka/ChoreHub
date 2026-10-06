@@ -1,4 +1,5 @@
 const { Pool } = require('pg');
+const languageCatalog = require('../../../shared/languages.json');
 
 if (!process.env.DATABASE_URL) {
   console.warn(
@@ -218,14 +219,11 @@ async function ensureAuthSchema() {
     )
   `);
 
-  await pool.query(`
-    INSERT INTO public.supported_languages (code, name, native_name, flag, is_enabled, sort_order)
-    VALUES
-      ('en', 'English', 'English', '🌐', TRUE, 1),
-      ('si', 'Sinhala', 'සිංහල', '🇱🇰', TRUE, 2),
-      ('ta', 'Tamil', 'தமிழ்', '🇮🇳', TRUE, 3)
-    ON CONFLICT (code) DO NOTHING
-  `);
+  for (const language of languageCatalog) {
+    await pool.query(`INSERT INTO public.supported_languages (code, name, native_name, flag, is_enabled, sort_order)
+      VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (code) DO NOTHING`,
+      [language.code, language.name, language.native_name, language.flag, language.translation_supported, language.sort_order]);
+  }
 
   // =========================================================
   // Indexes
@@ -266,10 +264,17 @@ async function ensureAuthSchema() {
     WHERE status = 'completed'
   `);
 
+  await require('../services/choreTimeRequestService').ensureChoreTimeRequestSchema();
+  await ensureNotificationMessageSchema();
   console.log('Database schema checked successfully.');
 }
 
+async function ensureNotificationMessageSchema() {
+  await pool.query('ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS sender_id UUID REFERENCES public.users(id) ON DELETE SET NULL');
+}
+
 module.exports = {
+  ensureNotificationMessageSchema,
   pool,
   ensureAuthSchema,
 };

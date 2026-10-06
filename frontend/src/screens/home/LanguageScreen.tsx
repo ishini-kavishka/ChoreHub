@@ -1,3 +1,5 @@
+import { translateFeedback } from '@/i18n/translations';
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
 /**
  * LanguageScreen
  * Accessible from: Profile → App Settings → Settings → Language
@@ -21,12 +23,14 @@ import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { Language } from '@/i18n/translations';
+import { Language, translations } from '@/i18n/translations';
 import { SupportedLanguageItem } from '@/services/settingsService';
 
 const purple = '#7C5CFC';
 
 export default function LanguageScreen() {
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
   const { language, setLanguage, t, availableLanguages, refreshAvailableLanguages } = useLanguage();
   const dark = colors.isDark;
@@ -37,13 +41,14 @@ export default function LanguageScreen() {
   const border = colors.border;
 
   const [search, setSearch] = useState('');
+  const [error, setError] = useState('');
   const [saving, setSaving] = useState<Language | null>(null);
 
   // Refresh available languages from admin configuration on screen focus
   useFocusEffect(
     useCallback(() => {
-      void refreshAvailableLanguages();
-    }, [refreshAvailableLanguages])
+      void refreshAvailableLanguages().catch(() => setError(t('admin_error')));
+    }, [refreshAvailableLanguages, t])
   );
 
   // Hardware back button → Settings
@@ -58,7 +63,7 @@ export default function LanguageScreen() {
   // Filter only admin-enabled languages, then by search query (name or native_name)
   const clientVisibleLanguages = useMemo(() => {
     // Only show admin-enabled languages to clients
-    return availableLanguages.filter((l) => l.is_enabled);
+    return availableLanguages.filter((l) => l.is_enabled && l.translation_supported && Object.hasOwn(translations, l.code));
   }, [availableLanguages]);
 
   const filtered = useMemo(() => {
@@ -67,7 +72,7 @@ export default function LanguageScreen() {
     return clientVisibleLanguages.filter(
       (l) =>
         l.name.toLowerCase().includes(q) ||
-        l.native_name.toLowerCase().includes(q)
+        l.native_name.toLowerCase().includes(q) || l.code.toLowerCase().includes(q)
     );
   }, [clientVisibleLanguages, search]);
 
@@ -76,12 +81,15 @@ export default function LanguageScreen() {
       if (code === language || saving) return;
       setSaving(code);
       try {
+        setError('');
         await setLanguage(code, true);
+      } catch {
+        setError(t('admin_save_error'));
       } finally {
         setSaving(null);
       }
     },
-    [language, saving, setLanguage]
+    [language, saving, setLanguage, t]
   );
 
   const goBack = () => router.navigate('/home/settings' as any);
@@ -94,8 +102,9 @@ export default function LanguageScreen() {
       <Pressable
         accessibilityRole="radio"
         accessibilityState={{ selected: isSelected }}
+        disabled={saving !== null}
         accessibilityLabel={`${item.name} (${item.native_name})`}
-        onPress={() => void selectLanguage(item.code)}
+        onPress={() => void selectLanguage(item.code as Language)}
         style={({ pressed }) => [
           styles.row,
           { backgroundColor: card, borderColor: isSelected ? purple : border },
@@ -106,15 +115,15 @@ export default function LanguageScreen() {
         {/* Flag + Names */}
         <Text style={styles.flag}>{item.flag}</Text>
         <View style={styles.nameWrap}>
-          <Text style={[styles.langName, { color: fg }]}>{item.name}</Text>
-          <Text style={[styles.nativeName, { color: muted }]}>{item.native_name}</Text>
+          <Text style={[styles.langName, { color: fg }]}>{item.native_name}</Text>
+          <Text style={[styles.nativeName, { color: muted }]}>{item.name}</Text>
         </View>
         {/* Radio indicator */}
         <View
           style={[
             styles.radio,
             {
-              borderColor: isSelected ? purple : (dark ? '#4B4870' : '#CBD5E1'),
+              borderColor: isSelected ? purple : (dark ? '#4B4870' : (themeColors.isDark ? themeColors.border : '#CBD5E1')),
               backgroundColor: isSelected ? purple : 'transparent',
             },
           ]}
@@ -164,7 +173,11 @@ export default function LanguageScreen() {
       </View>
 
       {/* ── Language List ── */}
+      {!!error && <Text accessibilityRole="alert" style={{ color: fg, padding: 16 }}>{translateFeedback(error, t)}</Text>}
       <FlatList
+        style={styles.scrollList}
+        extraData={language}
+        showsVerticalScrollIndicator
         data={filtered}
         keyExtractor={(item) => item.code}
         renderItem={renderItem}
@@ -179,7 +192,8 @@ export default function LanguageScreen() {
 }
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
+  scrollList: { flex: 1, minHeight: 0 },
   safe: {
     flex: 1,
   },
@@ -264,7 +278,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#fff',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#fff'),
   },
   emptyText: {
     textAlign: 'center',

@@ -1,3 +1,5 @@
+import { useThemedStyles, type ThemeColors } from '@/context/ThemeContext';
+import { useLanguage } from '@/context/LanguageContext';
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
@@ -15,20 +17,9 @@ interface TabItem {
   route: string;
 }
 
-const CUSTOMER_TABS: TabItem[] = [
-  { id: 'home', label: 'Home', icon: 'home-outline', activeIcon: 'home', route: '/home' },
-  { id: 'chores', label: 'Chores', icon: 'clipboard-outline', activeIcon: 'clipboard', route: '/home/chores' },
-  { id: 'family', label: 'Family', icon: 'people-outline', activeIcon: 'people', route: '/home/calendar' },
-  { id: 'notifications', label: 'Notification', icon: 'notifications-outline', activeIcon: 'notifications', route: '/home' },
-  { id: 'profile', label: 'Profile', icon: 'person-outline', activeIcon: 'person', route: '/home/profile' },
-];
 
-const ADMIN_TABS: TabItem[] = [
-  { id: 'home', label: 'Dashboard', icon: 'grid-outline', activeIcon: 'grid', route: '/admin/dashboard' },
-  { id: 'chores', label: 'Chores', icon: 'clipboard-outline', activeIcon: 'clipboard', route: '/admin/chores' },
-  { id: 'members', label: 'Members', icon: 'people-outline', activeIcon: 'people', route: '/admin/members' },
-  { id: 'profile', label: 'Profile', icon: 'person-outline', activeIcon: 'person', route: '/admin/profile' },
-];
+
+
 
 export function SupportBottomNav({
   activeTab = 'profile',
@@ -37,6 +28,21 @@ export function SupportBottomNav({
   activeTab?: string;
   role?: 'admin' | 'member';
 }) {
+  const styles = useThemedStyles(createStyles);
+  const { t } = useLanguage();
+const CUSTOMER_TABS: TabItem[] = [
+  { id: 'home', label: t('home'), icon: 'home-outline', activeIcon: 'home', route: '/home' },
+  { id: 'chores', label: t('chores'), icon: 'clipboard-outline', activeIcon: 'clipboard', route: '/home/chores' },
+  { id: 'family', label: t('family'), icon: 'people-outline', activeIcon: 'people', route: '/home/calendar' },
+  { id: 'notifications', label: t('ui_notification'), icon: 'notifications-outline', activeIcon: 'notifications', route: '/home' },
+  { id: 'profile', label: t('profile_title'), icon: 'person-outline', activeIcon: 'person', route: '/home/profile' },
+];
+const ADMIN_TABS: TabItem[] = [
+  { id: 'home', label: t('ui_dashboard'), icon: 'grid-outline', activeIcon: 'grid', route: '/admin/dashboard' },
+  { id: 'chores', label: t('chores'), icon: 'clipboard-outline', activeIcon: 'clipboard', route: '/admin/chores' },
+  { id: 'members', label: t('admin_members'), icon: 'people-outline', activeIcon: 'people', route: '/admin/members' },
+  { id: 'profile', label: t('profile_title'), icon: 'person-outline', activeIcon: 'person', route: '/admin/profile' },
+];
   const insets = useSafeAreaInsets();
   const [currentRole, setCurrentRole] = useState<'admin' | 'member'>(forcedRole || 'member');
 
@@ -88,12 +94,12 @@ export function SupportBottomNav({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderTopWidth: 1,
-    borderTopColor: '#EAE7F5',
+    borderTopColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     paddingTop: 8,
     elevation: 8,
     shadowColor: '#000000',

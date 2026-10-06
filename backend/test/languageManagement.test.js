@@ -2,7 +2,8 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 require('dotenv').config({ quiet: true });
 const { pool } = require('../src/config/db');
-const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const { randomUUID } = require('node:crypto');
 const app = require('../src/server');
 
 test('Admin language management, client availability, and fallback', { skip: process.env.RUN_DATABASE_TESTS !== '1' }, async () => {
@@ -12,20 +13,32 @@ test('Admin language management, client availability, and fallback', { skip: pro
   try {
     await client.query('BEGIN');
     pool.query = client.query.bind(client);
+    // The user's live availability may already have languages disabled. Test setup is rolled back.
+    await client.query("UPDATE supported_languages SET is_enabled = TRUE WHERE code IN ('en', 'si', 'ta')");
 
-    // Get an admin user and non-admin member
-    const adminRes = await client.query("SELECT id FROM users WHERE role = 'admin' LIMIT 1");
-    assert.ok(adminRes.rows.length, 'An admin account is required.');
-    const adminId = adminRes.rows[0].id;
-
-    const memberRes = await client.query("SELECT id FROM users WHERE role != 'admin' LIMIT 1");
-    const memberId = memberRes.rows.length ? memberRes.rows[0].id : null;
+    // Isolated accounts use the real login endpoint; existing user credentials are never changed.
+    const password = 'Language-test-password';
+    const passwordHash = await bcrypt.hash(password, 4);
+    const account = async role => (await client.query(
+      'INSERT INTO users (full_name, email, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING id, email',
+      ['Language test', `language-${randomUUID()}@example.invalid`, passwordHash, role])).rows[0];
+    const admin = await account('admin');
+    const member = await account('member');
+    const memberId = member.id;
 
     server = await new Promise(resolve => { const listening = app.listen(0, '127.0.0.1', () => resolve(listening)); });
     const base = 'http://127.0.0.1:' + server.address().port;
 
-    const adminToken = jwt.sign({ sub: adminId }, process.env.JWT_SECRET, { expiresIn: '5m' });
-    const memberToken = memberId ? jwt.sign({ sub: memberId }, process.env.JWT_SECRET, { expiresIn: '5m' }) : null;
+    const login = async email => {
+      const response = await fetch(base + '/api/auth/login', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+      assert.equal(response.status, 200);
+      const body = await response.json();
+      assert.ok(body.token);
+      return body.token;
+    };
+    const adminToken = await login(admin.email);
+    const memberToken = await login(member.email);
 
     // 1. GET /api/settings/languages (authenticated)
     const listRes = await fetch(base + '/api/settings/languages', {
@@ -93,10 +106,47 @@ test('Admin language management, client availability, and fallback', { skip: pro
     const prefData = await selectTaAgain.json();
     assert.equal(prefData.preferences.language, 'ta');
 
+    const request = (path, method = 'GET', body, token = adminToken) => fetch(base + path, {
+      method, headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+    const publicList = await fetch(base + '/api/settings/languages');
+    assert.equal(publicList.status, 200);
+    assert.ok((await publicList.json()).languages.filter(l => ['en', 'si', 'ta'].includes(l.code)).every(l => l.translation_supported));
+    const record = { code: 'zz', name: 'Test locale', native_name: 'Test locale' };
+    assert.ok(memberToken, 'A normal member account is required for authorization coverage.');
+    for (const code of ['en', 'si', 'ta']) {
+      const saved = await request('/api/settings/preferences', 'PUT', { language: code }, memberToken);
+      assert.equal(saved.status, 200);
+      const restored = await request('/api/settings/preferences', 'GET', undefined, memberToken);
+      assert.equal((await restored.json()).preferences.language, code);
+      const persisted = await client.query('SELECT language FROM user_preferences WHERE user_id = $1', [memberId]);
+      assert.equal(persisted.rows[0].language, code);
+    }
+    if (memberToken) assert.equal((await request('/api/settings/languages', 'POST', record, memberToken)).status, 403);
+    const added = await request('/api/settings/languages', 'POST', record);
+    assert.equal(added.status, 201);
+    assert.deepEqual(((await added.json()).language), {
+      code: 'zz', name: 'Test locale', native_name: 'Test locale', flag: '🌐',
+      is_enabled: false, sort_order: 100, translation_supported: false,
+    });
+    assert.equal((await request('/api/settings/languages', 'PUT', { code: 'zz', is_enabled: true })).status, 400);
+    assert.equal((await request('/api/settings/languages', 'POST', record)).status, 409);
+    assert.equal((await request('/api/settings/preferences', 'PUT', { language: 'zz' })).status, 400);
+    await request('/api/settings/languages', 'PUT', { code: 'ta', is_enabled: false });
+    const fallback = await request('/api/settings/preferences', 'GET', undefined, memberToken || adminToken);
+    assert.equal((await fallback.json()).preferences.language, 'en');
+    const refreshed = (await (await request('/api/settings/languages')).json()).languages;
+    assert.equal(refreshed.find(l => l.code === 'ta').is_enabled, false);
+    await client.query('UPDATE user_preferences SET language = $1 WHERE user_id = $2', ['invalid', memberId]);
+    const invalid = await request('/api/settings/preferences', 'GET', undefined, memberToken);
+    assert.equal((await invalid.json()).preferences.language, 'en');
+
   } finally {
     await client.query('ROLLBACK');
     client.release();
     pool.query = originalQuery;
     if (server) await new Promise(resolve => server.close(resolve));
+    await pool.end();
   }
 });

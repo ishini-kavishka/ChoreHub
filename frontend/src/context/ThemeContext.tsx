@@ -3,10 +3,11 @@
  * Persisted locally via AsyncStorage for instant flicker-free startup,
  * and synchronized with the backend user_preferences database.
  */
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { useColorScheme } from 'react-native';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState, useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { settingsService } from '@/services/settingsService';
+import { getUser, subscribeSession } from '@/services/authStorage';
 
 export type AppTheme = 'light' | 'dark' | 'system';
 
@@ -21,9 +22,12 @@ export interface ThemeColors {
   inputBackground: string;
   navigationBackground: string;
   isDark: boolean;
+  error: string;
+  success: string;
 }
 
 export interface ThemeContextValue {
+  ready: boolean;
   /** Resolved theme – always 'light' or 'dark' */
   theme: 'light' | 'dark';
   /** User preference (may be 'system', 'light', 'dark') */
@@ -79,6 +83,8 @@ function calculateColors(theme: 'light' | 'dark', brightness: number): ThemeColo
       inputBackground: card,
       navigationBackground: card,
       isDark: true,
+      error: '#FFAAA8',
+      success: '#76DEBB',
     };
   }
 
@@ -101,10 +107,13 @@ function calculateColors(theme: 'light' | 'dark', brightness: number): ThemeColo
     inputBackground: card,
     navigationBackground: card,
     isDark: false,
+    error: '#B3261E',
+    success: '#15803D',
   };
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
+  ready: false,
   theme: 'light',
   preference: 'system',
   brightness: 70,
@@ -121,45 +130,50 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [brightness, setBrightnessState] = useState<number>(70);
   const [autoBrightness, setAutoBrightnessState] = useState<boolean>(false);
 
-  // 1. Instant local restore
-  useEffect(() => {
-    Promise.all([
-      AsyncStorage.getItem(THEME_KEY),
-      AsyncStorage.getItem(BRIGHTNESS_KEY),
-      AsyncStorage.getItem(AUTO_BRIGHTNESS_KEY),
-    ]).then(([savedTheme, savedBrightness, savedAuto]) => {
-      if (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system') {
-        setPreference(savedTheme);
+  const [ready,setReady]=useState(false);
+  const version=useRef(0), account=useRef('guest');
+  const saveQueue=useRef<Promise<unknown>>(Promise.resolve());
+  const keys=(id:string)=>[THEME_KEY,BRIGHTNESS_KEY,AUTO_BRIGHTNESS_KEY].map(key=>key+'.'+id);
+  const validTheme=(value:unknown):value is AppTheme=>['light','dark','system'].includes(value as string);
+  useEffect(()=>{
+    let active=true;
+    const restore=async()=>{
+      const request=++version.current;
+      const user=await getUser();
+      if(!active||request!==version.current)return;
+      const id=user?.id || 'guest';account.current=id;setReady(false);
+      const values=await Promise.all(keys(id).map(key=>AsyncStorage.getItem(key)));
+      if(id==='guest'&&!values[0]){
+        const legacy=await Promise.all([THEME_KEY,BRIGHTNESS_KEY,AUTO_BRIGHTNESS_KEY].map(key=>AsyncStorage.getItem(key)));
+        values.splice(0,3,...legacy);
       }
-      if (savedBrightness) {
-        const parsed = parseInt(savedBrightness, 10);
-        if (!isNaN(parsed) && parsed >= 30 && parsed <= 100) {
-          setBrightnessState(parsed);
-        }
-      }
-      if (savedAuto !== null) {
-        setAutoBrightnessState(savedAuto === 'true');
-      }
-    });
-
-    // 2. Background sync from server-side user preferences
-    settingsService
-      .getPreferences()
-      .then((serverPrefs) => {
-        if (serverPrefs) {
-          if (serverPrefs.theme) setPreference(serverPrefs.theme);
-          if (typeof serverPrefs.brightness === 'number') {
-            setBrightnessState(Math.max(30, Math.min(100, serverPrefs.brightness)));
+      if(!active||request!==version.current)return;
+      const local={theme:validTheme(values[0])?values[0]:'system' as AppTheme,brightness:Math.max(30,Math.min(100,Number(values[1]) || 70)),auto_brightness:values[2]==='true'};
+      setPreference(local.theme);setBrightnessState(local.brightness);setAutoBrightnessState(local.auto_brightness);
+      if(values[0])setReady(true);
+      if(user){
+        try{
+          const pending=await AsyncStorage.getItem(THEME_KEY+'.pending.'+id)==='true';
+          const remote=await settingsService.getPreferences(true);
+          if(!active||request!==version.current)return;
+          if(pending){
+            await settingsService.savePreferences(local);
+            if(active&&request===version.current)await AsyncStorage.setItem(THEME_KEY+'.pending.'+id,'false');
+          }else{
+          if(validTheme(remote.theme))setPreference(remote.theme);
+          if(Number.isFinite(remote.brightness))setBrightnessState(Math.max(30,Math.min(100,remote.brightness!)));
+          if(typeof remote.auto_brightness==='boolean')setAutoBrightnessState(remote.auto_brightness);
+          await Promise.all(keys(id).map((key,index)=>AsyncStorage.setItem(key,String([remote.theme,remote.brightness ?? local.brightness,remote.auto_brightness ?? local.auto_brightness][index]))));
           }
-          if (typeof serverPrefs.auto_brightness === 'boolean') {
-            setAutoBrightnessState(serverPrefs.auto_brightness);
-          }
-        }
-      })
-      .catch(() => {
-        // Offline / not logged in yet — local cache is used
-      });
-  }, []);
+        }catch{/* Restore this account's cache when offline, without demo preferences. */}
+      }
+      if(active&&request===version.current)setReady(true);
+    };
+    const run=()=>{const request=version.current+1;void restore().catch(()=>{if(active&&request===version.current)setReady(true);});};run();
+    const unsubscribe=subscribeSession(run);
+    const foreground=AppState.addEventListener('change',state=>{if(state==='active')run();});
+    return()=>{active=false;version.current++;unsubscribe();foreground.remove();};
+  },[]);
 
   const resolvedTheme: 'light' | 'dark' =
     preference === 'system' ? systemScheme : preference;
@@ -176,28 +190,35 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     [resolvedTheme, activeBrightness]
   );
 
-  const setTheme = useCallback(async (t: AppTheme, syncRemote = true) => {
-    setPreference(t);
-    await AsyncStorage.setItem(THEME_KEY, t);
-    if (syncRemote) settingsService.savePreferences({ theme: t }).catch(() => {});
-  }, []);
-
-  const setBrightness = useCallback(async (b: number) => {
-    const clamped = Math.max(30, Math.min(100, Math.round(b)));
-    setBrightnessState(clamped);
-    await AsyncStorage.setItem(BRIGHTNESS_KEY, clamped.toString());
-    settingsService.savePreferences({ brightness: clamped }).catch(() => {});
-  }, []);
-
-  const setAutoBrightness = useCallback(async (a: boolean) => {
-    setAutoBrightnessState(a);
-    await AsyncStorage.setItem(AUTO_BRIGHTNESS_KEY, a.toString());
-    settingsService.savePreferences({ auto_brightness: a }).catch(() => {});
-  }, []);
+  const persist=useCallback(async(field:'theme'|'brightness'|'auto_brightness',value:AppTheme|number|boolean,syncRemote=true)=>{
+    version.current++;const id=account.current;
+    const index=field==='theme'?0:field==='brightness'?1:2;
+    await AsyncStorage.setItem(keys(id)[index],String(value));
+    if(syncRemote && id!=='guest'){
+      await AsyncStorage.setItem(THEME_KEY+'.pending.'+id,'true');
+      const request=version.current;
+      const save=async()=>{
+        if((await getUser())?.id!==id)return;
+        try{await settingsService.savePreferences({[field]:value});if(request===version.current)await AsyncStorage.setItem(THEME_KEY+'.pending.'+id,'false');}
+        catch{console.warn('Could not sync theme preference; the local preference was retained for retry.');}
+      };
+      saveQueue.current=saveQueue.current.then(save,save);await saveQueue.current;
+    }
+  },[]);
+  const setTheme=useCallback(async(value:AppTheme,syncRemote=true)=>{
+    if(!['light','dark','system'].includes(value))return;
+    setPreference(value);await persist('theme',value,syncRemote);
+  },[persist]);
+  const setBrightness=useCallback(async(value:number)=>{
+    if(!Number.isFinite(value))return;
+    const clamped=Math.max(30,Math.min(100,Math.round(value)));setBrightnessState(clamped);await persist('brightness',clamped);
+  },[persist]);
+  const setAutoBrightness=useCallback(async(value:boolean)=>{setAutoBrightnessState(value);await persist('auto_brightness',value);},[persist]);
 
   return (
     <ThemeContext.Provider
       value={{
+        ready,
         theme: resolvedTheme,
         preference,
         brightness: activeBrightness,
@@ -215,4 +236,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
 export function useAppTheme() {
   return useContext(ThemeContext);
+}
+
+/** Shared memoization for existing client styles; all colors come from one provider. */
+export function useThemedStyles<T>(factory:(colors:ThemeColors)=>T):T {
+  const {colors}=useAppTheme();
+  return useMemo(()=>factory(colors),[factory,colors]);
 }

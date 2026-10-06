@@ -1,3 +1,4 @@
+import { useThemedStyles, type ThemeColors } from '@/context/ThemeContext';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -38,6 +39,7 @@ const TAB_CONFIGS: Record<string, TabConfig> = {
 };
 
 export function MemberTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+  const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const { colors } = useAppTheme();
   const { t } = useLanguage();
@@ -105,12 +107,12 @@ export function MemberTabBar({ state, descriptors, navigation }: BottomTabBarPro
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderTopWidth: 1,
-    borderTopColor: '#EAE7F5',
+    borderTopColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     paddingTop: 8,
     elevation: 8,
     shadowColor: '#000000',

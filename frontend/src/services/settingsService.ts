@@ -1,6 +1,7 @@
 import { apiRequest } from './api';
 import { authService } from './authService';
 import { ApiError } from './api';
+import languageCatalog from '../../../shared/languages.json';
 export let settingsDemoMode = false;
 
 export interface NotificationSettings {
@@ -103,20 +104,18 @@ export const settingsService = {
   },
 
   async getSupportedLanguages(): Promise<SupportedLanguageItem[]> {
-    try {
-      const authToken = await token().catch(() => null);
-      const res = await apiRequest<{ languages: SupportedLanguageItem[] }>(
-        '/api/settings/languages',
-        {},
-        authToken ?? undefined
-      );
-      return res.languages ?? DEFAULT_SUPPORTED_LANGUAGES;
-    } catch {
-      return DEFAULT_SUPPORTED_LANGUAGES;
-    }
+    const res = await apiRequest<{ languages: SupportedLanguageItem[] }>('/api/settings/languages');
+    if (!Array.isArray(res.languages)) throw new Error('Missing language configuration.');
+    return res.languages;
   },
 
-  async updateSupportedLanguage(code: 'en' | 'si' | 'ta', is_enabled: boolean): Promise<SupportedLanguageItem> {
+  async addSupportedLanguage(code: string, name: string, native_name: string): Promise<SupportedLanguageItem> {
+    const res = await apiRequest<{ language: SupportedLanguageItem }>('/api/settings/languages',
+      { method: 'POST', body: JSON.stringify({ code, name, native_name }) }, await token());
+    return res.language;
+  },
+
+  async updateSupportedLanguage(code: string, is_enabled: boolean): Promise<SupportedLanguageItem> {
     const res = await apiRequest<{ language: SupportedLanguageItem }>(
       '/api/settings/languages',
       { method: 'PUT', body: JSON.stringify({ code, is_enabled }) },
@@ -128,7 +127,8 @@ export const settingsService = {
 };
 
 export interface SupportedLanguageItem {
-  code: 'en' | 'si' | 'ta';
+  code: string;
+  translation_supported: boolean;
   name: string;
   native_name: string;
   flag: string;
@@ -136,9 +136,7 @@ export interface SupportedLanguageItem {
   sort_order: number;
 }
 
-export const DEFAULT_SUPPORTED_LANGUAGES: SupportedLanguageItem[] = [
-  { code: 'en', name: 'English', native_name: 'English', flag: '🌐', is_enabled: true, sort_order: 1 },
-  { code: 'si', name: 'Sinhala', native_name: 'සිංහල',  flag: '🇱🇰', is_enabled: true, sort_order: 2 },
-  { code: 'ta', name: 'Tamil',   native_name: 'தமிழ்',  flag: '🇮🇳', is_enabled: true, sort_order: 3 },
-];
+export const DEFAULT_SUPPORTED_LANGUAGES: SupportedLanguageItem[] = languageCatalog.map(item => ({
+  ...item, is_enabled: item.translation_supported,
+}));
 

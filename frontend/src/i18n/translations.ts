@@ -1,3 +1,5 @@
+import { privateMessageTranslations } from './privateMessageTranslations';
+import { timeRequestTranslations } from './timeRequestTranslations';
 /**
  * i18n translations dictionary.
  * Supports: English (en), Sinhala (si), Tamil (ta).
@@ -5,14 +7,20 @@
  */
 
 import { adminTranslations } from './adminTranslations';
+import { clientTranslations } from './clientTranslations';
 import { crudTranslations } from './crudTranslations';
+import { additionalTranslations } from './additionalTranslations';
 
-export type Language = 'en' | 'si' | 'ta';
+export type Language = keyof typeof translations;
 
 export const translations = {
+  ...additionalTranslations,
   en: {
+    ...timeRequestTranslations.en,
+    ...privateMessageTranslations.en,
     ...adminTranslations.en,
     ...crudTranslations.en,
+    ...clientTranslations.en,
 
     // Bottom Tab Bar
     tab_home: 'Home',
@@ -277,8 +285,11 @@ export const translations = {
   },
 
   si: {
+    ...timeRequestTranslations.si,
+    ...privateMessageTranslations.si,
     ...adminTranslations.si,
     ...crudTranslations.si,
+    ...clientTranslations.si,
 
     // Bottom Tab Bar
     tab_home: 'මුල් පිටුව',
@@ -543,8 +554,11 @@ export const translations = {
   },
 
   ta: {
+    ...timeRequestTranslations.ta,
+    ...privateMessageTranslations.ta,
     ...adminTranslations.ta,
     ...crudTranslations.ta,
+    ...clientTranslations.ta,
 
     // Bottom Tab Bar
     tab_home: 'முகப்பு',
@@ -810,3 +824,12 @@ export const translations = {
 } as const;
 
 export type TranslationKey = keyof typeof translations.en;
+
+// Only for application-owned feedback already produced by this dictionary.
+// User names, Chore titles, messages and notes never pass through this helper.
+const feedbackKeys = new Map(Object.values(translations).flatMap(dictionary =>
+  Object.entries(dictionary).map(([key, value]) => [value, key] as [string, string])));
+export function translateFeedback(message: string, t: (key: string) => string, fallbackKey?: string): string {
+  const key = feedbackKeys.get(message);
+  return key ? t(key) : fallbackKey ? t(fallbackKey) : message;
+}

@@ -1,3 +1,5 @@
+import { useAppAlert } from '@/components/ui/AppDialog';
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -22,8 +24,11 @@ import { choreService, ChoreItem, ChoreStats } from '@/services/choreService';
 import { notificationService } from '@/services/notificationService';
 
 export default function MemberHomeScreen() {
+  const alert = useAppAlert();
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [profile, setProfile] = useState<Member | null>(null);
   const [stats, setStats] = useState<ChoreStats>({
     completed: 0,
@@ -102,7 +107,7 @@ export default function MemberHomeScreen() {
       if (refreshed?.stats) setStats(refreshed.stats);
       if (refreshed?.chores) setChores(refreshed.chores);
     } catch {
-      Alert.alert('Error', 'Could not update chore status.');
+      alert(t('error'), t('admin_error'));
       loadData();
     }
   };
@@ -128,22 +133,22 @@ export default function MemberHomeScreen() {
   const getCategoryIcon = (category?: string) => {
     const cat = (category || '').toLowerCase();
     if (cat.includes('garden') || cat.includes('plant') || cat.includes('yard')) {
-      return { icon: 'leaf-outline' as const, bg: '#DCFCE7', color: '#16A34A' };
+      return { icon: 'leaf-outline' as const, bg: (themeColors.isDark ? themeColors.surface : '#DCFCE7'), color: '#16A34A' };
     }
     if (cat.includes('living') || cat.includes('mop') || cat.includes('floor') || cat.includes('clean')) {
-      return { icon: 'construct-outline' as const, bg: '#DBEAFE', color: '#2563EB' };
+      return { icon: 'construct-outline' as const, bg: (themeColors.isDark ? themeColors.surface : '#DBEAFE'), color: '#2563EB' };
     }
     if (cat.includes('bath') || cat.includes('trash') || cat.includes('wash')) {
-      return { icon: 'trash-outline' as const, bg: '#FEE2E2', color: '#DC2626' };
+      return { icon: 'trash-outline' as const, bg: (themeColors.isDark ? themeColors.surface : '#FEE2E2'), color: '#DC2626' };
     }
-    return { icon: 'checkbox-outline' as const, bg: '#EDE9FE', color: '#713DE8' };
+    return { icon: 'checkbox-outline' as const, bg: (themeColors.isDark ? themeColors.surface : '#EDE9FE'), color: '#713DE8' };
   };
 
   const formatDueTime = (dateString?: string | null) => {
     if (!dateString) return `${t('filter_today')}, 10:00 AM`;
     const d = new Date(dateString);
     if (isNaN(d.getTime())) return `${t('filter_today')}, 10:00 AM`;
-    return `${t('filter_today')}, ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+    return `${t('filter_today')}, ${d.toLocaleTimeString(language, { hour: 'numeric', minute: '2-digit' })}`;
   };
 
   const QUICK_ACTIONS = [
@@ -219,7 +224,7 @@ export default function MemberHomeScreen() {
                 pressed && { opacity: 0.7 },
               ]}
               onPress={() => setShowNotifications(true)}
-              accessibilityLabel="Open notifications"
+              accessibilityLabel={t('ui_open_notifications')}
             >
               <Ionicons name="notifications-outline" size={24} color={colors.textPrimary} />
               {unreadNotifsCount > 0 ? (
@@ -246,7 +251,7 @@ export default function MemberHomeScreen() {
           {/* ── Greeting Banner Section ── */}
         <View style={styles.greetingSection}>
           <View style={styles.greetingTextGroup}>
-            <Text style={[styles.greetingSub, { color: colors.textSecondary }]}>{getGreeting()} 👋</Text>
+            <Text style={[styles.greetingSub, { color: colors.textSecondary }]}>{getGreeting()}{t('greeting_suffix')}</Text>
             <Text style={[styles.greetingTitle, { color: colors.textPrimary }]}>{firstName}!</Text>
             <Text style={[styles.greetingCaption, { color: colors.textSecondary }]}>
               {t('make_today_productive')}
@@ -304,7 +309,7 @@ export default function MemberHomeScreen() {
           <View style={styles.innerStatsRow}>
             {/* Completed */}
             <View style={[styles.innerStatCard, { backgroundColor: colors.card }]}>
-              <View style={[styles.innerStatIconCircle, { backgroundColor: '#DCFCE7' }]}>
+              <View style={[styles.innerStatIconCircle, { backgroundColor: (themeColors.isDark ? themeColors.surface : '#DCFCE7') }]}>
                 <Ionicons name="checkmark" size={16} color="#16A34A" />
               </View>
               <Text style={[styles.innerStatNum, { color: colors.textPrimary }]}>{stats.completed}</Text>
@@ -313,7 +318,7 @@ export default function MemberHomeScreen() {
 
             {/* Pending */}
             <View style={[styles.innerStatCard, { backgroundColor: colors.card }]}>
-              <View style={[styles.innerStatIconCircle, { backgroundColor: '#FEF3C7' }]}>
+              <View style={[styles.innerStatIconCircle, { backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEF3C7') }]}>
                 <Ionicons name="time" size={16} color="#D97706" />
               </View>
               <Text style={[styles.innerStatNum, { color: colors.textPrimary }]}>{stats.pending}</Text>
@@ -322,7 +327,7 @@ export default function MemberHomeScreen() {
 
             {/* Overdue */}
             <View style={[styles.innerStatCard, { backgroundColor: colors.card }]}>
-              <View style={[styles.innerStatIconCircle, { backgroundColor: '#FEE2E2' }]}>
+              <View style={[styles.innerStatIconCircle, { backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEE2E2') }]}>
                 <Ionicons name="alert" size={16} color="#DC2626" />
               </View>
               <Text style={[styles.innerStatNum, { color: colors.textPrimary }]}>{stats.overdue}</Text>
@@ -384,7 +389,7 @@ export default function MemberHomeScreen() {
                         <Text style={styles.choreCategory}>{item.category}</Text>
                       ) : null}
                       <View style={styles.dueTimeRow}>
-                        <Ionicons name="calendar-outline" size={13} color="#8A879A" />
+                        <Ionicons name="calendar-outline" size={13} color={themeColors.isDark ? themeColors.textSecondary : "#8A879A"} />
                         <Text style={styles.dueTimeText}>
                           {formatDueTime(item.due_date)}
                         </Text>
@@ -406,7 +411,7 @@ export default function MemberHomeScreen() {
                           <Text style={styles.mediumPriorityText}>{t('priority_medium')}</Text>
                         </View>
                       )}
-                      <Ionicons name="chevron-forward" size={16} color="#C4C1D4" />
+                      <Ionicons name="chevron-forward" size={16} color={themeColors.isDark ? themeColors.textSecondary : "#C4C1D4"} />
                     </View>
                   </Pressable>
                 );
@@ -455,12 +460,12 @@ export default function MemberHomeScreen() {
             <View style={styles.notifContent}>
               <View style={styles.notifTitleRow}>
                 <Text style={styles.notifTitle}>{t('chore_due_today')}</Text>
-                <Text style={styles.notifTime}>2h</Text>
+                <Text style={styles.notifTime}>{t('ui_two_hours_ago')}</Text>
               </View>
               <Text style={styles.notifSub}>
                 {chores[0]?.title
                   ? `${chores[0].title} ${t('due_today_at')} 10:00 AM.`
-                  : `Water plants ${t('due_today_at')} 10:00 AM.`}
+                  : `${t('ui_water_plants')} ${t('due_today_at')} ${new Date(2026, 0, 1, 10).toLocaleTimeString(language, {hour: 'numeric', minute: '2-digit'})}`}
               </Text>
             </View>
           </View>
@@ -477,10 +482,10 @@ export default function MemberHomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#FAFAFD'),
   },
   centerLoader: {
     flex: 1,
@@ -526,11 +531,11 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     position: 'relative',
   },
   bellBadgeDot: {
@@ -568,17 +573,17 @@ const styles = StyleSheet.create({
   greetingSub: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
   },
   greetingTitle: {
     fontSize: 30,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     letterSpacing: -0.5,
   },
   greetingCaption: {
     fontSize: 13,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     fontWeight: '500',
     marginTop: 2,
   },
@@ -587,7 +592,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   speechBubble: {
-    backgroundColor: '#EEF2FF',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EEF2FF'),
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 12,
@@ -603,7 +608,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE'),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -631,7 +636,7 @@ const styles = StyleSheet.create({
   progressCardTitle: {
     fontSize: 18,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#FFFFFF'),
   },
   viewLinkRow: {
     flexDirection: 'row',
@@ -641,7 +646,7 @@ const styles = StyleSheet.create({
   viewLinkText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#FFFFFF'),
     opacity: 0.9,
   },
   gaugeRow: {
@@ -660,7 +665,7 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     borderWidth: 7,
     borderColor: '#A78BFA',
-    borderTopColor: '#FFFFFF',
+    borderTopColor: (themeColors.isDark ? themeColors.border : '#FFFFFF'),
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -680,7 +685,7 @@ const styles = StyleSheet.create({
   gaugePercentText: {
     fontSize: 18,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#FFFFFF'),
   },
   gaugeRightCol: {
     flex: 1,
@@ -693,7 +698,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#FFFFFF'),
     lineHeight: 20,
   },
   chartIconBadge: {
@@ -711,7 +716,7 @@ const styles = StyleSheet.create({
   },
   innerStatCard: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 16,
     paddingVertical: 12,
     alignItems: 'center',
@@ -728,12 +733,12 @@ const styles = StyleSheet.create({
   innerStatNum: {
     fontSize: 18,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   innerStatLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#757288',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#757288'),
   },
 
   // ── Section Styles ──
@@ -748,7 +753,7 @@ const styles = StyleSheet.create({
   sectionHeaderTitle: {
     fontSize: 19,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   viewAllRow: {
     flexDirection: 'row',
@@ -763,30 +768,30 @@ const styles = StyleSheet.create({
 
   // ── Today's Chores ──
   emptyCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 20,
     padding: 24,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     gap: 6,
   },
   emptyIcon: { fontSize: 28 },
-  emptyTitle: { fontSize: 16, fontWeight: '800', color: '#1E1B2E' },
-  emptySub: { fontSize: 13, color: '#8A879A' },
+  emptyTitle: { fontSize: 16, fontWeight: '800', color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E') },
+  emptySub: { fontSize: 13, color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A') },
 
   choresList: {
     gap: 10,
   },
   choreCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 18,
     padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -811,11 +816,11 @@ const styles = StyleSheet.create({
   choreTitle: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   choreCategory: {
     fontSize: 12,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     fontWeight: '500',
   },
   dueTimeRow: {
@@ -826,7 +831,7 @@ const styles = StyleSheet.create({
   },
   dueTimeText: {
     fontSize: 11,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     fontWeight: '600',
   },
   choreRightCol: {
@@ -835,7 +840,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   pendingPill: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEF3C7'),
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 10,
@@ -846,7 +851,7 @@ const styles = StyleSheet.create({
     color: '#D97706',
   },
   mediumPriorityPill: {
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE'),
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 10,
@@ -857,7 +862,7 @@ const styles = StyleSheet.create({
     color: '#713DE8',
   },
   highPriorityPill: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEE2E2'),
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 10,
@@ -876,14 +881,14 @@ const styles = StyleSheet.create({
   },
   quickCard: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 18,
     paddingVertical: 16,
     paddingHorizontal: 6,
     alignItems: 'center',
     gap: 8,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -898,28 +903,28 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: '#F4F2FA',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F4F2FA'),
     alignItems: 'center',
     justifyContent: 'center',
   },
   quickLabel: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     textAlign: 'center',
     lineHeight: 14,
   },
 
   // ── Recent Notifications ──
   notificationCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 18,
     padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     position: 'relative',
     overflow: 'hidden',
     shadowColor: '#713DE8',
@@ -940,7 +945,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEF2F2'),
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 4,
@@ -957,16 +962,16 @@ const styles = StyleSheet.create({
   notifTitle: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   notifTime: {
     fontSize: 11,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     fontWeight: '600',
   },
   notifSub: {
     fontSize: 12,
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
     lineHeight: 16,
   },
 });

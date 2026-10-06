@@ -7,6 +7,7 @@ import { useAppTheme } from '@/context/ThemeContext';
 import { adminComponent04Service, Household } from '@/services/adminComponent04Service';
 import { DEFAULT_SUPPORTED_LANGUAGES, NotificationSettings, settingsService, UserPreferences } from '@/services/settingsService';
 import { Action, AdminGate, AdminPage, Label, s, useAdminColors } from './AdminComponent04Shared';
+import languageCatalog from '../../../../shared/languages.json';
 
 export default function AdminSettingsScreen() { return <AdminGate>{h => <Settings household={h} />}</AdminGate>; }
 function Settings({ household }: { household: Household }) {
@@ -16,6 +17,9 @@ function Settings({ household }: { household: Household }) {
   const [busy, setBusy] = useState(true); const [saving, setSaving] = useState(false); const lock = useRef(false);
   const [error, setError] = useState(''); const [notice, setNotice] = useState('');
   const [editor, setEditor] = useState<'name' | 'language' | 'theme' | 'reminder' | null>(null);
+  const [newCode, setNewCode] = useState('');
+  const [newName, setNewName] = useState('');
+  const [newNativeName, setNewNativeName] = useState('');
   const [clientLangs, setClientLangs] = useState<typeof DEFAULT_SUPPORTED_LANGUAGES>(DEFAULT_SUPPORTED_LANGUAGES);
   const load = useCallback(async () => {
     if (lock.current) return;
@@ -24,10 +28,10 @@ function Settings({ household }: { household: Household }) {
       const [notifications, preferences, langs] = await Promise.all([
         settingsService.getNotificationSettings(true),
         settingsService.getPreferences(true),
-        settingsService.getSupportedLanguages().catch(() => DEFAULT_SUPPORTED_LANGUAGES),
+        settingsService.getSupportedLanguages(),
       ]);
       setSettings(notifications); setPrefs(preferences); setClientLangs(langs);
-      await setTheme(preferences.theme, false); await setLanguage(preferences.language);
+      await setTheme(preferences.theme, false); await setLanguage(preferences.language, false);
     } catch { setSettings(null); setPrefs(null); setError(t('admin_error')); }
     finally { setBusy(false); }
   }, [t, setTheme, setLanguage]);
@@ -41,14 +45,14 @@ function Settings({ household }: { household: Household }) {
   };
   const preference = (next: UserPreferences) => void save(async () => {
     const persisted = await settingsService.savePreferences(next);
-    setPrefs(persisted); await setTheme(persisted.theme, false); await setLanguage(persisted.language); setEditor(null);
+    setPrefs(persisted); await setTheme(persisted.theme, false); await setLanguage(persisted.language, false); setEditor(null);
   });
-  const toggleClientLang = (code: 'en' | 'si' | 'ta', enabled: boolean) => void save(async () => {
+  const toggleClientLang = (code: string, enabled: boolean) => void save(async () => {
     const updated = await settingsService.updateSupportedLanguage(code, enabled);
     setClientLangs(prev => prev.map(l => l.code === code ? { ...l, is_enabled: updated.is_enabled } : l));
   });
   const toggleEditor = (next: typeof editor) => setEditor(editor === next ? null : next);
-  const languages = { en: 'English', si: 'සිංහල', ta: 'தமிழ்' };
+  const languageName = (code: string) => languageCatalog.find(item => item.code === code)?.native_name || code;
   const themeLabel = (theme: UserPreferences['theme']) => theme === 'system' ? t('admin_system_theme') : t(theme === 'light' ? 'light_theme' : 'dark_theme');
   const section = (title: string, children: React.ReactNode) => <View style={[styles.section, { backgroundColor: c.soft }]}><Text style={[styles.sectionTitle, { color: c.text }]}>{title}</Text><View style={[styles.rows, { backgroundColor: c.card }]}>{children}</View></View>;
   const row = (label: string, icon: keyof typeof Ionicons.glyphMap, onPress: () => void, value?: string, inline = false, expanded = false) => <Pressable accessibilityRole="button" accessibilityLabel={`${label}${value ? `, ${value}` : ''}`} accessibilityState={{ disabled: saving || busy, expanded }} disabled={saving || busy} onPress={onPress} style={({ pressed }) => [styles.row, { borderColor: c.border, opacity: pressed ? .65 : 1 }]}>
@@ -64,9 +68,9 @@ function Settings({ household }: { household: Household }) {
           if (!name.trim() || name.trim().length > 100) { setError(t('admin_name_invalid')); return; }
           void save(async () => { const result = await adminComponent04Service.rename(household.id, name.trim()); setSavedName(result.household.name); setName(result.household.name); setEditor(null); });
         }} /></View>}
-      {prefs && row(t('language'), 'globe-outline', () => toggleEditor('language'), languages[prefs.language], false, editor === 'language')}
+      {prefs && row(t('language'), 'globe-outline', () => toggleEditor('language'), languageName(prefs.language), false, editor === 'language')}
       {prefs && editor === 'language' && <View style={styles.editor}>
-        <View style={s.wrap}>{(['en', 'si', 'ta'] as const).map(lang => <Action key={lang} label={languages[lang]} selected={prefs.language === lang} disabled={saving} onPress={() => preference({ ...prefs, language: lang })} />)}</View>
+        <View style={s.wrap}>{(['en', 'si', 'ta'] as const).map(lang => <Action key={lang} label={languageName(lang)} selected={prefs.language === lang} disabled={saving} onPress={() => preference({ ...prefs, language: lang })} />)}</View>
         <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border }}>
           <Label muted>{t('admin_client_languages')}</Label>
           <View style={{ gap: 8, marginTop: 6 }}>
@@ -76,13 +80,14 @@ function Settings({ household }: { household: Household }) {
                   <Text style={{ fontSize: 18 }}>{item.flag}</Text>
                   <View>
                     <Text style={{ fontSize: 14, fontWeight: '600', color: c.text }}>{item.name} ({item.native_name})</Text>
+                    {!item.translation_supported && <Text style={{ color: c.muted }}>{t('ui_translations_unavailable')}</Text>}
                     {item.code === 'en' && <Text style={{ fontSize: 11, color: c.muted }}>{t('admin_lang_default_desc')}</Text>}
                   </View>
                 </View>
                 <Switch
                   value={item.is_enabled}
-                  disabled={saving || busy || item.code === 'en'}
-                  accessibilityLabel={`${item.name} availability`}
+                  disabled={saving || busy || item.code === 'en' || !item.translation_supported}
+                  accessibilityLabel={`${item.name}: ${t('admin_lang_enabled')}`}
                   trackColor={{ false: c.border, true: '#713DE8' }}
                   thumbColor="#FFFFFF"
                   onValueChange={(val) => toggleClientLang(item.code, val)}
@@ -90,6 +95,13 @@ function Settings({ household }: { household: Household }) {
               </View>
             ))}
           </View>
+          <TextInput accessibilityLabel={t('ui_locale_code')} placeholder={t('ui_locale_code')} value={newCode} onChangeText={setNewCode} autoCapitalize="none" style={[s.input, styles.languageInput, { color: c.text }]} />
+          <TextInput accessibilityLabel={t('ui_language_name')} placeholder={t('ui_language_name')} value={newName} onChangeText={setNewName} style={[s.input, styles.languageInput, { color: c.text }]} />
+          <TextInput accessibilityLabel={t('ui_native_name')} placeholder={t('ui_native_name')} value={newNativeName} onChangeText={setNewNativeName} style={[s.input, styles.languageInput, { color: c.text }]} />
+          <Action label={t('ui_add_language')} disabled={saving || !newCode.trim() || !newName.trim() || !newNativeName.trim()} onPress={() => void save(async () => {
+            const added = await settingsService.addSupportedLanguage(newCode.trim().toLowerCase(), newName.trim(), newNativeName.trim());
+            setClientLangs(previous => [...previous, added]); setNewCode(''); setNewName(''); setNewNativeName('');
+          })} />
         </View>
       </View>}
     </>)}
@@ -114,6 +126,7 @@ function Settings({ household }: { household: Household }) {
   </AdminPage>;
 }
 const styles = StyleSheet.create({
+  languageInput: { borderWidth: 0, borderRadius: 0 },
   section: { borderRadius: 14, padding: 5, overflow: 'hidden' },
   sectionTitle: { fontSize: 14, fontWeight: '700', paddingHorizontal: 9, paddingVertical: 10 },
   rows: { borderRadius: 10, overflow: 'hidden' },
