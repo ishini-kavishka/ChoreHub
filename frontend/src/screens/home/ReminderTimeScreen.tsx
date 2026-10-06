@@ -4,7 +4,6 @@ import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from
 import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  BackHandler,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -13,11 +12,12 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { settingsService } from '@/services/settingsService';
+import { useSettingsBack } from '@/hooks/useSettingsBack';
 
 const purple = '#7C5CFC';
 
@@ -35,7 +35,7 @@ const REMINDER_OPTIONS: ReminderOption[] = [
   { key: '1day', labelKey: '1_day' },
 ];
 
-export default function ReminderTimeScreen() {
+export default function ReminderTimeScreen({ settingsPath = '/home/settings', familyId }: { settingsPath?: '/home/settings' | '/admin/settings'; familyId?: string }) {
   const alert = useAppAlert();
   const styles = useThemedStyles(createStyles);
   const { theme, colors } = useAppTheme();
@@ -76,22 +76,7 @@ export default function ReminderTimeScreen() {
     }, [loadSettings])
   );
 
-  const navigateBack = useCallback(() => {
-    if (router.canGoBack()) router.back();
-    else router.navigate('/home/settings' as any);
-  }, []);
-
-  // Return to the screen that opened Reminder Time, with a direct-link fallback.
-  useFocusEffect(
-    useCallback(() => {
-      const onBackPress = () => {
-        navigateBack();
-        return true;
-      };
-      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-      return () => subscription.remove();
-    }, [navigateBack])
-  );
+  const navigateBack = useSettingsBack(settingsPath, familyId);
 
   const handleSelect = (optionKey: ReminderTimeKey) => {
     if (saveLock.current || loading) return;

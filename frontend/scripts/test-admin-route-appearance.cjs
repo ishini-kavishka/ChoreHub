@@ -4,6 +4,9 @@ require.extensions['.ts']=require.extensions['.tsx']=(module,filename)=>module._
 require.extensions['.png']=(module)=>{module.exports='image';};
 const {translations}=require('../src/i18n/translations.ts');
 let mode='light',language='en',realLanguageHook=null;
+const hardwareSettingsBack=new Set(), settingsRemovalListeners=new Set(), rootRemovalListeners=new Set();
+const rootSettingsNavigation={addListener:(event,fn)=>{rootRemovalListeners.add(fn);return()=>rootRemovalListeners.delete(fn);},getParent:()=>undefined};
+const settingsNavigation={addListener:(event,fn)=>{settingsRemovalListeners.add(fn);return()=>settingsRemovalListeners.delete(fn);},getParent:()=>rootSettingsNavigation};
 const navigationEvents=[];const preferenceCache=new Map();
 const tokens={light:{isDark:false,background:'#F8F7FC',card:'#fff',surface:'#EFEAFF',textPrimary:'#211C35',textSecondary:'#655E78',border:'#E7E0F2',primary:'#7C5CFC',error:'#B3261E',success:'#15803D'},dark:{isDark:true,background:'#14121F',card:'#211D30',surface:'#342C4C',textPrimary:'#fff',textSecondary:'#C0B9D2',border:'#494059',primary:'#7C5CFC',error:'#FFAAA8',success:'#76DEBB'}};
 const translators=Object.fromEntries(Object.keys(translations).map(code=>[code,(key,fallback)=>translations[code][key]??fallback??translations[code].error]));
@@ -11,7 +14,7 @@ const member={id:'member',name:'Chamara',full_name:'Chamara',email:'chamara@exam
 const chore={id:'own-chore',title:'Clean Room',description:'Keep my original note',assigned_to:member.id,created_by:'admin',status:'pending',priority:'medium',category:'General',recurrence:'none',due_date:new Date().toISOString(),created_at:new Date().toISOString()};
 const stats={completed:0,pending:1,overdue:0,total:1,completionPercentage:0};
 const langs=require('../../shared/languages.json').map(item=>({...item,is_enabled:item.translation_supported}));
-const native={Text:'text',View:'view',Pressable:'button',TextInput:'input',ScrollView:'scroll',ActivityIndicator:'loading',Switch:'switch',Image:'image',KeyboardAvoidingView:'keyboard',RefreshControl:'refresh',TouchableOpacity:'button',Modal:({visible,children})=>visible?React.createElement('dialog',null,children):null,FlatList:({data,renderItem,ListEmptyComponent,...props})=>React.createElement('list',props,data?.length?data.map((item,index)=>React.createElement(React.Fragment,{key:index},renderItem({item,index}))):ListEmptyComponent),StyleSheet:{create:x=>x,flatten:style=>Array.isArray(style)?Object.assign({},...style.filter(Boolean).map(native.StyleSheet.flatten)):style||{}},Platform:{OS:'web',select:values=>values.web??values.default},Alert:{alert(){}},Linking:{openURL:async()=>{}},BackHandler:{addEventListener:()=>({remove(){}})},Dimensions:{get:()=>({width:900,height:900})}};
+const native={Text:'text',View:'view',Pressable:'button',TextInput:'input',ScrollView:'scroll',ActivityIndicator:'loading',Switch:'switch',Image:'image',KeyboardAvoidingView:'keyboard',RefreshControl:'refresh',TouchableOpacity:'button',Modal:({visible,children})=>visible?React.createElement('dialog',null,children):null,FlatList:({data,renderItem,ListEmptyComponent,...props})=>React.createElement('list',props,data?.length?data.map((item,index)=>React.createElement(React.Fragment,{key:index},renderItem({item,index}))):ListEmptyComponent),StyleSheet:{create:x=>x,flatten:style=>Array.isArray(style)?Object.assign({},...style.filter(Boolean).map(native.StyleSheet.flatten)):style||{}},Platform:{OS:'web',select:values=>values.web??values.default},Alert:{alert(){}},Linking:{openURL:async()=>{}},BackHandler:{addEventListener:(event,fn)=>{hardwareSettingsBack.add(fn);return{remove:()=>hardwareSettingsBack.delete(fn)};}},Dimensions:{get:()=>({width:900,height:900})}};
 const services={authService:{getCurrentMember:async()=>member,signOut:async()=>{},getAuthToken:async()=> 'test'},profileService:{getProfile:async()=>member},choreService:{getMemberChores:async()=>({chores:[chore],stats}),getStats:async()=>({todaysChores:[chore],stats}),getChoreById:async()=>({chore}),getAdminAllUsers:async()=>({users:[member]})},familyService:{getMyFamily:async()=>({family:{id:'family',name:'Original Household',invite_code:'INVITE'},members:[{...member,user_id:member.id,relationship:'mother'}]})},notificationService:{getNotifications:async()=>[{id:'notice',user_id:member.id,title:'Original announcement',message:'Keep my original message',type:'announcement',is_read:false,created_at:new Date().toISOString()}],getUnreadCount:async()=>1,subscribeUnreadCount:()=>()=>{}},completedChoresService:{get:async()=>[]},settingsService:{getPreferences:async()=>({theme:mode,language,brightness:70,auto_brightness:false}),getSupportedLanguages:async()=>langs,getNotificationSettings:async()=>({chore_reminders:true,chore_completions:true,family_updates:true,announcements:true,reminder_time:'10min'}),savePreferences:async()=>({theme:mode,language})},supportTicketService:{getUserTickets:async()=>[]},reminderService:{list:async()=>({reminders:[]}),chores:async()=>({chores:[chore]})},announcementService:{list:async()=>({announcements:[],can_manage:false})}};
 services.choreService.getAdminStats=async()=>({chores:[chore],stats});
 services.choreService.getChores=async()=>({chores:[chore]});
@@ -28,7 +31,8 @@ Module._load=function(name,...args){
   if(name==='react-native-svg')return{__esModule:true,default:'svg',Circle:'circle'};
   if(name==='expo-image-picker')return{};
   if(name==='expo-splash-screen')return{hideAsync:async()=>{}};
-  if(name==='expo-router')return{router:{push:target=>navigationEvents.push(target),navigate:target=>navigationEvents.push(target),replace(){},back(){},canGoBack:()=>true},useFocusEffect:callback=>React.useEffect(callback,[callback]),useLocalSearchParams:()=>({id:'own-chore',title:'Clean Room'}),useSegments:()=>['admin']};
+  if(name==='expo-router/react-navigation')return{usePreventRemove:(enabled,callback)=>React.useEffect(()=>{if(!enabled)return;const listener=event=>{event.preventDefault();callback({data:event.data});};settingsRemovalListeners.add(listener);rootRemovalListeners.add(listener);return()=>{settingsRemovalListeners.delete(listener);rootRemovalListeners.delete(listener);};},[enabled,callback])};
+  if(name==='expo-router')return{useIsFocused:()=>true,useNavigation:()=>settingsNavigation,router:{push:target=>navigationEvents.push(target),navigate:target=>navigationEvents.push(target),replace:target=>navigationEvents.push(target),back(){},canGoBack:()=>true},useFocusEffect:callback=>React.useEffect(callback,[callback]),useLocalSearchParams:()=>({id:'own-chore',title:'Clean Room'}),useSegments:()=>['admin']};
   if(name==='@/context/ThemeContext')return{useAppTheme:()=>({colors:tokens[mode],theme:mode,preference:mode,brightness:70,autoBrightness:false,ready:true,setTheme:async value=>{mode=value;},setBrightness:async()=>{},setAutoBrightness:async()=>{}}),useThemedStyles:factory=>factory(tokens[mode])};
   if(name==='@/context/LanguageContext')return{useLanguage:()=>realLanguageHook?realLanguageHook():({language,t:translators[language],availableLanguages:langs,refreshAvailableLanguages:async()=>langs,setLanguage:async value=>{language=value;},refreshAvailableLanguages:async()=>langs,isLanguageEnabled:()=>true})};
   if(name==='@/services/api')return{ApiError:class ApiError extends Error{}};
@@ -52,7 +56,7 @@ for(const {route,Component}of routes)test(route+' updates through all forty glob
         assert.ok(text.includes('Original Household'),'household header remains');
         assert.ok(text.includes(translations[code].admin_total),'Progress data still renders');
       }
-      if(route==='admin/about')assert.ok(r.root.findAllByType('icon').some(n=>n.props.name==='notifications-outline'),'other shared headers retain their bell');
+      if(route==='admin/about')assert.equal(r.root.findAllByType('icon').filter(n=>n.props.name==='notifications-outline').length,0,'Admin Settings children have no Member notification bell');
       const root=r.root.findAllByType('safe')[0];
       if(root){const background=native.StyleSheet.flatten(root.props.style).backgroundColor;assert.ok(background,route+' has a surface');if(theme==='dark')assert.ok(!/^#(?:fff(?:fff)?|FAFAFD|F8F7FC)$/i.test(background),route+' dark background is not fixed white');}
       const pale=[];
@@ -154,12 +158,16 @@ test('Admin add-member translates labels while submitting the original relations
   }finally{if(r)await act(async()=>r.unmount());}
 });
 
-test('Admin Settings changes only the selected global preference',async()=>{
+test('Admin Settings opens the Admin Theme and Language routes; Theme changes only the selected global preference',async()=>{
   let r;language='si';mode='dark';const Component=routes.find(r=>r.route==='admin/settings').Component;
   try{await act(async()=>{r=create(React.createElement(Component));});
     await act(async()=>r.root.findAllByType('button').find(n=>n.props.accessibilityLabel?.startsWith(translations.si.theme+',')).props.onPress());
+    assert.deepEqual(navigationEvents.at(-1),{pathname:'/admin/preferences',params:{family_id:'family'}});
+    await act(async()=>r.unmount());r=null;
+    const Preferences=routes.find(r=>r.route==='admin/preferences').Component;
+    await act(async()=>{r=create(React.createElement(Preferences));});
     await act(async()=>buttonWithText(r,translations.si.light_theme).props.onPress());assert.equal(mode,'light');assert.equal(language,'si');
-    await act(async()=>r.update(React.createElement(Component)));
+    await act(async()=>r.unmount());r=null;await act(async()=>{r=create(React.createElement(Component));});
     const languageRow=r.root.findAllByType('button').find(n=>n.props.accessibilityLabel?.startsWith(translations.si.language+','));assert.ok(languageRow,'Admin has Language entry');
     await act(async()=>languageRow.props.onPress());assert.deepEqual(navigationEvents.at(-1),{pathname:'/admin/language',params:{family_id:'family'}});
     assert.ok(!textOf(r.root).includes(translations.si.admin_client_languages));
@@ -224,4 +232,84 @@ test('Admin Language uses the real provider to translate every mounted Admin pag
     assert.deepEqual(navigationEvents.at(-1),{pathname:'/admin/settings',params:{family_id:'family'}});
   }finally{if(r)await act(async()=>r.unmount());realLanguageHook=null;services.settingsService.savePreferences=originalSave;}
 });
+test('all five Admin Settings children keep header, hardware and root history back in Admin Settings, including direct-link remounts',async()=>{
+  language='en';mode='light';let r;
+  try{for(const name of ['reminder-time','about','language','preferences','notification-settings']){
+    const Component=routes.find(item=>item.route==='admin/'+name).Component;
+    for(const restart of [false,true]){
+      navigationEvents.length=0;
+      await act(async()=>{r=create(React.createElement(Component));});
+      const buttons=r.root.findAllByType('button');assert.ok(buttons.length,name+' renders the authenticated Admin child');
+      await act(async()=>buttons[0].props.onPress());
+      const expected={pathname:'/admin/settings',params:{family_id:'family'}};
+      assert.deepEqual(navigationEvents.at(-1),expected,name+' header back');
+      assert.equal(hardwareSettingsBack.size,1,name+' has exactly one focused hardware back handler');
+      await act(async()=>assert.equal([...hardwareSettingsBack][0](),true));
+      assert.deepEqual(navigationEvents.at(-1),expected,name+' hardware back');
+      assert.equal(rootRemovalListeners.size,1,name+' protects the root navigator');
+      let prevented=false;
+      await act(async()=>[...rootRemovalListeners][0]({data:{action:{type:restart?'POP':'GO_BACK'}},preventDefault(){prevented=true;}}));
+      assert.equal(prevented,true,name+' prevents leaving the Admin navigator via history back');
+      assert.deepEqual(navigationEvents.at(-1),expected,name+' history back');
+      assert.ok(navigationEvents.every(target=>(typeof target==='string'?target:target.pathname).startsWith('/admin/')));
+      for(const button of buttons)assert.equal(button.findAllByType('button').length,1,'no nested setting buttons');
+      await act(async()=>r.unmount());r=null;
+      assert.equal(hardwareSettingsBack.size,0);assert.equal(rootRemovalListeners.size,0);
+    }
+  }}finally{if(r)await act(async()=>r.unmount());}
+});
+
+test('Admin App Settings rows are full touch targets, retain household/privacy settings, and return to Admin Profile',async()=>{
+  language='en';mode='light';let r;
+  try{const Component=routes.find(item=>item.route==='admin/settings').Component;await act(async()=>{r=create(React.createElement(Component));});
+    assert.ok(textOf(r.root).includes('Original Household'));assert.ok(textOf(r.root).includes(translations.en.admin_privacy));
+    for(const [key,name]of [['notification_settings','notification-settings'],['reminder_time','reminder-time'],['theme','preferences'],['language','language'],['about_app','about']]){
+      const row=r.root.findAllByType('button').find(n=>n.props.accessibilityLabel?.startsWith(translations.en[key]+','));assert.ok(row,key+' row');
+      assert.equal(row.props.disabled,false);assert.equal(row.findAllByType('button').length,1);
+      assert.ok(native.StyleSheet.flatten(row.props.style({pressed:false})).minHeight>=44);
+      await act(async()=>row.props.onPress());assert.deepEqual(navigationEvents.at(-1),{pathname:'/admin/'+name,params:{family_id:'family'}});
+    }
+    const scroll=r.root.findByType('scroll');const body=native.StyleSheet.flatten(scroll.props.contentContainerStyle);
+    assert.equal(body.width,'100%');assert.equal(body.maxWidth,800);assert.ok(body.paddingBottom>=36);
+    await act(async()=>r.root.findAllByType('button')[0].props.onPress());assert.deepEqual(navigationEvents.at(-1),{pathname:'/admin/profile'});
+  }finally{if(r)await act(async()=>r.unmount());}
+});
+
+test('Member and signed-out sessions cannot render any Admin Settings route',async()=>{
+  const originalUser=services.authService.getCurrentMember,originalContext=services.adminComponent04Service.context;let r,contextCalls=0;
+  services.adminComponent04Service.context=async()=>{contextCalls++;return originalContext();};
+  try{for(const user of [{...member,role:'member'},null])for(const name of ['settings','reminder-time','about','language','preferences','notification-settings']){
+    services.authService.getCurrentMember=async()=>user;navigationEvents.length=0;contextCalls=0;
+    const Component=routes.find(item=>item.route==='admin/'+name).Component;await act(async()=>{r=create(React.createElement(Component));});
+    assert.equal(navigationEvents.at(-1),user?'/home/settings':'/auth/login');assert.equal(contextCalls,0,'denied session never requests Admin household data');
+    assert.equal(r.root.findAllByType('button').length,0);await act(async()=>r.unmount());r=null;
+  }}finally{if(r)await act(async()=>r.unmount());services.authService.getCurrentMember=originalUser;services.adminComponent04Service.context=originalContext;}
+});
+
+test('Client Reminder Time and About retain Client header, hardware and history-back destinations',async()=>{
+  language='en';mode='light';let r;
+  try{for(const name of ['reminder-time','about']){
+    const Component=require('../src/app/home/'+name+'.tsx').default;navigationEvents.length=0;
+    await act(async()=>{r=create(React.createElement(Component));});
+    await act(async()=>r.root.findAllByType('button')[0].props.onPress());assert.deepEqual(navigationEvents.at(-1),{pathname:'/home/settings'});
+    await act(async()=>[...hardwareSettingsBack][0]());assert.deepEqual(navigationEvents.at(-1),{pathname:'/home/settings'});
+    let prevented=false;await act(async()=>[...rootRemovalListeners][0]({data:{action:{type:'GO_BACK'}},preventDefault(){prevented=true;}}));assert.ok(prevented);
+    assert.deepEqual(navigationEvents.at(-1),{pathname:'/home/settings'});assert.ok(navigationEvents.every(target=>target.pathname.startsWith('/home/')));
+    await act(async()=>r.unmount());r=null;
+  }}finally{if(r)await act(async()=>r.unmount());}
+});
+
+test('Admin Notification Settings retain due-date and weekly-summary API switches without changing Reminder Time',async()=>{
+  language='en';mode='light';const originalGet=services.settingsService.getNotificationSettings,originalSave=services.settingsService.saveNotificationSettings;
+  let stored={chore_reminders:true,chore_completions:true,family_updates:true,announcements:false,due_date_alerts:true,weekly_summary:true,reminder_time:'30min'},r;const writes=[];
+  services.settingsService.getNotificationSettings=async()=>({...stored});
+  services.settingsService.saveNotificationSettings=async patch=>{writes.push(patch);stored={...stored,...patch};return {...stored};};
+  try{const Component=routes.find(item=>item.route==='admin/notification-settings').Component;await act(async()=>{r=create(React.createElement(Component));});
+    for(const [key,label]of [['due_date_alerts','admin_due'],['weekly_summary','admin_weekly']]){
+      const toggle=r.root.findAllByType('switch').find(n=>n.props.accessibilityLabel===translations.en[label]);assert.ok(toggle,key+' still exists');
+      await act(async()=>toggle.props.onValueChange(false));assert.deepEqual(writes.at(-1),{[key]:false});assert.equal(stored.reminder_time,'30min');
+    }
+  }finally{if(r)await act(async()=>r.unmount());services.settingsService.getNotificationSettings=originalGet;services.settingsService.saveNotificationSettings=originalSave;}
+});
+
 test.after(()=>{Module._load=original;fs.writeFileSync(path.resolve(__dirname,'../.expo/admin-route-appearance-results.json'),JSON.stringify(appearance,null,2));});

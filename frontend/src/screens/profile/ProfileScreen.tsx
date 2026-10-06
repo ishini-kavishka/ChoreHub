@@ -185,17 +185,7 @@ export default function ProfileScreen() {
           />
           <View style={[styles.menuDivider, { backgroundColor: colors.border }]} />
 
-          {/* 5. App Preferences */}
-          <MenuItem
-            iconName="settings-outline"
-            iconColor="#0EA5E9"
-            iconBg={themeColors.isDark ? themeColors.surface : "#E0F2FE"}
-            title={t('menu_app_preferences')}
-            onPress={() => router.push('/home/preferences' as any)}
-          />
-          <View style={[styles.menuDivider, { backgroundColor: colors.border }]} />
-
-          {/* 6. Support & Help */}
+          {/* 5. Support & Help */}
           <MenuItem
             iconName="help-buoy-outline"
             iconColor="#F59E0B"

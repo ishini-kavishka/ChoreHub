@@ -10,7 +10,6 @@ import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from
  */
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  BackHandler,
   FlatList,
   Pressable,
   StyleSheet,
@@ -19,12 +18,13 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { Language, translations } from '@/i18n/translations';
 import { SupportedLanguageItem } from '@/services/settingsService';
+import { useSettingsBack } from '@/hooks/useSettingsBack';
 
 const purple = '#7C5CFC';
 
@@ -51,16 +51,7 @@ export default function LanguageScreen({ settingsPath = '/home/settings', family
     }, [refreshAvailableLanguages, t])
   );
 
-  const goBack = useCallback(() => router.navigate({ pathname: settingsPath, ...(familyId ? { params: { family_id: familyId } } : {}) }), [settingsPath, familyId]);
-
-  // Hardware back button → Settings
-  useFocusEffect(useCallback(() => {
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      goBack();
-      return true;
-    });
-    return () => sub.remove();
-  }, [goBack]));
+  const goBack = useSettingsBack(settingsPath, familyId);
 
   const clientVisibleLanguages = availableLanguages;
 

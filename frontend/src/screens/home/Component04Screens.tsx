@@ -15,11 +15,14 @@ import { useLanguage } from '@/context/LanguageContext';
 import { notificationService, AppNotification, isDemoNotificationMode } from '@/services/notificationService';
 import { completedChoresService, CompletedChore } from '@/services/completedChoresService';
 import { settingsService, NotificationSettings, settingsDemoMode, UserPreferences } from '@/services/settingsService';
+import { useSettingsBack } from '@/hooks/useSettingsBack';
 
 const purple = '#7C5CFC';
 const defaultNotifications: NotificationSettings = { chore_reminders:true, chore_completions:true, family_updates:true, announcements:false, reminder_time:'10min' };
 
 export function Component04Screen({ kind, adminFamily }: { kind: 'notifications'|'completed'|'settings'|'notificationSettings'|'preferences'|'about'; adminFamily?: Household }) {
+  const settingsChild = kind === 'notificationSettings' || kind === 'preferences' || kind === 'about';
+  const settingsBack = useSettingsBack(adminFamily ? '/admin/settings' : '/home/settings', adminFamily?.id, settingsChild);
   const params = useLocalSearchParams<{ returnTo?: string }>();
   const notificationBack = useCallback(() => {
     const allowed = ['/support', '/home', '/home/progress', '/home/notification-settings', '/home/preferences', '/home/about', '/home/completed-chores'];
@@ -34,7 +37,7 @@ export function Component04Screen({ kind, adminFamily }: { kind: 'notifications'
   // This component is also used by Admin: apply the redesign to members only.
   const clientStyles = useThemedStyles(createClientS);
   const s = adminFamily ? baseStyles : clientStyles;
-  const { theme, setTheme, brightness, setBrightness, autoBrightness, setAutoBrightness, colors } = useAppTheme();
+  const { theme, preference: themePreference, setTheme, brightness, setBrightness, autoBrightness, setAutoBrightness, colors } = useAppTheme();
   const { t, language, setLanguage } = useLanguage();
   const dark = colors.isDark;
   const bg = colors.background, card = colors.card, fg = colors.textPrimary, muted = colors.textSecondary;
@@ -135,7 +138,7 @@ export function Component04Screen({ kind, adminFamily }: { kind: 'notifications'
 
   // Header — bell icon opens notifications from the other screens.
   const top = (
-    <View style={s.head}>
+    <View style={[s.head, adminFamily && settingsChild && { width: '100%', maxWidth: 800, alignSelf: 'center' }]}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t('admin_back')}
@@ -144,11 +147,11 @@ export function Component04Screen({ kind, adminFamily }: { kind: 'notifications'
           // router.back() does not work correctly here because these screens are all
           // Tabs screens inside the home Tabs navigator — tab switches do not create
           // a stack that router.back() can pop through.
-          if (adminFamily) {
+          if (settingsChild) {
+            settingsBack();
+          } else if (adminFamily) {
             if (router.canGoBack()) router.back();
-            else router.navigate(kind === 'about' ? '/admin/settings' : '/admin/progress');
-          } else if (kind === 'notificationSettings' || kind === 'preferences' || kind === 'about') {
-            router.navigate('/home/settings' as any);
+            else router.navigate('/admin/progress');
           } else if (kind === 'settings') {
             router.navigate('/home/profile' as any);
           } else if (kind === 'notifications') {
@@ -163,7 +166,7 @@ export function Component04Screen({ kind, adminFamily }: { kind: 'notifications'
       </Pressable>
       <Text style={[s.title, { color: fg }]}>{title}</Text>
       {kind === 'notifications' && <Pressable accessibilityRole="button" accessibilityLabel={t('crud_retry')} disabled={busy} onPress={() => void load()} style={s.icon}><Ionicons name="refresh-outline" size={22} color={purple}/></Pressable>}
-      {kind !== 'notifications' && (kind !== 'settings' || !!adminFamily) && (adminFamily ?
+      {kind !== 'notifications' && (kind !== 'settings' || !!adminFamily) && !(adminFamily && settingsChild) && (adminFamily ?
           <Pressable accessibilityRole="button" accessibilityLabel={t('ui_open_notifications')} onPress={() => router.push(adminFamily ? '/admin/notifications' : '/home/notifications')} style={s.icon}>
             <Ionicons name="notifications-outline" size={22} color={purple}/>
           </Pressable> : <NotificationBell returnTo={{ completed: '/home/completed-chores', notificationSettings: '/home/notification-settings', preferences: '/home/preferences', about: '/home/about', settings: '/home/settings', notifications: '/home/notifications' }[kind]}/>)
@@ -315,6 +318,11 @@ export function Component04Screen({ kind, adminFamily }: { kind: 'notifications'
       { key: 'announcements',     label: t('announcements'),         sub: t('announcements'),            icon: 'megaphone-outline',        iconColor: '#3B82F6', iconBg: (themeColors.isDark ? themeColors.surface : '#DBEAFE') },
     ];
 
+    if (adminFamily) notifCards.push(
+      { key: 'due_date_alerts', label: t('admin_due'), sub: t('admin_due'), icon: 'notifications-outline', iconColor: purple, iconBg: colors.surface },
+      { key: 'weekly_summary', label: t('admin_weekly'), sub: t('admin_weekly'), icon: 'calendar-outline', iconColor: purple, iconBg: colors.surface },
+    );
+
     const toggleNotif = async (key: typeof notifCards[number]['key'], value: boolean) => {
       if (saveLock.current || busy) return;
       saveLock.current = true; setSaving(true);
@@ -428,6 +436,9 @@ export function Component04Screen({ kind, adminFamily }: { kind: 'notifications'
         </View>
 
         {/* ── Brightness Section ── */}
+        {adminFamily && <Pressable accessibilityRole="button" accessibilityLabel={t('admin_system_theme')} accessibilityState={{ selected: themePreference === 'system' }} onPress={() => void setTheme('system').catch(() => setError(t('admin_save_error')))} style={[s.choice, { backgroundColor: card, borderColor: themePreference === 'system' ? purple : colors.border }]}>
+          <Text style={[s.rowTitle, { color: fg }]}>{t('admin_system_theme')}</Text>
+        </Pressable>}
         <Text style={[s.sectionHead, { color: fg, marginTop: 18, marginBottom: 8 }]}>
           {t('brightness')}
         </Text>
@@ -510,7 +521,7 @@ export function Component04Screen({ kind, adminFamily }: { kind: 'notifications'
     <SafeAreaView style={[s.safe, { backgroundColor: bg }]}>
       {top}
       {kind === 'notifications' && !!notice && <Text accessibilityLiveRegion="polite" style={{ color: colors.isDark ? '#76DEBB' : '#15803D', paddingHorizontal: 20, paddingVertical: 8 }}>{translateFeedback(notice, t)}</Text>}
-      <ScrollView contentContainerStyle={s.body} refreshControl={<RefreshControl refreshing={busy} onRefresh={() => void load()} tintColor={purple}/>}>
+      <ScrollView contentContainerStyle={[s.body, adminFamily && settingsChild && { width: '100%', maxWidth: 800, alignSelf: 'center' }]} refreshControl={<RefreshControl refreshing={busy} onRefresh={() => void load()} tintColor={purple}/>}>
         {content}
         {kind !== 'notifications' && !!notice && <Text style={{ color: '#22C55E' }}>{translateFeedback(notice, t)}</Text>}
         {!!error && kind !== 'completed' && <Text style={{ color: '#EF4444' }}>{translateFeedback(error, t)}</Text>}

@@ -11,6 +11,8 @@ import { adminComponent04Service, Household } from '@/services/adminComponent04S
 import { familyService } from '@/services/familyService';
 import { notificationService } from '@/services/notificationService';
 import { ApiError } from '@/services/api';
+import { authService } from '@/services/authService';
+import { subscribeSession } from '@/services/authStorage';
 
 export const purple = '#7C5CFC';
 export function useAdminColors() {
@@ -81,8 +83,32 @@ export function AdminGate({ children }: { children: (household: Household) => Re
     <React.Fragment key={household.id}>{children(household)}</React.Fragment>
   </View>;
 }
-export function AdminPage({ title, household, busy, error, refresh, children, compactHeader = false, showNotificationBell = true }: {
-  title: string; household: Household; busy: boolean; error: string; refresh: () => void; children: React.ReactNode; compactHeader?: boolean; showNotificationBell?: boolean;
+// Settings route ownership comes from the authenticated session, never a query
+// parameter or a shared screen's visual style.
+export function AdminSettingsGate({ children }: { children: (household: Household) => React.ReactNode }) {
+  const c = useAdminColors();
+  const [allowed, setAllowed] = useState(false);
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    let generation = 0;
+    const check = () => {
+      const request = ++generation;
+      setAllowed(false);
+      void authService.getCurrentMember().then(user => {
+        if (!active || request !== generation) return;
+        if (!user) router.replace('/auth/login');
+        else if (user.role !== 'admin') router.replace('/home/settings');
+        else setAllowed(true);
+      }).catch(() => { if (active && request === generation) router.replace('/auth/login'); });
+    };
+    check();
+    const unsubscribe = subscribeSession(check);
+    return () => { active = false; unsubscribe(); };
+  }, []));
+  return allowed ? <AdminGate>{children}</AdminGate> : <View style={[s.fill, s.center, { backgroundColor: c.bg }]}><ActivityIndicator color={c.accent} /></View>;
+}
+export function AdminPage({ title, household, busy, error, refresh, children, compactHeader = false, showNotificationBell = true, onBack }: {
+  title: string; household: Household; busy: boolean; error: string; refresh: () => void; children: React.ReactNode; compactHeader?: boolean; showNotificationBell?: boolean; onBack?: () => void;
 }) {
   const c = useAdminColors(); const { t } = useLanguage(); const [unread, setUnread] = useState<number | null>(null);
   useEffect(() => { if (!showNotificationBell || compactHeader) return; const off = notificationService.subscribeUnreadCount(setUnread); return () => { off(); }; }, [showNotificationBell, compactHeader]);
@@ -95,7 +121,7 @@ export function AdminPage({ title, household, busy, error, refresh, children, co
   }, [showNotificationBell, compactHeader]));
   return <SafeAreaView edges={['top', 'left', 'right']} style={[s.fill, { backgroundColor: c.bg }]}>
     <View style={[s.header, { borderColor: c.border }]}>
-      <Pressable style={s.icon} accessibilityRole="button" accessibilityLabel={t('admin_back')} onPress={() => router.canGoBack() ? router.back() : router.replace('/admin/dashboard')}><Ionicons name="arrow-back" size={23} color={c.accent} /></Pressable>
+      <Pressable style={s.icon} accessibilityRole="button" accessibilityLabel={t('admin_back')} onPress={onBack || (() => router.canGoBack() ? router.back() : router.replace('/admin/dashboard'))}><Ionicons name="arrow-back" size={23} color={c.accent} /></Pressable>
       <View style={{ flex: 1, alignItems: compactHeader ? 'center' : 'flex-start' }}><Label heading>{title}</Label>{!compactHeader && <Label muted>{household.name}</Label>}</View>
       {compactHeader ? <View style={s.icon} /> : showNotificationBell ? <Pressable style={s.icon} accessibilityRole="button" accessibilityLabel={`${t('notifications')}${unread === null ? '' : `, ${t('filter_unread')} ${unread}`}`} onPress={() => router.push({ pathname: '/admin/notifications', params: { family_id: household.id } })}>
         <Ionicons name="notifications-outline" size={24} color={c.accent} />

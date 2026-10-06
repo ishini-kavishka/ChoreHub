@@ -20,7 +20,8 @@ Module._load=function(name,...args){
   if(name==='react-native-svg')return{__esModule:true,default:'svg',Circle:'circle',Line:'line',Polyline:'polyline'};
   if(name==='expo-image-picker')return{};
   if(name==='expo-splash-screen')return{hideAsync:async()=>{}};
-  if(name==='expo-router')return{router:{push(){},replace(){},back(){},canGoBack:()=>true},useFocusEffect:callback=>React.useEffect(callback,[callback]),useLocalSearchParams:()=>({id:'own-chore',title:'Clean Room'}),useSegments:()=>['home']};
+  if(name==='expo-router/react-navigation')return{usePreventRemove(){}};
+  if(name==='expo-router')return{useIsFocused:()=>true,useNavigation:()=>({addListener:()=>()=>{},getParent:()=>undefined}),router:{push(){},replace(){},back(){},canGoBack:()=>true},useFocusEffect:callback=>React.useEffect(callback,[callback]),useLocalSearchParams:()=>({id:'own-chore',title:'Clean Room'}),useSegments:()=>['home']};
   if(name==='@/context/ThemeContext')return{useAppTheme:()=>({colors:tokens[mode],theme:mode,brightness:70,autoBrightness:false,ready:true,setTheme:async value=>{mode=value;},setBrightness:async()=>{},setAutoBrightness:async()=>{}}),useThemedStyles:factory=>factory(tokens[mode])};
   if(name==='@/context/LanguageContext')return{useLanguage:()=>({language,t:translators[language],availableLanguages:langs,setLanguage:async value=>{language=value;},refreshAvailableLanguages:async()=>langs,isLanguageEnabled:()=>true})};
   if(name==='@/services/api')return{ApiError:class ApiError extends Error{}};

@@ -96,7 +96,9 @@ Module._load = function(name, ...args) {
   if (name === 'react-native-safe-area-context') return { SafeAreaView:'safe' };
   if (name === 'react-native-svg')return {__esModule:true,default:'svg',Circle:'circle',Line:'line',Polyline:'polyline'};
   if (name === '@expo/vector-icons') return { Ionicons:'icon' };
-  if (name === 'expo-router') return { useLocalSearchParams:()=>inboxParams, useSegments:()=>['home','profile'], useFocusEffect:callback=>React.useEffect(callback,[callback]), router:{push:value=>routes.push(value),back:()=>routes.push('BACK'),canGoBack:()=>canGoBack,navigate:value=>routes.push(value),canDismiss:()=>canDismiss,dismissAll:()=>routes.push('POP_TO_TOP'),replace:value=>routes.push(value)} };
+  if (name === 'expo-router/react-navigation') return {usePreventRemove(){}};
+  if (name === 'expo-router') return {useIsFocused:()=>true,useNavigation:()=>({addListener:()=>()=>{},getParent:()=>undefined}), useLocalSearchParams:()=>inboxParams, useSegments:()=>['home','profile'], useFocusEffect:callback=>React.useEffect(callback,[callback]), router:{push:value=>routes.push(value),back:()=>routes.push('BACK'),canGoBack:()=>canGoBack,navigate:value=>routes.push(value),canDismiss:()=>canDismiss,dismissAll:()=>routes.push('POP_TO_TOP'),replace:value=>routes.push(value)} };
+  if (name === '@/hooks/useSettingsBack') return require('../src/hooks/useSettingsBack.ts');
   if (name === '@/context/LanguageContext') return { useLanguage:()=>({t:translate,language:'en'}) };
   if (name === '@/context/ThemeContext') return { useThemedStyles:factory=>factory({isDark:dark,background:dark?'#14121F':'#F8F7FC',card:dark?'#211D30':'#fff',surface:dark?'#342C4C':'#EFEAFF',textPrimary:dark?'#fff':'#211C35',textSecondary:'#655E78',border:'#E7E0F2'}), useAppTheme:()=>({theme:dark?'dark':'light',colors:{isDark:dark,background:dark?'#14121F':'#F8F7FC',card:dark?'#211D30':'#fff',textPrimary:dark?'#fff':'#211C35',textSecondary:dark?'#C0B9D2':'#655E78',surface:dark?'#342C4C':'#EFEAFF',border:dark?'#494059':'#E7E0F2'}}) };
   if (name === '@/i18n/clientTranslations') return {notificationDisplay};
@@ -191,7 +193,7 @@ test('admin completed history uses the selected household and shared headers sta
     await press(r,translate('admin_back'));assert.equal(routes.at(-1),'/admin/progress');
     await act(async()=>r.unmount());r=null;
     await act(async()=>{r=create(React.createElement(Screen,{kind:'about',adminFamily:{id:'selected-household',name:'Selected household'}}));});
-    await press(r,translate('admin_back'));assert.equal(routes.at(-1),'/admin/settings');
+    await press(r,translate('admin_back'));assert.deepEqual(routes.at(-1),{pathname:'/admin/settings',params:{family_id:'selected-household'}});
   }finally{if(r)await act(async()=>r.unmount());}
 });
 
