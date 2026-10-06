@@ -31,11 +31,6 @@ const TAB_CONFIGS: Record<string, TabConfig> = {
     activeIcon: 'notifications',
     inactiveIcon: 'notifications-outline',
   },
-  chores: {
-    label: 'Chores',
-    activeIcon: 'clipboard',
-    inactiveIcon: 'clipboard-outline',
-  },
   profile: {
     label: 'Profile',
     activeIcon: 'person',
@@ -91,9 +86,7 @@ export function AdminTabBar({ state, descriptors, navigation }: BottomTabBarProp
                 ? t('admin_progress')
                 : route.name === 'notifications'
                   ? t('notifications')
-                  : route.name === 'chores'
-                    ? t('chores')
-                    : t('profile');
+                  : t('profile');
 
           return (
             <Pressable

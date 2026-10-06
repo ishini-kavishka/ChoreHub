@@ -13,8 +13,8 @@ export default function AdminLayout() {
       <Tabs.Screen name="dashboard" options={{ title: 'Home' }} />
       <Tabs.Screen name="progress" options={{ title: 'Progress' }} />
       <Tabs.Screen name="notifications" options={{ title: 'Notifications' }} />
-      <Tabs.Screen name="chores" options={{ title: 'Chores' }} />
       <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
+      <Tabs.Screen name="chores" options={{ href: null }} />
       <Tabs.Screen name="members" options={{ href: null }} />
       <Tabs.Screen name="add-chore" options={{ href: null }} />
       <Tabs.Screen name="edit-chore" options={{ href: null }} />
