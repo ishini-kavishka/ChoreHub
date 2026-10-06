@@ -9,6 +9,7 @@ async function getNotifications(req, res, next) {
     const { filter = 'all' } = req.query;
     if (!['all', 'unread', 'read'].includes(filter)) return res.status(400).json({ message: 'Invalid notification filter.' });
 
+    await require('../services/notificationDeliveryService').processDueReminders({ userId });
     let filterClause = '';
     if (filter === 'unread') filterClause = 'AND n.is_read = FALSE';
     else if (filter === 'read') filterClause = 'AND n.is_read = TRUE';
@@ -134,10 +135,12 @@ async function createReminder(req, res, next) {
 
     const result = await pool.query(
       `INSERT INTO notifications (user_id, title, message, type, reminder_at)
-       VALUES ($1, $2, $3, 'personal_reminder', $4)
+       SELECT $1, $2, $3, 'personal_reminder', $4
+       WHERE COALESCE((SELECT chore_reminders FROM notification_settings WHERE user_id=$1), TRUE)
        RETURNING *`,
       [userId, title.trim(), message.trim(), parsedAt]
     );
+    if (!result.rowCount) return res.status(409).json({ message: 'Chore reminders are disabled for your account.' });
     return res.status(201).json({ notification: result.rows[0] });
   } catch (error) {
     return next(error);
@@ -184,11 +187,18 @@ async function updateReminder(req, res, next) {
 // A private inbox entry, never a chore mutation or approval request.
 async function messageRecipient(db, chore, senderId) {
   // Prefer the assigning Admin. Exclude self before considering household owners.
-  const creator = await db.query("SELECT id FROM users WHERE id=$1 AND role='admin' AND id<>$2", [chore.created_by,senderId]);
+  const creator = await db.query(`SELECT u.id FROM users u WHERE u.id=$1 AND u.role='admin' AND u.id<>$2
+    AND EXISTS (SELECT 1 FROM family_members sender
+      JOIN families f ON f.id=sender.family_id
+      WHERE sender.user_id=$2 AND ($3::uuid IS NULL OR f.id=$3)
+        AND (f.created_by=u.id OR EXISTS (
+          SELECT 1 FROM family_members recipient WHERE recipient.family_id=f.id AND recipient.user_id=u.id)))`,
+    [chore.created_by,senderId,chore.family_id]);
   if (creator.rowCount) return creator.rows[0].id;
   // Legacy Chores may have no family_id; use only the sender's real memberships.
   const owners = await db.query(`SELECT DISTINCT f.created_by AS id FROM families f
     JOIN family_members fm ON fm.family_id=f.id AND fm.user_id=$1
+    JOIN users owner ON owner.id=f.created_by AND owner.role='admin'
     WHERE ($2::uuid IS NULL OR f.id=$2) AND f.created_by<>$1`, [senderId,chore.family_id]);
   if (owners.rowCount === 1) return owners.rows[0].id;
   if (owners.rowCount > 1) return null; // Never guess between unrelated households.
@@ -196,7 +206,7 @@ async function messageRecipient(db, chore, senderId) {
     JOIN family_members admin ON admin.family_id=sender.family_id
     JOIN users u ON u.id=admin.user_id
     WHERE sender.user_id=$1 AND u.id<>$1 AND ($2::uuid IS NULL OR sender.family_id=$2)
-      AND (admin.role='admin' OR u.role='admin')`, [senderId,chore.family_id]);
+      AND u.role='admin'`, [senderId,chore.family_id]);
   return admins.rowCount === 1 ? admins.rows[0].id : null;
 }
 
@@ -205,6 +215,7 @@ async function createChoreMessage(req, res, next) {
   let db;
   try {
     const choreId = uuid(req.body?.chore_id);
+    if (typeof req.body?.message === 'string' && req.body.message.length > 500) throw fail('Message must be 500 characters or fewer.');
     const message = text(req.body?.message, 'Message', 500);
     db = await pool.connect();
     await db.query('BEGIN');

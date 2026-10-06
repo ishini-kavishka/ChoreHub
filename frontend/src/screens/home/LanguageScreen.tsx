@@ -198,6 +198,7 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
     flex: 1,
   },
   header: {
+    width: '100%', maxWidth: 560, alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
@@ -216,6 +217,7 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
     fontWeight: '700',
   },
   searchWrap: {
+    width: '92%', maxWidth: 528, alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: 16,
@@ -235,6 +237,7 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
     paddingVertical: 0,
   },
   list: {
+    width: '100%', maxWidth: 560, alignSelf: 'center',
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 32,

@@ -1,3 +1,4 @@
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { useThemedStyles, type ThemeColors } from '@/context/ThemeContext';
 import { useLanguage } from '@/context/LanguageContext';
 import React, { useEffect, useState } from 'react';
@@ -34,7 +35,7 @@ const CUSTOMER_TABS: TabItem[] = [
   { id: 'home', label: t('home'), icon: 'home-outline', activeIcon: 'home', route: '/home' },
   { id: 'chores', label: t('chores'), icon: 'clipboard-outline', activeIcon: 'clipboard', route: '/home/chores' },
   { id: 'family', label: t('family'), icon: 'people-outline', activeIcon: 'people', route: '/home/calendar' },
-  { id: 'notifications', label: t('ui_notification'), icon: 'notifications-outline', activeIcon: 'notifications', route: '/home' },
+  { id: 'notifications', label: t('ui_notification'), icon: 'notifications-outline', activeIcon: 'notifications', route: '/home/notifications' },
   { id: 'profile', label: t('profile_title'), icon: 'person-outline', activeIcon: 'person', route: '/home/profile' },
 ];
 const ADMIN_TABS: TabItem[] = [
@@ -69,6 +70,9 @@ const ADMIN_TABS: TabItem[] = [
         const currentColor = isActive ? '#6C3BEA' : '#8A879A';
         const iconName = isActive ? tab.activeIcon : tab.icon;
 
+        if (currentRole === 'member' && tab.id === 'notifications') return <View key={tab.id} style={styles.tabItem}>
+          <NotificationBell returnTo="/support"/><Text style={[styles.label, { color: currentColor }]}>{tab.label}</Text>
+        </View>;
         return (
           <Pressable
             key={tab.id}

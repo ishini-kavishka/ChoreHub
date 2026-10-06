@@ -32,7 +32,7 @@ export default function PrivateChoreMessageForm({ visible, initialChoreId, onClo
   }, [visible, initialChoreId]);
   const close = () => { if (!lock.current) onClose(); };
   const send = async () => {
-    if (lock.current) return;
+    if (lock.current || loading) return;
     if (!chores.some(chore => chore.id === selected) || !message.trim() || message.trim().length > 500) { setError(t('pm_valid')); return; }
     lock.current = true; setSaving(true); setError('');
     try { await notificationService.sendChoreMessage(selected, message.trim()); setMessage(''); onSent(); onClose(); }
@@ -57,7 +57,7 @@ export default function PrivateChoreMessageForm({ visible, initialChoreId, onClo
           </Pressable>)}
           {!chores.length && !error && <Text style={{ color: c.textSecondary }}>{t('pm_no_chores')}</Text>}
           {chosen?.due_date && <Text style={{ color: c.textSecondary }}>{t('pm_assigned_time')}: {new Date(chosen.due_date).toLocaleString(language)}</Text>}
-          <TextInput accessibilityLabel={t('pm_message')} placeholder={t('pm_message')} placeholderTextColor={c.textSecondary} value={message} onChangeText={setMessage} multiline maxLength={500} editable={!saving} style={{ minHeight: 110, padding: 12, borderWidth: 1, borderColor: c.border, borderRadius: 14, color: c.textPrimary, textAlignVertical: 'top' }} />
+          <TextInput accessibilityLabel={t('pm_message')} placeholder={t('pm_message')} placeholderTextColor={c.textSecondary} value={message} onChangeText={value => setMessage(value.slice(0, 500))} multiline maxLength={500} editable={!saving} style={{ minHeight: 110, padding: 12, borderWidth: 1, borderColor: c.border, borderRadius: 14, color: c.textPrimary, textAlignVertical: 'top' }} />
           <Text style={{ color: c.textSecondary, textAlign: 'right' }}>{message.length}/500</Text>
         </>}
         {!!error && <Text accessibilityRole="alert" style={{ color: c.isDark ? '#FFAAA8' : '#B3261E' }}>{translateFeedback(error, t)}</Text>}

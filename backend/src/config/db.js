@@ -266,6 +266,8 @@ async function ensureAuthSchema() {
 
   await require('../services/choreTimeRequestService').ensureChoreTimeRequestSchema();
   await ensureNotificationMessageSchema();
+  await ensurePersonalReminderDeviceSchema();
+  await require('../services/notificationDeliveryService').ensureReminderDeliverySchema(pool);
   console.log('Database schema checked successfully.');
 }
 
@@ -273,7 +275,12 @@ async function ensureNotificationMessageSchema() {
   await pool.query('ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS sender_id UUID REFERENCES public.users(id) ON DELETE SET NULL');
 }
 
+async function ensurePersonalReminderDeviceSchema() {
+  await pool.query('ALTER TABLE IF EXISTS public.personal_reminders ADD COLUMN IF NOT EXISTS vibrate BOOLEAN NOT NULL DEFAULT TRUE');
+}
+
 module.exports = {
+  ensurePersonalReminderDeviceSchema,
   ensureNotificationMessageSchema,
   pool,
   ensureAuthSchema,

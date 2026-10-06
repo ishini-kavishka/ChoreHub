@@ -16,6 +16,8 @@ const choreName = process.env.REAL_REMINDER_BASE ? 'Own assigned test chore' : '
 let liveService;
 if (process.env.REAL_REMINDER_BASE) {
   Module._load = function(name, ...args) {
+    if(name==='react-native')return {Platform:{OS:'web'}};
+    if(name==='@/config/api')return {API_BASE_URL:process.env.REAL_REMINDER_BASE};
   if(name==='@/i18n/translations')return require('../src/i18n/translations.ts');
   if(name==='@/i18n/translations')return require('../src/i18n/translations.ts');
     if (name === './authService') return { authService: { getAuthToken: async () => process.env.REAL_REMINDER_TOKEN } };
@@ -32,7 +34,7 @@ let records = [], calls = [], routes = [], failSave = false;
 const colors = { background: '#14121F', card: '#211D30', surface: '#342C4C', textPrimary: '#F9F7FF', textSecondary: '#C0B9D2', primary: '#7C5CFC', border: '#494059', inputBackground: '#211D30' };
 const service = {
   list: async () => { if (liveService) { const result = await liveService.list(); records = result.reminders; return result; } return { reminders: records.map(r => ({ ...r })) }; },
-  chores: async () => liveService ? liveService.chores() : ({ chores: [{ id: choreId, title: choreName }] }),
+  chores: async () => liveService ? liveService.chores() : ({ chores: [{ id: choreId, title: choreName, due_date: '2099-10-10T20:00:00' }] }),
   get: async id => liveService ? liveService.get(id) : ({ reminder: { ...records.find(r => r.id === id) } }),
   save: async (id, body) => {
     calls.push([id ? 'PATCH' : 'POST', id, body]); if (failSave) throw new Error('Save failed');
@@ -44,7 +46,8 @@ const service = {
 };
 Module._load = function(name, ...args) {
   if(name==='@/i18n/translations')return require('../src/i18n/translations.ts');
-  if (name === 'react-native') return { ActivityIndicator: 'loading', Pressable: 'button', ScrollView: 'scroll', Text: 'text', TextInput: 'input', View: 'view', Modal: ({ visible, children }) => visible ? React.createElement('dialog', null, children) : null, BackHandler: { addEventListener: () => ({ remove() {} }) } };
+  if (name === 'react-native') return { Platform:{OS:'web'}, Switch:'switch', ActivityIndicator: 'loading', Pressable: 'button', ScrollView: 'scroll', Text: 'text', TextInput: 'input', View: 'view', Modal: ({ visible, children }) => visible ? React.createElement('dialog', null, children) : null, BackHandler: { addEventListener: () => ({ remove() {} }) } };
+  if (name === '@/services/reminderDeviceService') return {reminderDeviceService:{supported:()=>false}};
   if (name === 'react-native-safe-area-context') return { SafeAreaView: 'safe' };
   if (name === '@expo/vector-icons') return { Ionicons: 'icon' };
   if (name === 'expo-router') return { useFocusEffect: callback => React.useEffect(callback, [callback]), router: { navigate: value => routes.push(value) } };
@@ -94,4 +97,18 @@ test('client forms, persisted-service refresh, details/edit/back and confirmed d
 test('local schedule rejects impossible and past dates and preserves timezone conversion', () => {
   assert.equal(parseLocalTime('2099-02-30 18:30'), null); assert.equal(parseLocalTime('2000-01-01 12:00'), null); assert.equal(parseLocalTime('2099-10-10 25:00'), null);
   const iso = parseLocalTime('2099-10-10 18:30'); assert.ok(iso); assert.equal(new Date(iso).getHours(), 18); assert.equal(new Date(iso).getMinutes(), 30);
+});
+
+test('quick offsets use the actual assigned due time and the vibration selection is saved',async()=>{
+  if(liveService)return;let r;records=[];calls=[];
+  try{
+    await act(async()=>{r=create(React.createElement(Screen,{kind:'reminders'}));});
+    await press(r,'+ Add Reminder');await press(r,choreName);
+    const quick=r.root.findAllByType('button').find(n=>n.findAllByType('text').some(t=>t.children.includes('10 minutes before')));
+    await act(async()=>quick.props.onPress());
+    assert.equal(r.root.findAllByType('input').find(n=>n.props.accessibilityLabel==='Reminder Time *').props.value,'19:50');
+    await enter(r,'Reminder Title *','Get ready to clean the room');await enter(r,'Note (optional)','Take cleaning supplies');
+    await act(async()=>r.root.findByType('switch').props.onValueChange(false));await press(r,'Create Reminder');
+    assert.equal(calls.at(-1)[2].vibrate,false);assert.equal(new Date(calls.at(-1)[2].remind_at).getHours(),19);assert.equal(new Date(calls.at(-1)[2].remind_at).getMinutes(),50);
+  }finally{if(r)await act(async()=>r.unmount());}
 });

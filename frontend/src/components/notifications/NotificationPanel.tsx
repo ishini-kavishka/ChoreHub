@@ -76,16 +76,6 @@ export function NotificationPanel({
     }
   };
 
-  const handleMarkAllRead = async () => {
-    try {
-      setItems((prev) => prev.map((item) => ({ ...item, is_read: true })));
-      await notificationService.markAllRead();
-      loadNotifications();
-    } catch {
-      loadNotifications();
-    }
-  };
-
   const getNotificationIcon = (type: AppNotification['type']) => {
     switch (type) {
       case 'chore_completed':
@@ -151,7 +141,7 @@ export function NotificationPanel({
             </Pressable>
           </View>
 
-          {/* Action Row & Chips */}
+          {/* Filter Chips */}
           <View style={styles.subHeaderRow}>
             {/* Filter Chips */}
             <View style={styles.chipsRow}>
@@ -176,14 +166,6 @@ export function NotificationPanel({
                 </Pressable>
               ))}
             </View>
-
-            {/* Mark All Read Button */}
-            {unreadCount > 0 && (
-              <Pressable onPress={handleMarkAllRead} style={styles.markAllBtn}>
-                <Ionicons name="checkmark-done" size={14} color="#713DE8" />
-                <Text style={styles.markAllText}>{t('mark_all_read')}</Text>
-              </Pressable>
-            )}
           </View>
 
           {/* Notifications List */}
@@ -353,17 +335,6 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   chipTextSelected: {
     color: '#FFFFFF',
   },
-  markAllBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  markAllText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#713DE8',
-  },
-
   // List
   listContent: {
     paddingBottom: 20,

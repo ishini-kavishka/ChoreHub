@@ -1,3 +1,4 @@
+import { adminGlobalTranslations } from './adminGlobalTranslations';
 import { privateMessageTranslations } from './privateMessageTranslations';
 import { timeRequestTranslations } from './timeRequestTranslations';
 /**
@@ -19,6 +20,7 @@ export const translations = {
     ...timeRequestTranslations.en,
     ...privateMessageTranslations.en,
     ...adminTranslations.en,
+    ...adminGlobalTranslations.en,
     ...crudTranslations.en,
     ...clientTranslations.en,
 
@@ -131,6 +133,9 @@ export const translations = {
     progress_title: 'Progress',
     heres_your_progress: "Here's your progress",
     overall_completion: 'Overall Completion',
+    client_category_completion: 'Completion by Category',
+    client_weekly_progress: 'Weekly Progress',
+    category_general: 'General',
     completed_chores: 'Completed Chores',
     pending_chores: 'Pending Chores',
     overdue_chores: 'Overdue Chores',
@@ -288,6 +293,7 @@ export const translations = {
     ...timeRequestTranslations.si,
     ...privateMessageTranslations.si,
     ...adminTranslations.si,
+    ...adminGlobalTranslations.si,
     ...crudTranslations.si,
     ...clientTranslations.si,
 
@@ -400,6 +406,9 @@ export const translations = {
     progress_title: 'ප්‍රගතිය',
     heres_your_progress: 'මෙන්න ඔබේ ප්‍රගතිය',
     overall_completion: 'සමස්ත සම්පූර්ණ කිරීම',
+    client_category_completion: '????? ???? ???????? ?????',
+    client_weekly_progress: '?????? ????????',
+    category_general: '????????',
     completed_chores: 'සම්පූර්ණ කළ කාර්යයන්',
     pending_chores: 'ඉතිරි කාර්යයන්',
     overdue_chores: 'කල් ඉකුත් වූ කාර්යයන්',
@@ -557,6 +566,7 @@ export const translations = {
     ...timeRequestTranslations.ta,
     ...privateMessageTranslations.ta,
     ...adminTranslations.ta,
+    ...adminGlobalTranslations.ta,
     ...crudTranslations.ta,
     ...clientTranslations.ta,
 
@@ -669,6 +679,9 @@ export const translations = {
     progress_title: 'முன்னேற்றம்',
     heres_your_progress: 'இதோ உங்கள் முன்னேற்றம்',
     overall_completion: 'ஒட்டுமொத்த முடிவு',
+    client_category_completion: '??? ??????? ??????',
+    client_weekly_progress: '????????? ???????????',
+    category_general: '????',
     completed_chores: 'முடிந்த வேலைகள்',
     pending_chores: 'நிலுவையில் உள்ள வேலைகள்',
     overdue_chores: 'தாமதமான வேலைகள்',

@@ -1,3 +1,5 @@
+import { translateFeedback } from '@/i18n/translations';
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -107,6 +109,7 @@ export default function AdminNotificationsScreen() {
 // ─── Main notifications component ────────────────────────────────────────────
 
 function Notifications({ household }: { household: Household | null }) {
+  const themeColors = useClientTheme().colors;
   const [deleteTarget,setDeleteTarget]=useState<AppNotification|null>(null);
   const [deleting,setDeleting]=useState(false),[deleteError,setDeleteError]=useState('');
   const deleteLock=useRef(false),generation=useRef(0);
@@ -270,7 +273,7 @@ function Notifications({ household }: { household: Household | null }) {
                 <Text
                   style={[
                     styles.chipText,
-                    { color: active ? (dark ? '#211C35' : '#FFFFFF') : c.accent },
+                    { color: active ? (dark ? (themeColors.isDark ? themeColors.textPrimary : '#211C35') : '#FFFFFF') : c.accent },
                   ]}
                 >
                   {label} ({count})
@@ -314,15 +317,15 @@ function Notifications({ household }: { household: Household | null }) {
 
         {/* ── Notice / error banners ──────────────────────────────────── */}
         {!!notice && (
-          <View style={[styles.banner, { backgroundColor: dark ? '#1A3A1A' : '#ECFDF5', borderColor: '#22C55E' }]}>
+          <View style={[styles.banner, { backgroundColor: dark ? (themeColors.isDark ? themeColors.background : '#1A3A1A') : (themeColors.isDark ? themeColors.surface : '#ECFDF5'), borderColor: '#22C55E' }]}>
             <Ionicons name="checkmark-circle" size={16} color="#22C55E" />
-            <Text style={[styles.bannerText, { color: dark ? '#76DEBB' : '#15803D' }]}>{notice}</Text>
+            <Text style={[styles.bannerText, { color: dark ? '#76DEBB' : '#15803D' }]}>{translateFeedback(notice, t)}</Text>
           </View>
         )}
         {!!error && (
-          <View style={[styles.banner, { backgroundColor: dark ? '#3A1A1A' : '#FEF2F2', borderColor: '#EF4444' }]}>
+          <View style={[styles.banner, { backgroundColor: dark ? (themeColors.isDark ? themeColors.background : '#3A1A1A') : (themeColors.isDark ? themeColors.surface : '#FEF2F2'), borderColor: '#EF4444' }]}>
             <Ionicons name="alert-circle" size={16} color="#EF4444" />
-            <Text style={[styles.bannerText, { color: dark ? '#FFAAA8' : '#DC2626' }]}>{error}</Text>
+            <Text style={[styles.bannerText, { color: dark ? '#FFAAA8' : '#DC2626' }]}>{translateFeedback(error, t)}</Text>
             <Pressable onPress={() => void load()} style={styles.retryBtn}>
               <Text style={{ color: c.accent, fontWeight: '700', fontSize: 13 }}>{t('admin_retry')}</Text>
             </Pressable>
@@ -359,7 +362,7 @@ function Notifications({ household }: { household: Household | null }) {
                   style={({ pressed }) => [
                     styles.notifRow,
                     !isLast && { borderBottomWidth: 1, borderBottomColor: c.border },
-                    !n.is_read && { backgroundColor: dark ? '#1E1A30' : '#F5F2FF' },
+                    !n.is_read && { backgroundColor: dark ? (themeColors.isDark ? themeColors.background : '#1E1A30') : (themeColors.isDark ? themeColors.surface : '#F5F2FF') },
                     pressed && { opacity: 0.75 },
                   ]}
                 >
@@ -419,10 +422,10 @@ function Notifications({ household }: { household: Household | null }) {
           <View style={{maxWidth:440,width:'100%',alignSelf:'center',padding:24,gap:16,borderRadius:24,backgroundColor:c.card}}>
             <Text style={{fontSize:20,fontWeight:'700',color:c.text}}>{t('pm_delete_title')}</Text>
             <Text style={{color:c.muted}}>{t('pm_delete_body')}</Text>
-            {!!deleteError && <Text accessibilityRole="alert" style={{color:c.error}}>{deleteError}</Text>}
+            {!!deleteError && <Text accessibilityRole="alert" style={{color:c.error}}>{translateFeedback(deleteError, t)}</Text>}
             <View style={{flexDirection:'row',justifyContent:'flex-end',gap:12}}>
               <Pressable accessibilityRole="button" accessibilityLabel={t('cancel')} disabled={deleting} onPress={()=>setDeleteTarget(null)} style={[styles.chip,{backgroundColor:c.soft,borderColor:c.border}]}><Text style={{color:c.accent}}>{t('cancel')}</Text></Pressable>
-              <Pressable accessibilityRole="button" accessibilityLabel={t('delete')} disabled={deleting} onPress={()=>void removeMessage()} style={[styles.chip,{backgroundColor:c.accent,borderColor:c.accent}]}>{deleting?<ActivityIndicator color="#fff"/>:<Text style={{color:dark?'#211C35':'#fff'}}>{t('delete')}</Text>}</Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel={t('delete')} disabled={deleting} onPress={()=>void removeMessage()} style={[styles.chip,{backgroundColor:c.accent,borderColor:c.accent}]}>{deleting?<ActivityIndicator color="#fff"/>:<Text style={{color:dark?(themeColors.isDark ? themeColors.textPrimary : '#211C35'):'#fff'}}>{t('delete')}</Text>}</Pressable>
             </View>
           </View>
         </View>

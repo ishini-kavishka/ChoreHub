@@ -32,9 +32,13 @@ test('private Chore messages: authenticated ownership, real inbox/read/delete an
     const snapshot=async()=> (await pool.query('SELECT * FROM chores WHERE id=$1',[chore.id])).rows[0];
     const before=await snapshot();
     const payload={chore_id:chore.id,message:"I can't do this chore at the assigned time."};
+    const assigned=(await request('/chores/my-chores')).chores;
+    assert.ok(assigned.some(c=>c.id===chore.id));
+    assert.equal(assigned.some(c=>c.id===other.id),false);
+    assert.ok(assigned.every(c=>c.assigned_to===chamara.id));
     await request('/notifications/chore-messages','POST',payload,kt,404);
     await request('/notifications/chore-messages','POST',{...payload,chore_id:other.id},ct,404);
-    for(const message of ['', ' ', 'x'.repeat(501)])await request('/notifications/chore-messages','POST',{...payload,message},ct,400);
+    for(const message of ['', ' ', 'x'.repeat(501), ' '+ 'x'.repeat(500)])await request('/notifications/chore-messages','POST',{...payload,message},ct,400);
     await request('/notifications/chore-messages','POST',{...payload,chore_id:'invalid'},ct,400);
     await request('/notifications/chore-messages','POST',{...payload,chore_id:randomUUID()},ct,404);
     await request('/notifications/chore-messages','POST',payload,'',401);
@@ -73,6 +77,13 @@ test('private Chore messages: authenticated ownership, real inbox/read/delete an
     assert.ok((await request('/notifications','GET',undefined,at)).notifications.some(n=>n.id===legacySent.id));
     assert.equal((await request('/notifications','GET',undefined,ot)).notifications.some(n=>n.id===legacySent.id),false);
     await request('/notifications/'+legacySent.id,'DELETE',undefined,at);
+    // A stale creator from another household must never receive this member's message.
+    await pool.query('UPDATE chores SET created_by=$1 WHERE id=$2',[outsider.id,legacy.id]);
+    const routed=(await request('/notifications/chore-messages','POST',{...payload,chore_id:legacy.id,message:'  Edited private message  '},ct,201)).notification;
+    const persisted=(await pool.query('SELECT * FROM notifications WHERE id=$1',[routed.id])).rows[0];
+    assert.equal(persisted.user_id,admin.id);assert.equal(persisted.message,'Edited private message');assert.equal(persisted.is_read,false);
+    assert.equal((await request('/notifications','GET',undefined,ot)).notifications.some(n=>n.id===routed.id),false);
+    await request('/notifications/'+routed.id,'DELETE',undefined,at);
     // Current household membership is checked even when an old assignment remains.
     await pool.query('DELETE FROM family_members WHERE family_id=$1 AND user_id=$2',[family,chamara.id]);
     await request('/notifications/chore-messages','POST',payload,ct,404);

@@ -17,13 +17,14 @@ Module._load=function(name,...args){
   if(name==='react-native')return native;
   if(name==='react-native-safe-area-context')return{SafeAreaView:'safe',useSafeAreaInsets:()=>({top:0,bottom:0,left:0,right:0})};
   if(name==='@expo/vector-icons')return{Ionicons:'icon'};
-  if(name==='react-native-svg')return{__esModule:true,default:'svg',Circle:'circle'};
+  if(name==='react-native-svg')return{__esModule:true,default:'svg',Circle:'circle',Line:'line',Polyline:'polyline'};
   if(name==='expo-image-picker')return{};
   if(name==='expo-splash-screen')return{hideAsync:async()=>{}};
   if(name==='expo-router')return{router:{push(){},replace(){},back(){},canGoBack:()=>true},useFocusEffect:callback=>React.useEffect(callback,[callback]),useLocalSearchParams:()=>({id:'own-chore',title:'Clean Room'}),useSegments:()=>['home']};
   if(name==='@/context/ThemeContext')return{useAppTheme:()=>({colors:tokens[mode],theme:mode,brightness:70,autoBrightness:false,ready:true,setTheme:async value=>{mode=value;},setBrightness:async()=>{},setAutoBrightness:async()=>{}}),useThemedStyles:factory=>factory(tokens[mode])};
   if(name==='@/context/LanguageContext')return{useLanguage:()=>({language,t:translators[language],availableLanguages:langs,setLanguage:async value=>{language=value;},refreshAvailableLanguages:async()=>langs,isLanguageEnabled:()=>true})};
   if(name==='@/services/api')return{ApiError:class ApiError extends Error{}};
+  if(name==='@/services/authStorage')return{subscribeSession:()=>()=>{}};
   if(name.startsWith('@/services/'))return{...services,isDemoNotificationMode:()=>false,settingsDemoMode:false,DEFAULT_SUPPORTED_LANGUAGES:langs};
   if(name.startsWith('@/'))return original.call(this,path.resolve(__dirname,'../src',name.slice(2)),...args);
   return original.call(this,name,...args);
@@ -39,6 +40,8 @@ for(const {route,Component}of routes)test(route+' updates through all six global
       language=code;mode=theme;await act(async()=>{const element=React.createElement(Component);if(r)r.update(element);else r=create(element);});
       const text=r.root.findAllByType('text').map(n=>n.children.filter(child=>typeof child==='string'||typeof child==='number').join('')).join('|');texts[code]=text;
       assert.ok(text.length,route+' renders content');
+      if(route==='home/notifications')assert.ok(!text.includes(translations[code].mark_all_read),'Member inbox hides bulk-read in every theme and language');
+      if(route.startsWith('home/'))for(const button of r.root.findAllByType('button'))assert.equal(button.findAllByType('button').length,1,route+' has no nested Pressables');
       const root=r.root.findAllByType('safe')[0];
       if(root){const background=native.StyleSheet.flatten(root.props.style).backgroundColor;assert.ok(background,route+' has a surface');if(theme==='dark')assert.ok(!/^#(?:fff(?:fff)?|FAFAFD|F8F7FC)$/i.test(background),route+' dark background is not fixed white');}
       const pale=[];
@@ -67,6 +70,7 @@ for(const [name,Component,props]of modalCases)test(name+' modal responds to them
       assert.equal(r.root.findAllByType('dialog').length,1);
       texts[code]=r.root.findAllByType('text').map(n=>n.children.filter(c=>typeof c==='string').join('')).join('|');
       if(theme==='dark')for(const node of r.root.findAll(n=>typeof n.type==='string')){const style=native.StyleSheet.flatten(node.props.style);assert.ok(!/^#fff(?:fff)?$/i.test(style.backgroundColor||''),name+' must not have white dark-mode surfaces');}
+      if(name==='Notification panel')assert.ok(!texts[code].includes(translations[code].mark_all_read),'Legacy member panel hides bulk-read');
       if(name==='Message Admin'){assert.ok(texts[code].includes('Clean Room'));assert.equal(r.root.findByType('input').props.maxLength,500);}
       if(name==='Edit Chore')assert.ok(r.root.findAllByType('input').some(n=>n.props.value==='Clean Room'));
     }
@@ -92,3 +96,36 @@ test('themed shared confirmations preserve callbacks, prevent duplicate actions 
   }finally{if(r)await act(async()=>r.unmount());}
 });
 test.after(()=>{Module._load=original;fs.writeFileSync(path.resolve(__dirname,'../.expo/client-route-appearance-results.json'),JSON.stringify(appearance,null,2));});
+
+// Exercise the redesigned charts against loaded records, rather than fixed sample values.
+test('member progress charts and filters use actual chores and retain compact responsive bounds',async()=>{
+  mode='light';language='en';const originalGet=services.choreService.getMemberChores;
+  const now=new Date().toISOString();
+  services.choreService.getMemberChores=async()=>({chores:[
+    {...chore,id:'a',category:'Kitchen',status:'completed',completed_at:now},
+    {...chore,id:'b',category:'Kitchen',status:'pending'},
+    {...chore,id:'c',category:'Bathroom',status:'overdue'}
+  ]});
+  let r;
+  try{
+    const Component=require('../src/screens/home/ProgressDashboardScreen.tsx').default;
+    await act(async()=>{r=create(React.createElement(Component));});
+    const labels=()=>r.root.findAllByType('text').map(n=>n.children.join(''));
+    assert.ok(labels().includes('33%'));assert.ok(labels().includes('Kitchen'));assert.ok(labels().includes('Bathroom'));
+    assert.equal(r.root.findByProps({accessibilityRole:'progressbar'}).props.accessibilityValue.now,33);
+    const chart=r.root.findByType('polyline');assert.equal(chart.props.points.split(' ').length,7);
+    assert.equal(chart.props.points.split(' ').filter(point=>point.endsWith(',20')).length,1);
+    const segments=r.root.findAllByType('circle').filter(n=>n.props.strokeDasharray);
+    assert.equal(segments.length,2);
+    const totalArc=segments.reduce((sum,n)=>sum+Number(n.props.strokeDasharray.split(' ')[0]),0);
+    assert.ok(Math.abs(totalArc-2*Math.PI*49)<.001);
+    for(const label of ['This Month','All Time','This Week']){
+      const button=r.root.findAllByType('button').find(n=>n.findAllByType('text').some(text=>text.children.includes(label)));
+      await act(async()=>button.props.onPress());assert.equal(button.props.accessibilityState.selected,true);
+      assert.ok(labels().includes('33%'));
+    }
+    const layout=native.StyleSheet.flatten(r.root.findByType('scroll').props.contentContainerStyle);
+    assert.equal(layout.width,'100%');assert.equal(layout.maxWidth,560);assert.equal(layout.padding,16);
+    for(const button of r.root.findAllByType('button'))assert.equal(button.findAllByType('button').length,1);
+  }finally{services.choreService.getMemberChores=originalGet;if(r)await act(async()=>r.unmount());}
+});

@@ -1,13 +1,15 @@
+import { subscribeSession } from '@/services/authStorage';
+import { NotificationBell, refreshMemberUnread } from '@/components/notifications/NotificationBell';
 import { translateFeedback } from '@/i18n/translations';
 import { useAppAlert } from '@/components/ui/AppDialog';
 import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
 import PrivateChoreMessageForm from '@/components/notifications/PrivateChoreMessageForm';
 import type { Household } from '@/services/adminComponent04Service';
 import { notificationDisplay } from '@/i18n/clientTranslations';
-import React, { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, BackHandler, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useLanguage } from '@/context/LanguageContext';
@@ -19,9 +21,20 @@ const purple = '#7C5CFC';
 const defaultNotifications: NotificationSettings = { chore_reminders:true, chore_completions:true, family_updates:true, announcements:false, reminder_time:'10min' };
 
 export function Component04Screen({ kind, adminFamily }: { kind: 'notifications'|'completed'|'settings'|'notificationSettings'|'preferences'|'about'; adminFamily?: Household }) {
+  const params = useLocalSearchParams<{ returnTo?: string }>();
+  const notificationBack = useCallback(() => {
+    const allowed = ['/support', '/home', '/home/progress', '/home/notification-settings', '/home/preferences', '/home/about', '/home/completed-chores'];
+    const origin = typeof params.returnTo === 'string' && allowed.includes(params.returnTo) ? params.returnTo : undefined;
+    if (origin) router.navigate(origin as '/home');
+    else if (router.canGoBack()) router.back();
+    else router.replace('/home');
+  }, [params.returnTo]);
   const alert = useAppAlert();
   const themeColors = useClientTheme().colors;
-  const s = useThemedStyles(createS);
+  const baseStyles = useThemedStyles(createS);
+  // This component is also used by Admin: apply the redesign to members only.
+  const clientStyles = useThemedStyles(createClientS);
+  const s = adminFamily ? baseStyles : clientStyles;
   const { theme, setTheme, brightness, setBrightness, autoBrightness, setAutoBrightness, colors } = useAppTheme();
   const { t, language, setLanguage } = useLanguage();
   const dark = colors.isDark;
@@ -56,6 +69,7 @@ export function Component04Screen({ kind, adminFamily }: { kind: 'notifications'
   const [deleteTarget, setDeleteTarget] = useState<AppNotification|null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const saveLock = useRef(false);
   const deleteLock = useRef(false), notificationGeneration = useRef(0);
 
   const load = useCallback(async (background = false) => {
@@ -64,16 +78,25 @@ export function Component04Screen({ kind, adminFamily }: { kind: 'notifications'
       if (kind === 'notifications') {
         const generation = ++notificationGeneration.current;
         const notifications = await notificationService.getNotifications('all', true);
-        if (generation === notificationGeneration.current) { setItems(notifications); setDemo(false); }
+        if (generation === notificationGeneration.current) { setItems(notifications); setDemo(false); if (!adminFamily) void refreshMemberUnread(true); }
       }
       else if (kind === 'completed') { setChores(await completedChoresService.get(range, query, adminFamily?.id)); }
-      else if (kind === 'notificationSettings') { setNotif(await settingsService.getNotificationSettings()); setDemo(settingsDemoMode); }
+      else if (kind === 'notificationSettings') { setNotif(await settingsService.getNotificationSettings(true)); setDemo(settingsDemoMode); }
       else if (kind === 'preferences') { setPrefs(await settingsService.getPreferences()); setDemo(settingsDemoMode); }
     } catch (e) { setError(t('admin_error')); }
     finally { if (!background) setBusy(false); }
   }, [kind, range, query, adminFamily?.id]);
 
+  useEffect(() => {
+    if (kind !== 'notifications' || adminFamily) return;
+    return subscribeSession(() => { notificationGeneration.current++; setItems([]); setError(''); });
+  }, [kind, adminFamily]);
   useFocusEffect(useCallback(() => { void load(); }, [load]));
+  useFocusEffect(useCallback(() => {
+    if (kind !== 'notifications' || adminFamily) return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => { notificationBack(); return true; });
+    return () => subscription.remove();
+  }, [kind, adminFamily, notificationBack]));
   useFocusEffect(useCallback(() => {
     if (kind !== 'notifications') return;
     setNotificationNow(Date.now());
@@ -131,8 +154,8 @@ export function Component04Screen({ kind, adminFamily }: { kind: 'notifications'
             router.navigate('/home/settings' as any);
           } else if (kind === 'settings') {
             router.navigate('/home/profile' as any);
-          } else if (kind === 'notifications' && !router.canGoBack()) {
-            router.navigate('/home/profile');
+          } else if (kind === 'notifications') {
+            notificationBack();
           } else {
             router.back();
           }
@@ -143,10 +166,10 @@ export function Component04Screen({ kind, adminFamily }: { kind: 'notifications'
       </Pressable>
       <Text style={[s.title, { color: fg }]}>{title}</Text>
       {kind === 'notifications' && <Pressable accessibilityRole="button" accessibilityLabel={t('crud_retry')} disabled={busy} onPress={() => void load()} style={s.icon}><Ionicons name="refresh-outline" size={22} color={purple}/></Pressable>}
-      {kind !== 'notifications' &&
+      {kind !== 'notifications' && (kind !== 'settings' || !!adminFamily) && (adminFamily ?
           <Pressable accessibilityRole="button" accessibilityLabel={t('ui_open_notifications')} onPress={() => router.push(adminFamily ? '/admin/notifications' : '/home/notifications')} style={s.icon}>
             <Ionicons name="notifications-outline" size={22} color={purple}/>
-          </Pressable>
+          </Pressable> : <NotificationBell returnTo={{ completed: '/home/completed-chores', notificationSettings: '/home/notification-settings', preferences: '/home/preferences', about: '/home/about', settings: '/home/settings', notifications: '/home/notifications' }[kind]}/>)
       }
     </View>
   );
@@ -217,9 +240,9 @@ export function Component04Screen({ kind, adminFamily }: { kind: 'notifications'
       <View style={s.chips}><Pressable accessibilityRole="button" accessibilityLabel={t('pm_message_admin')} onPress={()=>{setMessageChoreId(undefined);setMessageVisible(true);}} style={[s.chip,{backgroundColor:colors.surface}]}><Text style={{color:purple,fontWeight:'700'}}>{t('pm_message_admin')}</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel={t('my_reminders')} onPress={() => router.push('/home/reminders')} style={[s.chip, { backgroundColor:colors.surface, flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
         <Ionicons name="alarm-outline" size={20} color={purple}/><Text style={{ color: purple, fontWeight: '700' }}>{t('my_reminders')}</Text>
       </Pressable></View>
-      <Pressable accessibilityRole="button" accessibilityLabel={t('mark_all_read')} style={s.primary} onPress={async () => { try { await notificationService.markAllRead(true); setItems(previous => previous.map(n => ({ ...n, is_read: true }))); } catch (e) { setError(t('admin_error')); } }}>
+      {adminFamily && <Pressable accessibilityRole="button" accessibilityLabel={t('mark_all_read')} style={s.primary} onPress={async () => { try { await notificationService.markAllRead(true); setItems(previous => previous.map(n => ({ ...n, is_read: true }))); } catch (e) { setError(t('admin_error')); } }}>
         <Text style={s.primaryText}>{t('mark_all_read')}</Text>
-      </Pressable>
+      </Pressable>}
       <View style={s.chips}>
         {(['all','today','week'] as const).map(v => (
           <Pressable key={v} accessibilityRole="button" accessibilityLabel={t(v==='all'?'filter_all':v==='today'?'filter_today':'filter_week')} accessibilityState={{selected:filter===v}} onPress={() => setFilter(v)} style={[s.chip,{backgroundColor:filter===v?purple:colors.surface}]}>
@@ -229,13 +252,15 @@ export function Component04Screen({ kind, adminFamily }: { kind: 'notifications'
       </View>
       <View style={{flexDirection:'row',alignItems:'center',gap:10}}><Text style={{color:muted}}>{t('filter_unread')} ({items.filter(n=>!n.is_read).length})</Text><Switch accessibilityLabel={t('filter_unread')} value={unreadOnly} onValueChange={setUnreadOnly} trackColor={{false:colors.border,true:purple}} thumbColor={unreadOnly?colors.primary:colors.card}/></View>
       {busy ? <ActivityIndicator color={purple}/> : visibleNotifications.length===0 ? panel(<View style={{ alignItems:'center', gap:8, paddingVertical:12 }}><Ionicons name="notifications-off-outline" size={32} color={purple}/><Text style={[s.rowTitle,{color:fg}]}>{t(items.length?'notification_no_matches':'notification_empty')}</Text><Text style={{color:muted}}>{t(items.length?'crud_empty':'notification_caught_up')}</Text></View>) : visibleNotifications.map(n => (
-        <Pressable key={n.id}
+        <View key={n.id} style={[s.panel, { backgroundColor: card }]}>
+            <View style={s.row}>
+              <View style={{ flex: 1 }}>
+              <Pressable
           accessibilityRole="button" accessibilityLabel={`${notificationDisplay(n,t).title}. ${t(n.is_read?'filter_read':'filter_unread')}.`}
           onPress={async () => { if (!n.is_read) { try { await notificationService.markRead(n.id, true); setItems(previous => previous.map(x => x.id===n.id ? { ...x, is_read:true } : x)); } catch (e) { setError(t('admin_error')); } } }}
           onLongPress={() => handleLongPress(n)}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
         >
-          {panel(
-            <View style={s.row}>
               <Ionicons
                 name={n.type==='chore_completed' ? 'checkmark-circle' : n.type==='personal_reminder' ? 'alarm' : 'notifications'}
                 size={24}
@@ -248,10 +273,6 @@ export function Component04Screen({ kind, adminFamily }: { kind: 'notifications'
                 {n.type==='chore_assigned' && n.chore_id && <View style={{gap:6,marginTop:8}}>
                   {n.chore_due_date && <Text style={{color:muted}}>{t('tr_due')}: {new Date(n.chore_due_date).toLocaleString(language)}</Text>}
                   {n.assigned_by && <Text style={{color:muted}}>{t('tr_assigned_by')}: {n.assigned_by}</Text>}
-                  <View style={[s.chips,{marginTop:4}]}>
-                    <Pressable accessibilityRole="button" accessibilityLabel={t('tr_chore')} onPress={e=>{e.stopPropagation();router.push({pathname:'/home/chore-details',params:{id:n.chore_id!}});}} style={[s.chip,{backgroundColor:colors.surface}]}><Text style={{color:purple,fontWeight:'700'}}>{t('tr_chore')}</Text></Pressable>
-                    <Pressable accessibilityRole="button" accessibilityLabel={t('pm_message_admin')+': '+(n.chore_title||n.title)} onPress={e=>{e.stopPropagation();setMessageChoreId(n.chore_id!);setMessageVisible(true);}} style={[s.chip,{backgroundColor:colors.surface}]}><Text style={{color:purple,fontWeight:'700'}}>{t('pm_message_admin')}</Text></Pressable>
-                  </View>
                 </View>}
                 {n.type==='personal_reminder' && n.reminder_at && (
                   <Text style={{ color:purple, fontSize:12, marginTop:2 }}>
@@ -259,13 +280,18 @@ export function Component04Screen({ kind, adminFamily }: { kind: 'notifications'
                   </Text>
                 )}
               </View>
+              </Pressable>
+              {n.type==='chore_assigned' && n.chore_id && <View style={[s.chips,{marginLeft:36,marginTop:8}]}>
+                <Pressable accessibilityRole="button" accessibilityLabel={t('tr_chore')} onPress={()=>router.push({pathname:'/home/chore-details',params:{id:n.chore_id!}})} style={[s.chip,{backgroundColor:colors.surface}]}><Text style={{color:purple,fontWeight:'700'}}>{t('tr_chore')}</Text></Pressable>
+                <Pressable accessibilityRole="button" accessibilityLabel={t('pm_message_admin')+': '+(n.chore_title||n.title)} onPress={()=>{setMessageChoreId(n.chore_id!);setMessageVisible(true);}} style={[s.chip,{backgroundColor:colors.surface}]}><Text style={{color:purple,fontWeight:'700'}}>{t('pm_message_admin')}</Text></Pressable>
+              </View>}
+              </View>
               {!n.is_read && <View style={s.dot}/>}
               <Pressable accessibilityRole="button" accessibilityLabel={`${t('notification_remove_action')}: ${n.title}`} disabled={deleting} onPress={event => { event.stopPropagation(); requestDelete(n); }} style={[s.icon, { opacity:deleting ? .45 : 1 }]}>
                 <Ionicons name="trash-outline" size={19} color={purple}/>
               </Pressable>
             </View>
-          )}
-        </Pressable>
+        </View>
       ))}
       <PrivateChoreMessageForm visible={messageVisible} initialChoreId={messageChoreId} onClose={()=>setMessageVisible(false)} onSent={()=>setNotice(t('pm_sent'))}/>
       <Text style={{color:muted,fontSize:12,textAlign:'center'}}>{t('admin_latest')}</Text>
@@ -274,7 +300,7 @@ export function Component04Screen({ kind, adminFamily }: { kind: 'notifications'
 
   else if (kind === 'completed') content=<><Text style={[s.subtitle,{color:muted}]}>{t('completed_chores_subtitle')}</Text><TextInput value={query} onChangeText={setQuery} placeholder={t('search_placeholder')} placeholderTextColor={muted} style={[s.input,{backgroundColor:card,color:fg}]} accessibilityLabel={t('search_placeholder')}/><View style={s.chips}>{(['all','today','week','month'] as const).map(v=><Pressable key={v} onPress={()=>setRange(v)} style={[s.chip,range===v&&s.selected]}><Text style={{color:range===v?'#fff':fg}}>{v==='all'?t('filter_all'):v==='today'?t('filter_today'):v==='week'?t('filter_week'):t('filter_month')}</Text></Pressable>)}</View>{busy?<ActivityIndicator color={purple}/>:error?<Text style={{color:'#EF4444'}}>{translateFeedback(error, t)}</Text>:chores.length===0?<Text style={{color:muted}}>{t('ui_no_completed_chores_match_this_search')}</Text>:chores.map(c=>panel(<View key={c.id} style={s.row}><Ionicons name="checkmark-circle" size={24} color="#22C55E"/><View style={{flex:1}}><Text style={[s.rowTitle,{color:fg}]}>{c.title}</Text><Text style={{color:muted}}>{t('by')}{' '}{c.assignee_name||c.creator_name||t('role_member')}</Text></View><Text style={{color:muted}}>{new Date(c.completed_at||c.updated_at).toLocaleDateString(language)}</Text></View>))}</>;
 
-  else if (kind === 'settings') content=<>{banner}{[['notification_settings','notification_settings_sub','notifications','/home/notification-settings'],['reminder_time','reminder_time_sub','time','/home/reminder-time'],['theme','theme_sub','color-palette','/home/preferences'],['language','language_sub','language','/home/language'],['about_app','about_app_sub','information-circle','/home/about']].map(([a,b,icon,path])=><Pressable key={a} onPress={()=>router.push(path as any)}>{panel(<View style={s.row}><Ionicons name={icon as any} size={24} color={purple}/><View style={{flex:1}}><Text style={[s.rowTitle,{color:fg}]}>{t(a as any)}</Text><Text style={{color:muted}}>{t(b as any)}</Text></View><Ionicons name="chevron-forward" size={20} color={muted}/></View>)}</Pressable>)}</>;
+  else if (kind === 'settings') content=<>{banner}{[['notification_settings','notification_settings_sub','notifications','/home/notification-settings'],['reminder_time','reminder_time_sub','time','/home/reminder-time'],['theme','theme_sub','color-palette','/home/preferences'],['language','language_sub','language','/home/language'],['about_app','about_app_sub','information-circle','/home/about']].map(([a,b,icon,path])=><Pressable key={a} accessibilityRole="button" accessibilityLabel={t(a as any)} onPress={()=>router.push(path as any)}>{panel(<View style={s.row}><Ionicons name={icon as any} size={24} color={purple}/><View style={{flex:1}}><Text style={[s.rowTitle,{color:fg}]}>{t(a as any)}</Text><Text style={{color:muted}}>{t(b as any)}</Text></View><Ionicons name="chevron-forward" size={20} color={muted}/></View>)}</Pressable>)}</>;
 
   // ── Notification Settings — four individual toggle cards matching the reference design ──
   // Auto-saves each toggle immediately via settingsService.saveNotificationSettings().
@@ -295,19 +321,22 @@ export function Component04Screen({ kind, adminFamily }: { kind: 'notifications'
     ];
 
     const toggleNotif = async (key: typeof notifCards[number]['key'], value: boolean) => {
-      // Optimistically update UI, then persist to backend
+      if (saveLock.current || busy) return;
+      saveLock.current = true; setSaving(true);
+      // Optimistically update UI, then persist only this preference
       const updated: NotificationSettings = { ...notif, [key]: value };
       setNotif(updated);
       try {
-        await settingsService.saveNotificationSettings(updated);
+        const saved = await settingsService.saveNotificationSettings({ [key]: value });
+        setNotif(saved);
         setDemo(false);
         setError('');
       } catch (e) {
-        setDemo(true);
-        setError(t('admin_error'));
+        setDemo(false);
+        setError(t('admin_save_error'));
         // Revert on failure so UI stays consistent with stored value
         setNotif(notif);
-      }
+      } finally { saveLock.current = false; setSaving(false); }
     };
 
     content = (
@@ -329,7 +358,7 @@ export function Component04Screen({ kind, adminFamily }: { kind: 'notifications'
             </View>
             {/* Toggle — auto-saves on change */}
             <Switch
-              value={Boolean(notif[key])}
+              disabled={busy || saving} value={Boolean(notif[key])}
               onValueChange={v => void toggleNotif(key, v)}
               trackColor={{ true: '#22C55E', false: dark ? '#3D3A4E' : '#D1D5DB' }}
               thumbColor="#fff"
@@ -600,4 +629,14 @@ const createS = (themeColors: ThemeColors) => StyleSheet.create({
   langChoice: { flex: 1, paddingVertical: 12, borderRadius: 14, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   infoBox: { borderRadius: 18, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, marginTop: 16 },
   infoBoxText: { flex: 1, fontSize: 13, lineHeight: 18 },
+});
+
+const createClientS = (colors: ThemeColors) => StyleSheet.create({
+  ...createS(colors),
+  head: { ...createS(colors).head, width: '100%', maxWidth: 560, alignSelf: 'center' },
+  body: { width: '100%', maxWidth: 560, alignSelf: 'center', padding: 16, paddingBottom: 36, gap: 12 },
+  panel: { borderRadius: 16, padding: 14, marginVertical: 3, borderWidth: 1, borderColor: colors.border },
+  title: { fontSize: 22, fontWeight: '800', flex: 1 },
+  notifCard: { ...createS(colors).notifCard, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: colors.border, shadowOpacity: .03 },
+  rowTitle: { fontSize: 14, fontWeight: '700', flexShrink: 1 },
 });

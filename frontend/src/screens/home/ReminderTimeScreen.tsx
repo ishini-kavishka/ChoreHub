@@ -1,6 +1,7 @@
 import { translateFeedback } from '@/i18n/translations';
+import { useAppAlert } from '@/components/ui/AppDialog';
 import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   BackHandler,
@@ -16,7 +17,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { settingsService, NotificationSettings } from '@/services/settingsService';
+import { settingsService } from '@/services/settingsService';
 
 const purple = '#7C5CFC';
 
@@ -34,15 +35,8 @@ const REMINDER_OPTIONS: ReminderOption[] = [
   { key: '1day', labelKey: '1_day' },
 ];
 
-const DEFAULT_SETTINGS: NotificationSettings = {
-  chore_reminders: true,
-  chore_completions: true,
-  family_updates: true,
-  announcements: false,
-  reminder_time: '10min',
-};
-
 export default function ReminderTimeScreen() {
+  const alert = useAppAlert();
   const styles = useThemedStyles(createStyles);
   const { theme, colors } = useAppTheme();
   const { t } = useLanguage();
@@ -54,18 +48,18 @@ export default function ReminderTimeScreen() {
   const muted = colors.textSecondary;
   const circleBorder = colors.border;
 
-  const [settings, setSettings] = useState<NotificationSettings>(DEFAULT_SETTINGS);
   const [selectedTime, setSelectedTime] = useState<ReminderTimeKey>('10min');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const saveLock = useRef(false);
   const [error, setError] = useState('');
 
   const loadSettings = useCallback(async () => {
+    if (saveLock.current) return;
     setLoading(true);
     setError('');
     try {
-      const fetched = await settingsService.getNotificationSettings();
-      setSettings(fetched);
+      const fetched = await settingsService.getNotificationSettings(true);
       if (fetched.reminder_time) {
         setSelectedTime(fetched.reminder_time);
       }
@@ -82,40 +76,43 @@ export default function ReminderTimeScreen() {
     }, [loadSettings])
   );
 
-  // Handle hardware / Android system Back to guarantee return to Settings screen
+  const navigateBack = useCallback(() => {
+    if (router.canGoBack()) router.back();
+    else router.navigate('/home/settings' as any);
+  }, []);
+
+  // Return to the screen that opened Reminder Time, with a direct-link fallback.
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
-        router.navigate('/home/settings' as any);
+        navigateBack();
         return true;
       };
       const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
       return () => subscription.remove();
-    }, [])
+    }, [navigateBack])
   );
 
-  const handleSelect = async (optionKey: ReminderTimeKey) => {
-    if (selectedTime === optionKey && !error) return;
-
-    const previousTime = selectedTime;
+  const handleSelect = (optionKey: ReminderTimeKey) => {
+    if (saveLock.current || loading) return;
     setSelectedTime(optionKey);
+    setError('');
+  };
+
+  const handleSave = async () => {
+    if (saveLock.current || loading) return;
+    saveLock.current = true;
     setSaving(true);
     setError('');
 
-    const updatedSettings: NotificationSettings = {
-      ...settings,
-      reminder_time: optionKey,
-    };
-
     try {
-      const result = await settingsService.saveNotificationSettings(updatedSettings);
-      setSettings(result);
+      await settingsService.saveNotificationSettings({ reminder_time: selectedTime });
+      alert(t('success'), t('settings_saved'));
+      navigateBack();
     } catch (e) {
-      // Revert optimistic selection on error
-      setSelectedTime(previousTime);
-      setError(t('admin_error'));
+      setError(t('admin_save_error'));
     } finally {
-      setSaving(false);
+      saveLock.current = false; setSaving(false);
     }
   };
 
@@ -126,7 +123,7 @@ export default function ReminderTimeScreen() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('admin_back')}
-          onPress={() => router.navigate('/home/settings' as any)}
+          onPress={navigateBack}
           style={styles.backBtn}
         >
           <Ionicons name="arrow-back" size={22} color={purple} />
@@ -155,7 +152,8 @@ export default function ReminderTimeScreen() {
             <Pressable
               key={item.key}
               accessibilityRole="radio"
-              accessibilityState={{ selected: isSelected }}
+              accessibilityState={{ selected: isSelected, disabled: loading || saving }}
+              disabled={loading || saving}
               accessibilityLabel={t(item.labelKey)}
               onPress={() => void handleSelect(item.key)}
               style={({ pressed }) => [
@@ -180,10 +178,18 @@ export default function ReminderTimeScreen() {
         {/* Error message if saving failed */}
         {!!error && <Text style={styles.errorText}>{translateFeedback(error, t)}</Text>}
 
-        {/* Purple Informational Card at bottom (Not a button) */}
-        <View style={[styles.infoCard, { backgroundColor: purple }]}>
-          <Text style={styles.infoCardText}>{t('ui_stay_on_track_reminders_follow_your_selected_time')}</Text>
-        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('ui_stay_on_track_reminders_follow_your_selected_time')}
+          accessibilityState={{ disabled: loading || saving, busy: saving }}
+          disabled={loading || saving}
+          onPress={() => void handleSave()}
+          style={[styles.infoCard, { backgroundColor: purple }]}
+        >
+          {saving ? <ActivityIndicator color="#FFFFFF" /> : (
+            <Text style={styles.infoCardText}>{t('ui_stay_on_track_reminders_follow_your_selected_time')}</Text>
+          )}
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -194,6 +200,7 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
     flex: 1,
   },
   header: {
+    width: '100%', maxWidth: 560, alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
@@ -207,11 +214,12 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '800',
     flex: 1,
   },
   body: {
+    width: '100%', maxWidth: 560, alignSelf: 'center',
     padding: 16,
     paddingBottom: 36,
     gap: 12,
@@ -221,8 +229,8 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
     marginBottom: 4,
   },
   optionCard: {
-    borderRadius: 18,
-    paddingVertical: 18,
+    borderRadius: 16,
+    paddingVertical: 16,
     paddingHorizontal: 18,
     flexDirection: 'row',
     alignItems: 'center',
@@ -252,7 +260,7 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   },
   infoCard: {
     borderRadius: 18,
-    paddingVertical: 18,
+    paddingVertical: 16,
     paddingHorizontal: 20,
     marginTop: 16,
     alignItems: 'center',

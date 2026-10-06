@@ -39,59 +39,27 @@ async function getNotificationSettings(req, res, next) {
  * PUT /api/settings/notifications
  */
 async function updateNotificationSettings(req, res, next) {
+  let db;
   try {
-    const userId = req.userId;
-    const {
-      chore_reminders,
-      chore_completions,
-      family_updates,
-      announcements,
-      reminder_time,
-    } = req.body || {};
-
-    const validReminderTimes = ['10min', '30min', '1hour', '1day'];
-    if (![chore_reminders, chore_completions, family_updates, announcements].every((v) => typeof v === 'boolean') || !validReminderTimes.includes(reminder_time)) {
+    const allowed = ['chore_reminders','chore_completions','family_updates','announcements','due_date_alerts','weekly_summary','reminder_time'];
+    const body = req.body || {};
+    if (Object.keys(body).some(key => !allowed.includes(key)) || !Object.keys(body).length) {
+      return res.status(400).json({ message: 'Provide only your notification preference fields.' });
+    }
+    for (const key of allowed) if (body[key] !== undefined && (key === 'reminder_time'
+      ? !['10min','30min','1hour','1day'].includes(body[key]) : typeof body[key] !== 'boolean')) {
       return res.status(400).json({ message: 'Provide boolean notification options and a valid reminder_time.' });
     }
-    const { due_date_alerts, weekly_summary } = req.body || {};
-    if ([due_date_alerts, weekly_summary].some(v => v !== undefined && typeof v !== 'boolean')) {
-      return res.status(400).json({ message: 'Provide boolean due date and weekly summary options.' });
-    }
-    const safeReminderTime = reminder_time;
-
-    const result = await pool.query(
-      `INSERT INTO notification_settings
-         (user_id, chore_reminders, chore_completions, family_updates, announcements, reminder_time, due_date_alerts, weekly_summary, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, TRUE), COALESCE($8, TRUE), CURRENT_TIMESTAMP)
-       ON CONFLICT (user_id) DO UPDATE SET
-         chore_reminders = EXCLUDED.chore_reminders,
-         chore_completions = EXCLUDED.chore_completions,
-         family_updates = EXCLUDED.family_updates,
-         announcements = EXCLUDED.announcements,
-         reminder_time = EXCLUDED.reminder_time,
-         due_date_alerts = COALESCE($7, notification_settings.due_date_alerts),
-         weekly_summary = COALESCE($8, notification_settings.weekly_summary),
-         updated_at = CURRENT_TIMESTAMP
-       RETURNING *`,
-      [
-        userId,
-        chore_reminders,
-        chore_completions,
-        family_updates,
-        announcements,
-        safeReminderTime,
-        due_date_alerts ?? null,
-        weekly_summary ?? null,
-      ]
-    );
-
+    db = await pool.connect(); await db.query('BEGIN');
+    await require('../services/notificationDeliveryService').lockNotificationPreferences(db, req.userId);
+    await db.query('INSERT INTO notification_settings(user_id) VALUES($1) ON CONFLICT DO NOTHING', [req.userId]);
+    const fields = allowed.filter(key => body[key] !== undefined);
+    const result = await db.query('UPDATE notification_settings SET ' + fields.map((key,index)=>key+'=$'+(index+2)).join(',') + ', updated_at=now() WHERE user_id=$1 RETURNING *', [req.userId, ...fields.map(key=>body[key])]);
+    await db.query('COMMIT');
     return res.json({ settings: result.rows[0] });
-  } catch (error) {
-    return next(error);
-  }
+  } catch (error) { if(db) await db.query('ROLLBACK'); return next(error); }
+  finally { db?.release(); }
 }
-
-// ─── User Preferences ─────────────────────────────────────────────────────────
 
 /**
  * GET /api/settings/preferences

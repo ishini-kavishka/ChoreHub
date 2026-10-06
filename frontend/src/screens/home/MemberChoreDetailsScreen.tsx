@@ -378,7 +378,8 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
     color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    width: '100%', maxWidth: 560, alignSelf: 'center',
+    paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 36,
     gap: 16,
@@ -387,7 +388,7 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   // ── Top Summary Card ──
   topSummaryCard: {
     backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
-    borderRadius: 22,
+    borderRadius: 16,
     padding: 16,
     borderWidth: 1,
     borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
@@ -450,7 +451,7 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   // ── Detail Rows Card ──
   detailRowsCard: {
     backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
-    borderRadius: 22,
+    borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 4,
     borderWidth: 1,
@@ -503,7 +504,7 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   // ── Description Box ──
   descriptionCard: {
     backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
-    borderRadius: 22,
+    borderRadius: 16,
     padding: 18,
     gap: 8,
     borderWidth: 1,

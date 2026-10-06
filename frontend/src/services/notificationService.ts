@@ -52,8 +52,9 @@ function makeMockNotifications(): AppNotification[] {
 let mockNotifications: AppNotification[] = makeMockNotifications();
 export function isDemoNotificationMode() { return mockNotifications !== null && demoMode; }
 let demoMode = false;
+let unreadRevision = 0, lastPublishedUnread = 0;
 const unreadListeners = new Set<(count: number) => void>();
-function publishUnread(count: number) { unreadListeners.forEach((listener) => listener(count)); }
+function publishUnread(count: number) { lastPublishedUnread = count; unreadListeners.forEach((listener) => listener(count)); }
 
 export const notificationService = {
   async sendChoreMessage(chore_id:string,message:string) {
@@ -77,6 +78,7 @@ export const notificationService = {
         authToken
       );
       demoMode = false;
+      if (authToken !== await authService.getAuthToken()) throw new Error('Your session has changed.');
       return res.notifications ?? [];
     } catch (error) {
       if (requireLive || !(error instanceof ApiError) || error.status !== undefined) throw error;
@@ -89,9 +91,13 @@ export const notificationService = {
   },
 
   async getUnreadCount(requireLive = false): Promise<number> {
+    const revision = unreadRevision;
     const authToken = await token();
     try {
       const res = await apiRequest<{ count: number }>('/api/notifications/unread-count', {}, authToken);
+      // A response from a previous login must not update the current account's bell.
+      if (authToken !== await authService.getAuthToken()) return 0;
+      if (revision !== unreadRevision) return lastPublishedUnread;
       demoMode = false;
       publishUnread(res.count ?? 0);
       return res.count ?? 0;
@@ -106,6 +112,8 @@ export const notificationService = {
     const authToken = await token();
     try {
       await apiRequest<{ message: string }>(`/api/notifications/${id}/read`, { method: 'PATCH' }, authToken);
+      if (authToken !== await authService.getAuthToken()) return;
+      unreadRevision++;
       demoMode = false;
       await notificationService.getUnreadCount(requireLive).catch(error => console.warn('Unread count refresh failed', error));
     } catch (error) {
@@ -120,6 +128,8 @@ export const notificationService = {
     const authToken = await token();
     try {
       await apiRequest<{ message: string }>('/api/notifications/read-all', { method: 'PATCH' }, authToken);
+      if (authToken !== await authService.getAuthToken()) return;
+      unreadRevision++;
       demoMode = false;
       publishUnread(0);
     } catch (error) {
@@ -135,6 +145,8 @@ export const notificationService = {
     try {
       await apiRequest<{ message: string; id: string }>(`/api/notifications/${id}`, { method: 'DELETE' }, authToken);
       demoMode = false;
+      if (authToken !== await authService.getAuthToken()) return;
+      unreadRevision++;
       // A failed badge refresh must not turn a committed inbox deletion into a
       // failed deletion, or substitute demo data in the live client flow.
       await notificationService.getUnreadCount(requireLive).catch(error => {

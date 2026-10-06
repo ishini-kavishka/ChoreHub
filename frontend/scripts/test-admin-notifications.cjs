@@ -43,6 +43,8 @@ Module._load = function(name, ...args) {
   if (name === 'react-native-safe-area-context') return { SafeAreaView: 'safe' };
   if (name === '@expo/vector-icons') return { Ionicons: 'icon' };
   if (name === 'expo-router') return { useLocalSearchParams: () => ({}), useFocusEffect: callback => React.useEffect(callback, [callback]), router: { push: route => routes.push(route), canGoBack: () => false, replace: route => routes.push(route) } };
+  if (name === '@/context/ThemeContext') return {useThemedStyles: factory => factory({isDark:false}),useAppTheme:()=>({colors:{isDark:false}})};
+  if (name === '@/i18n/translations') return {translations,translateFeedback:message=>message};
   if (name === '@/context/LanguageContext') return { useLanguage: () => ({ t: translate, language: 'en' }) };
   if (name === './AdminComponent04Shared') return { useAdminColors: () => colors };
   if (name === '@/services/api') return { ApiError };
@@ -67,6 +69,7 @@ test('existing admin screen classifies personal reminders, marks read with live 
   try {
     await act(async () => { r = create(React.createElement(Screen)); });
     assert.ok(calls.some(call => call[0] === 'load' && call[2] === true));
+    assert.ok(button(r, 'Mark all as read'), 'Admin bulk-read action remains available');
     assert.ok(button(r, 'Own reminder. Unread.'));
     await act(async () => { await button(r, 'Own reminder. Unread.').props.onPress(); });
     assert.ok(calls.some(call => call[0] === 'read' && call[1] === 'personal' && call[2] === true));

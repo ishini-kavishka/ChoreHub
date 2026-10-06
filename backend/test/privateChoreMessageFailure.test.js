@@ -5,7 +5,7 @@ const sender='11111111-1111-1111-1111-111111111111',recipient='22222222-2222-222
 const db={release(){released=true;},async query(sql){
   queries.push(sql);
   if(sql.includes('SELECT * FROM chores'))return{rows:[{id:choreId,assigned_to:sender,created_by:recipient,family_id:null}],rowCount:1};
-  if(sql.includes('SELECT id FROM users'))return{rows:[{id:recipient}],rowCount:1};
+  if(sql.includes('SELECT u.id FROM users'))return{rows:[{id:recipient}],rowCount:1};
   if(sql.includes('INSERT INTO notifications'))throw Object.assign(Error('Injected database failure'),{code:'TEST_DATABASE_ERROR'});
   return{rows:[],rowCount:0};
 }};

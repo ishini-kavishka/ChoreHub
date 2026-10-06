@@ -1,3 +1,4 @@
+import { translateFeedback } from '@/i18n/translations';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
@@ -11,7 +12,7 @@ import languageCatalog from '../../../../shared/languages.json';
 
 export default function AdminSettingsScreen() { return <AdminGate>{h => <Settings household={h} />}</AdminGate>; }
 function Settings({ household }: { household: Household }) {
-  const { t, setLanguage } = useLanguage(); const { setTheme } = useAppTheme(); const c = useAdminColors();
+  const { t, language, setLanguage, refreshAvailableLanguages } = useLanguage(); const { setTheme, preference: themePreference } = useAppTheme(); const c = useAdminColors();
   const [name, setName] = useState(household.name); const [savedName, setSavedName] = useState(household.name);
   const [settings, setSettings] = useState<NotificationSettings | null>(null); const [prefs, setPrefs] = useState<UserPreferences | null>(null);
   const [busy, setBusy] = useState(true); const [saving, setSaving] = useState(false); const lock = useRef(false);
@@ -31,10 +32,10 @@ function Settings({ household }: { household: Household }) {
         settingsService.getSupportedLanguages(),
       ]);
       setSettings(notifications); setPrefs(preferences); setClientLangs(langs);
-      await setTheme(preferences.theme, false); await setLanguage(preferences.language, false);
+
     } catch { setSettings(null); setPrefs(null); setError(t('admin_error')); }
     finally { setBusy(false); }
-  }, [t, setTheme, setLanguage]);
+  }, [t]);
   useEffect(() => { void load(); }, [load]);
   const save = async (operation: () => Promise<void>) => {
     if (lock.current) return;
@@ -43,13 +44,18 @@ function Settings({ household }: { household: Household }) {
     catch { setError(t('admin_save_error')); }
     finally { lock.current = false; setSaving(false); }
   };
-  const preference = (next: UserPreferences) => void save(async () => {
-    const persisted = await settingsService.savePreferences(next);
-    setPrefs(persisted); await setTheme(persisted.theme, false); await setLanguage(persisted.language, false); setEditor(null);
+  const preference = (next: Partial<UserPreferences>) => void save(async () => {
+    if (next.theme !== undefined) await setTheme(next.theme);
+    if (next.language !== undefined) await setLanguage(next.language);
+    setEditor(null);
   });
+  useEffect(() => {
+    setPrefs(previous => previous ? { ...previous, theme: themePreference, language } : previous);
+  }, [themePreference, language, busy]);
   const toggleClientLang = (code: string, enabled: boolean) => void save(async () => {
     const updated = await settingsService.updateSupportedLanguage(code, enabled);
     setClientLangs(prev => prev.map(l => l.code === code ? { ...l, is_enabled: updated.is_enabled } : l));
+    await refreshAvailableLanguages();
   });
   const toggleEditor = (next: typeof editor) => setEditor(editor === next ? null : next);
   const languageName = (code: string) => languageCatalog.find(item => item.code === code)?.native_name || code;
@@ -60,7 +66,7 @@ function Settings({ household }: { household: Household }) {
     <View style={styles.label}><Text style={[styles.primary, { color: c.text }]}>{label}</Text>{value && !inline && <Text style={[styles.secondary, { color: c.muted }]}>{value}</Text>}</View>
     {value && inline && <Text style={[styles.secondary, { color: c.muted }]}>{value}</Text>}<Ionicons name={expanded ? 'chevron-down' : 'chevron-forward'} size={17} color={c.muted} />
   </Pressable>;
-  return <AdminPage title={t('admin_settings')} household={{ ...household, name: savedName }} busy={busy} error={error} refresh={() => void load()} compactHeader>
+  return <AdminPage title={t('admin_settings')} household={{ ...household, name: savedName }} busy={busy} error={translateFeedback(error, t)} refresh={() => void load()} compactHeader>
     {section(t('admin_household'), <>
       {row(t('admin_name'), 'person-outline', () => toggleEditor('name'), savedName, false, editor === 'name')}
       {editor === 'name' && <View style={styles.editor}><Label muted>{t('admin_shared')}</Label><TextInput accessibilityLabel={t('admin_name')} value={name} onChangeText={setName} editable={!saving} maxLength={100} style={[s.input, { color: c.text, backgroundColor: c.bg, borderColor: c.border }]} />
@@ -70,7 +76,7 @@ function Settings({ household }: { household: Household }) {
         }} /></View>}
       {prefs && row(t('language'), 'globe-outline', () => toggleEditor('language'), languageName(prefs.language), false, editor === 'language')}
       {prefs && editor === 'language' && <View style={styles.editor}>
-        <View style={s.wrap}>{(['en', 'si', 'ta'] as const).map(lang => <Action key={lang} label={languageName(lang)} selected={prefs.language === lang} disabled={saving} onPress={() => preference({ ...prefs, language: lang })} />)}</View>
+        <View style={s.wrap}>{(['en', 'si', 'ta'] as const).map(lang => <Action key={lang} label={languageName(lang)} selected={prefs.language === lang} disabled={saving || !clientLangs.some(item => item.code === lang && item.is_enabled && item.translation_supported)} onPress={() => preference({ language: lang })} />)}</View>
         <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border }}>
           <Label muted>{t('admin_client_languages')}</Label>
           <View style={{ gap: 8, marginTop: 6 }}>
@@ -95,9 +101,9 @@ function Settings({ household }: { household: Household }) {
               </View>
             ))}
           </View>
-          <TextInput accessibilityLabel={t('ui_locale_code')} placeholder={t('ui_locale_code')} value={newCode} onChangeText={setNewCode} autoCapitalize="none" style={[s.input, styles.languageInput, { color: c.text }]} />
-          <TextInput accessibilityLabel={t('ui_language_name')} placeholder={t('ui_language_name')} value={newName} onChangeText={setNewName} style={[s.input, styles.languageInput, { color: c.text }]} />
-          <TextInput accessibilityLabel={t('ui_native_name')} placeholder={t('ui_native_name')} value={newNativeName} onChangeText={setNewNativeName} style={[s.input, styles.languageInput, { color: c.text }]} />
+          <TextInput accessibilityLabel={t('ui_locale_code')} placeholderTextColor={c.muted} placeholder={t('ui_locale_code')} value={newCode} onChangeText={setNewCode} autoCapitalize="none" style={[s.input, styles.languageInput, { color: c.text }]} />
+          <TextInput accessibilityLabel={t('ui_language_name')} placeholderTextColor={c.muted} placeholder={t('ui_language_name')} value={newName} onChangeText={setNewName} style={[s.input, styles.languageInput, { color: c.text }]} />
+          <TextInput accessibilityLabel={t('ui_native_name')} placeholderTextColor={c.muted} placeholder={t('ui_native_name')} value={newNativeName} onChangeText={setNewNativeName} style={[s.input, styles.languageInput, { color: c.text }]} />
           <Action label={t('ui_add_language')} disabled={saving || !newCode.trim() || !newName.trim() || !newNativeName.trim()} onPress={() => void save(async () => {
             const added = await settingsService.addSupportedLanguage(newCode.trim().toLowerCase(), newName.trim(), newNativeName.trim());
             setClientLangs(previous => [...previous, added]); setNewCode(''); setNewName(''); setNewNativeName('');
@@ -109,18 +115,18 @@ function Settings({ household }: { household: Household }) {
       {(['chore_reminders', 'due_date_alerts', 'weekly_summary'] as const).map((key, i) => {
         const label = t(key === 'due_date_alerts' ? 'admin_due' : key === 'weekly_summary' ? 'admin_weekly' : 'chore_reminders');
         return <View key={key} style={[styles.row, { borderColor: c.border }]}><View style={styles.icon}><Ionicons name={i === 2 ? 'calendar-outline' : 'notifications-outline'} size={19} color={c.text} /></View><Text style={[styles.primary, styles.label, { color: c.text }]}>{label}</Text>
-          <Switch value={settings[key]} disabled={saving || busy} accessibilityLabel={label} trackColor={{ false: c.border, true: '#713DE8' }} thumbColor="#FFFFFF" onValueChange={value => void save(async () => { setSettings(await settingsService.saveNotificationSettings({ ...settings, [key]: value })); })} />
+          <Switch value={settings[key]} disabled={saving || busy} accessibilityLabel={label} trackColor={{ false: c.border, true: '#713DE8' }} thumbColor="#FFFFFF" onValueChange={value => void save(async () => { setSettings(await settingsService.saveNotificationSettings({ [key]: value })); })} />
         </View>;
       })}
     </>)}
     {prefs && section(t('admin_app'), <>
       {row(t('theme'), 'settings-outline', () => toggleEditor('theme'), themeLabel(prefs.theme), true, editor === 'theme')}
-      {editor === 'theme' && <View style={styles.editor}><View style={s.wrap}>{(['light', 'dark', 'system'] as const).map(theme => <Action key={theme} label={themeLabel(theme)} selected={prefs.theme === theme} disabled={saving} onPress={() => preference({ ...prefs, theme })} />)}</View></View>}
+      {editor === 'theme' && <View style={styles.editor}><View style={s.wrap}>{(['light', 'dark', 'system'] as const).map(theme => <Action key={theme} label={themeLabel(theme)} selected={prefs.theme === theme} disabled={saving} onPress={() => preference({ theme })} />)}</View></View>}
       {row(t('admin_privacy'), 'shield-checkmark-outline', () => router.push('/profile/change-password'))}
     </>)}
     {(saving || !!notice) && <Text accessibilityLiveRegion="polite" style={[styles.secondary, { color: c.accent }]}>{saving ? t('admin_saving') : notice}</Text>}
     {settings && <View><Pressable accessibilityRole="button" accessibilityState={{ expanded: editor === 'reminder' }} onPress={() => toggleEditor('reminder')} style={styles.extra}><Text style={{ color: c.muted }}>{t('reminder_time')}</Text><Ionicons name="chevron-down" size={16} color={c.muted} /></Pressable>
-      {editor === 'reminder' && <View style={styles.editor}><View style={s.wrap}>{(['10min', '30min', '1hour', '1day'] as const).map((value, i) => <Action key={value} label={t((['10_min', '30_min', '1_hour', '1_day'] as const)[i])} selected={settings.reminder_time === value} disabled={saving || !settings.chore_reminders} onPress={() => void save(async () => { setSettings(await settingsService.saveNotificationSettings({ ...settings, reminder_time: value })); })} />)}</View><Label muted>{t('admin_delivery')}</Label></View>}
+      {editor === 'reminder' && <View style={styles.editor}><View style={s.wrap}>{(['10min', '30min', '1hour', '1day'] as const).map((value, i) => <Action key={value} label={t((['10_min', '30_min', '1_hour', '1_day'] as const)[i])} selected={settings.reminder_time === value} disabled={saving || !settings.chore_reminders} onPress={() => void save(async () => { setSettings(await settingsService.saveNotificationSettings({ reminder_time: value })); })} />)}</View><Label muted>{t('admin_delivery')}</Label></View>}
     </View>}
     <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/admin/about', params: { family_id: household.id } })} style={styles.extra}><Text style={{ color: c.muted }}>{t('about_app')}</Text><Ionicons name="chevron-forward" size={16} color={c.muted} /></Pressable>
   </AdminPage>;

@@ -1,3 +1,4 @@
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -49,6 +50,7 @@ const TAB_CONFIGS: Record<string, TabConfig> = {
 };
 
 export function AdminTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+  const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const { theme, colors } = useAppTheme();
   const { t } = useLanguage();
@@ -85,7 +87,7 @@ export function AdminTabBar({ state, descriptors, navigation }: BottomTabBarProp
         };
 
           const activeColor = theme === 'dark' ? '#BEABFF' : '#713DE8';
-          const inactiveColor = '#8A879A';
+          const inactiveColor = colors.isDark ? colors.textSecondary : '#8A879A';
           const currentColor = isFocused ? activeColor : inactiveColor;
           const iconName = isFocused ? tabConfig.activeIcon : tabConfig.inactiveIcon;
 
@@ -136,12 +138,12 @@ export function AdminTabBar({ state, descriptors, navigation }: BottomTabBarProp
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderTopWidth: 1,
-    borderTopColor: '#EAE7F5',
+    borderTopColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     paddingTop: 8,
     elevation: 8,
     shadowColor: '#000000',

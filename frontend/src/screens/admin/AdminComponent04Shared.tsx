@@ -1,3 +1,5 @@
+import { translateFeedback } from '@/i18n/translations';
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,17 +14,15 @@ import { ApiError } from '@/services/api';
 
 export const purple = '#7C5CFC';
 export function useAdminColors() {
-  const { theme } = useAppTheme();
-  return theme === 'dark'
-    ? { bg: '#14121F', card: '#211D30', text: '#F9F7FF', muted: '#C0B9D2', soft: '#342C4C', accent: '#BEABFF', border: '#494059', error: '#FFAAA8' }
-    : { bg: '#F8F7FC', card: '#FFFFFF', text: '#211C35', muted: '#655E78', soft: '#EFEAFF', accent: '#6340D4', border: '#E7E0F2', error: '#B3261E' };
+  const { colors, theme } = useAppTheme();
+  return { bg: colors.background, card: colors.card, text: colors.textPrimary, muted: colors.textSecondary, soft: colors.surface, accent: theme === 'dark' ? '#BEABFF' : '#6340D4', border: colors.border, error: colors.error, isDark: colors.isDark };
 }
 export function Action({ label, onPress, selected, disabled = false, tone }: { label: string; onPress: () => void; selected?: boolean; disabled?: boolean; tone?: 'primary' | 'danger' }) {
   const c = useAdminColors();
   const filled = selected || tone === 'primary';
   return <Pressable accessibilityRole="button" accessibilityState={{ selected, disabled }} disabled={disabled} onPress={onPress}
-    style={({ pressed }) => [s.action, { backgroundColor: tone === 'danger' ? (c.bg === '#14121F' ? '#3A1A1A' : '#FEF2F2') : filled ? c.accent : c.soft, opacity: disabled ? .45 : pressed ? .75 : 1 }]}>
-    <Text style={{ color: tone === 'danger' ? c.error : filled ? (c.bg === '#14121F' ? '#211C35' : '#fff') : c.accent, fontWeight: '700', textAlign: 'center' }}>{label}</Text>
+    style={({ pressed }) => [s.action, { backgroundColor: tone === 'danger' ? (c.isDark ? c.soft : '#FEF2F2') : filled ? c.accent : c.soft, opacity: disabled ? .45 : pressed ? .75 : 1 }]}>
+    <Text style={{ color: tone === 'danger' ? c.error : filled ? (c.isDark ? '#211C35' : '#fff') : c.accent, fontWeight: '700', textAlign: 'center' }}>{label}</Text>
   </Pressable>;
 }
 export function Card({ children }: { children: React.ReactNode }) {
@@ -65,12 +65,12 @@ export function AdminGate({ children }: { children: (household: Household) => Re
         <Label heading>{t(error === 'denied' ? 'admin_denied' : 'admin_error')}</Label>
         {error === 'denied' && (
           <Text style={{ color: c.muted, fontSize: 13, textAlign: 'center', lineHeight: 18 }}>
-            Tip: Please sign in with an account having both system Admin and Household Admin privileges (e.g. ishinikavishka422@gmail.com).
+            {t('ag_admin_tip')}
           </Text>
         )}
         <View style={s.wrap}>
           <Action label={t('admin_retry')} onPress={() => void load()} />
-          <Action label="Sign in as Admin" onPress={() => router.replace('/auth/login')} />
+          <Action label={t('ag_sign_in')} onPress={() => router.replace('/auth/login')} />
           <Action label={t('admin_back')} onPress={() => router.canGoBack() ? router.back() : router.replace('/admin/dashboard')} />
         </View>
       </View>
@@ -102,7 +102,7 @@ export function AdminPage({ title, household, busy, error, refresh, children, co
       </Pressable>}
     </View>
     <ScrollView contentContainerStyle={s.body} refreshControl={<RefreshControl refreshing={busy} onRefresh={refresh} tintColor={purple} />}>
-      {!!error && <Card><Text accessibilityRole="alert" style={{ color: c.error }}>{error}</Text><Action label={t('admin_retry')} onPress={refresh} /></Card>}
+      {!!error && <Card><Text accessibilityRole="alert" style={{ color: c.error }}>{translateFeedback(error, t)}</Text><Action label={t('admin_retry')} onPress={refresh} /></Card>}
       {busy && <ActivityIndicator color={purple} accessibilityLabel={t('admin_progress')} />}
       {children}
     </ScrollView>

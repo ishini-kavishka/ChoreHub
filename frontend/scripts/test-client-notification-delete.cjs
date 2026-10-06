@@ -11,12 +11,14 @@ const { translations } = require('../src/i18n/translations.ts');
 const { notificationDisplay } = require('../src/i18n/clientTranslations.ts');
 const original = Module._load;
 class ApiError extends Error { constructor(message, status) { super(message); this.status = status; } }
-let failStatus, failBadgeOnly = false;
+let failStatus, failBadgeOnly = false, realApiHandler, realAuthToken = 'isolated-token';
 Module._load = function(name, ...args) {
+  if(name==='@/components/notifications/NotificationBell')return require('../src/components/notifications/NotificationBell.tsx');
   if(name==='@/i18n/translations')return require('../src/i18n/translations.ts');
   if(name==='@/components/ui/AppDialog')return {useAppAlert:()=>()=>{}};
-  if (name === './authService') return { authService: { getAuthToken: async () => 'isolated-token' } };
+  if (name === './authService') return { authService: { getAuthToken: async () => realAuthToken } };
   if (name === './api') return { ApiError, apiRequest: async path => {
+    if (realApiHandler) return realApiHandler(path);
     if (failBadgeOnly && !path.endsWith('unread-count')) return {};
     throw new ApiError('Injected API failure', failStatus);
   } };
@@ -64,30 +66,38 @@ test('logout emits POP_TO_TOP only when a dismissible stack exists, then replace
 
 const translate = key => translations.en[key];
 const calls = [], routes = [];
+let inboxParams = {};
 let canGoBack = false, canDismiss = false;
 let records = [
   { id: 'a1', title: 'My announcement', message: 'Original user message', type: 'announcement', is_read: false },
   { id: 'a2', title: 'Completed chore', message: 'A real completed chore', type: 'chore_completed', is_read: true },
 ];
 let failDelete = false, releaseDelete, deferDelete = false, dark = false;
+const unreadListeners=new Set(), sessionListeners=new Set();
+let unreadRequests=0;
+const publishUnread=()=>unreadListeners.forEach(listener=>listener(records.filter(n=>!n.is_read).length));
 const service = {
+  subscribeUnreadCount:listener=>{unreadListeners.add(listener);return()=>unreadListeners.delete(listener);},
+  getUnreadCount:async strict=>{unreadRequests++;assert.equal(strict,true);return records.filter(n=>!n.is_read).length;},
   getNotifications: async (...args) => { calls.push(['load', ...args]); return records.map(n => ({ ...n })); },
   deleteNotification: async (...args) => {
     calls.push(['delete', ...args]); if (failDelete) throw new Error('Injected offline failure');
     if (deferDelete) await new Promise(resolve => { releaseDelete = resolve; });
     records = records.filter(n => n.id !== args[0]);
   },
-  markRead: async (...args) => { calls.push(['read', ...args]); records = records.map(n => n.id === args[0] ? { ...n, is_read:true } : n); },
-  markAllRead: async () => { records = records.map(n => ({ ...n, is_read:true })); },
+  markRead: async (...args) => { calls.push(['read', ...args]); records = records.map(n => n.id === args[0] ? { ...n, is_read:true } : n);publishUnread(); },
+  markAllRead: async () => { records = records.map(n => ({ ...n, is_read:true }));publishUnread(); },
 };
 Module._load = function(name, ...args) {
   if(name==='@/i18n/translations')return require('../src/i18n/translations.ts');
   if(name==='@/components/ui/AppDialog')return {useAppAlert:()=>()=>{}};
+  if(name==='@/components/notifications/NotificationBell')return require('../src/components/notifications/NotificationBell.tsx');
   if (name === '@/components/notifications/PrivateChoreMessageForm') return {__esModule:true,default:'private-message-form'};
-  if (name === 'react-native') return { ActivityIndicator:'loading', Pressable:'button', RefreshControl:'refresh', ScrollView:'scroll', StyleSheet:{ create:value=>value }, Switch:'switch', Text:'text', TextInput:'input', View:'view', Alert:{alert(){}}, Modal:({visible,children})=>visible ? React.createElement('dialog',null,children) : null };
+  if (name === 'react-native') return { BackHandler:{addEventListener:()=>({remove(){}})}, ActivityIndicator:'loading', Pressable:'button', RefreshControl:'refresh', ScrollView:'scroll', StyleSheet:{ create:value=>value }, Switch:'switch', Text:'text', TextInput:'input', View:'view', Alert:{alert(){}}, Modal:({visible,children})=>visible ? React.createElement('dialog',null,children) : null };
   if (name === 'react-native-safe-area-context') return { SafeAreaView:'safe' };
+  if (name === 'react-native-svg')return {__esModule:true,default:'svg',Circle:'circle',Line:'line',Polyline:'polyline'};
   if (name === '@expo/vector-icons') return { Ionicons:'icon' };
-  if (name === 'expo-router') return { useSegments:()=>['home','profile'], useFocusEffect:callback=>React.useEffect(callback,[callback]), router:{push:value=>routes.push(value),back:()=>routes.push('BACK'),canGoBack:()=>canGoBack,navigate:value=>routes.push(value),canDismiss:()=>canDismiss,dismissAll:()=>routes.push('POP_TO_TOP'),replace:value=>routes.push(value)} };
+  if (name === 'expo-router') return { useLocalSearchParams:()=>inboxParams, useSegments:()=>['home','profile'], useFocusEffect:callback=>React.useEffect(callback,[callback]), router:{push:value=>routes.push(value),back:()=>routes.push('BACK'),canGoBack:()=>canGoBack,navigate:value=>routes.push(value),canDismiss:()=>canDismiss,dismissAll:()=>routes.push('POP_TO_TOP'),replace:value=>routes.push(value)} };
   if (name === '@/context/LanguageContext') return { useLanguage:()=>({t:translate,language:'en'}) };
   if (name === '@/context/ThemeContext') return { useThemedStyles:factory=>factory({isDark:dark,background:dark?'#14121F':'#F8F7FC',card:dark?'#211D30':'#fff',surface:dark?'#342C4C':'#EFEAFF',textPrimary:dark?'#fff':'#211C35',textSecondary:'#655E78',border:'#E7E0F2'}), useAppTheme:()=>({theme:dark?'dark':'light',colors:{isDark:dark,background:dark?'#14121F':'#F8F7FC',card:dark?'#211D30':'#fff',textPrimary:dark?'#fff':'#211C35',textSecondary:dark?'#C0B9D2':'#655E78',surface:dark?'#342C4C':'#EFEAFF',border:dark?'#494059':'#E7E0F2'}}) };
   if (name === '@/i18n/clientTranslations') return {notificationDisplay};
@@ -96,11 +106,15 @@ Module._load = function(name, ...args) {
   if (name === '@/services/settingsService') return {settingsService:{}};
   if (name === '@/components/profile/Avatar') return {Avatar:'avatar'};
   if (name === '@/services/profileService') return {profileService:{getProfile:async()=>({full_name:'Test member',email:'isolated@example.invalid'})}};
-  if (name === '@/services/authService') return {authService:{signOut:async()=>routes.push('SIGN_OUT')}};
+  if (name === '@/services/authService') return {authService:{getCurrentMember:async()=>({id:'member',name:'Chamara'}),signOut:async()=>routes.push('SIGN_OUT')}};
+  if (name === '@/services/authStorage') return {subscribeSession:listener=>{sessionListeners.add(listener);return()=>sessionListeners.delete(listener);}};
+  if (name === '@/services/choreService') return {choreService:{getMemberChores:async()=>({stats:{total:0,completed:0,pending:0,overdue:0,completionPercentage:0},chores:[]})}};
   return original.call(this,name,...args);
 };
 const { Component04Screen: Screen } = require('../src/screens/home/Component04Screens.tsx');
 const { default: Profile } = require('../src/screens/profile/ProfileScreen.tsx');
+const { default: Progress } = require('../src/screens/home/ProgressDashboardScreen.tsx');
+const { default: Home } = require('../src/screens/home/MemberHomeScreen.tsx');
 Module._load = original;
 const button = (r,label)=>r.root.findAllByType('button').find(n=>n.props.accessibilityLabel===label);
 const press = async (r,label)=>{assert.ok(button(r,label),label);await act(async()=>button(r,label).props.onPress({stopPropagation(){calls.push(['stopPropagation']);}}));};
@@ -131,7 +145,7 @@ test('client trash confirms, cancels, preserves failed deletes, prevents repeats
     assert.ok(calls.filter(c=>c[0]==='delete').every(c=>c[2]===true));
     await press(r,'All'); await act(async()=>r.root.findByType('switch').props.onValueChange(true)); assert.ok(has(r,'No matching notifications'));
     await act(async()=>r.root.findByType('switch').props.onValueChange(false)); assert.ok(button(r,'Remove notification: Completed chore'));
-    await press(r,'Go back'); assert.equal(routes.at(-1),'/home/profile');
+    await press(r,'Go back'); assert.equal(routes.at(-1),'/home');
     canGoBack=true; await press(r,'Go back'); assert.equal(routes.at(-1),'BACK');
     await press(r,'My Reminders'); assert.equal(routes.at(-1),'/home/reminders');
     await act(async()=>r.unmount()); r=null; dark=true;
@@ -180,4 +194,80 @@ test('admin completed history uses the selected household and shared headers sta
     await act(async()=>{r=create(React.createElement(Screen,{kind:'about',adminFamily:{id:'selected-household',name:'Selected household'}}));});
     await press(r,translate('admin_back'));assert.equal(routes.at(-1),'/admin/settings');
   }finally{if(r)await act(async()=>r.unmount());}
+});
+
+test('one Home bell opens the existing inbox; real unread updates and Settings rows have no nested buttons',async()=>{
+  let home,settings,inbox;records=[
+    {id:'own-assignment',title:'Assigned chore',message:'Your chore',type:'chore_assigned',chore_id:'actual-chore',chore_title:'Clean Room',is_read:false,created_at:new Date().toISOString()},
+    {id:'own-reminder',title:'Get ready',message:'Take supplies',type:'reminder_due',is_read:false,created_at:new Date().toISOString()},
+  ];routes.length=0;
+  const noNestedButtons=r=>{for(const b of r.root.findAllByType('button'))assert.equal(b.findAllByType('button').length,1,`Nested button in ${b.props.accessibilityLabel}`);};
+  try{
+    await act(async()=>{home=create(React.createElement(Home));settings=create(React.createElement(Screen,{kind:'settings'}));});
+    const bell=()=>button(home,translate('ui_open_notifications'));
+    assert.equal(home.root.findAllByType('button').filter(n=>n.props.accessibilityLabel===translate('ui_open_notifications')).length,1);
+    assert.ok(bell().findAllByType('text').some(n=>n.children.includes("2")));
+    assert.equal(button(settings,translate('ui_open_notifications')),undefined);
+    noNestedButtons(settings);
+    await press(settings,translate('notification_settings'));assert.equal(routes.at(-1),'/home/notification-settings');
+    await press(home,translate('ui_open_notifications'));assert.deepEqual(routes.at(-1),{pathname:'/home/notifications',params:{returnTo:'/home'}});
+    await act(async()=>{inbox=create(React.createElement(Screen,{kind:'notifications'}));});noNestedButtons(inbox);
+    await press(inbox,'Assigned chore. Unread.');
+    assert.ok(bell().findAllByType('text').some(n=>n.children.includes("1")));
+    assert.equal(button(inbox,translate('mark_all_read')),undefined);
+    await press(inbox,'Get ready. Unread.');
+    assert.equal(bell().findAllByType('text').length,0,'Zero count has no badge or red dot');
+    inboxParams={returnTo:'/home'};await act(async()=>inbox.update(React.createElement(Screen,{kind:'notifications'})));await press(inbox,translate('admin_back'));assert.equal(routes.at(-1),'/home');
+    inboxParams={};
+    records=Array.from({length:12},(_,i)=>({id:String(i),is_read:false}));await act(async()=>publishUnread());
+    assert.ok(bell().findAllByType('text').some(n=>n.children.includes("12")),'Badge shows the actual count, not 9+');
+  }finally{for(const r of [home,settings,inbox])if(r)await act(async()=>r.unmount());}
+});
+
+test('Home, Progress and other member bells share live counts, one route, persisted reads and origin navigation',async()=>{
+  records=[{id:'shared-a',title:'Same assignment',message:'Actual assigned chore',type:'chore_assigned',is_read:false,created_at:new Date().toISOString()},{id:'shared-b',title:'Same reminder',message:'Actual reminder',type:'reminder_due',is_read:false,created_at:new Date().toISOString()}];
+  inboxParams={};canGoBack=false;unreadRequests=0;
+  let home,progress,other,inbox;
+  const badge=(r,value)=>assert.ok(button(r,translate('ui_open_notifications')).findAllByType('text').some(n=>n.children.includes(String(value))));
+  try{
+    await act(async()=>{home=create(React.createElement(Home));progress=create(React.createElement(Progress));other=create(React.createElement(Screen,{kind:'notificationSettings'}));});
+    assert.equal(unreadRequests,1,'Mounted bells share a single live refresh');
+    for(const r of [home,progress,other])badge(r,2);
+    assert.ok(has(home,'Same assignment'));assert.ok(!has(home,'10:00 AM.'));
+    await press(home,translate('ui_open_notifications'));const homeRoute=routes.at(-1);
+    await press(progress,translate('ui_open_notifications'));const progressRoute=routes.at(-1);
+    assert.equal(homeRoute.pathname,'/home/notifications');assert.equal(progressRoute.pathname,homeRoute.pathname);
+    inboxParams=progressRoute.params;
+    await act(async()=>{inbox=create(React.createElement(Screen,{kind:'notifications'}));});
+    assert.equal(button(inbox,translate('mark_all_read')),undefined);
+    assert.ok(button(inbox,translate('pm_message_admin')));assert.ok(button(inbox,translate('my_reminders')));
+    assert.ok(button(inbox,'Same assignment. Unread.'));assert.ok(button(inbox,'Same reminder. Unread.'));
+    await press(inbox,'Same assignment. Unread.');for(const r of [home,progress,other])badge(r,1);
+    await press(inbox,translate('admin_back'));assert.equal(routes.at(-1),'/home/progress');
+    inboxParams=homeRoute.params;await act(async()=>inbox.update(React.createElement(Screen,{kind:'notifications'})));
+    await press(inbox,'Refresh');assert.ok(button(inbox,'Same assignment. Read.'));assert.equal(button(inbox,translate('mark_all_read')),undefined);
+    assert.equal(button(inbox,translate('mark_all_read')),undefined);await press(inbox,'Same reminder. Unread.');for(const r of [home,progress,other])assert.equal(button(r,translate('ui_open_notifications')).findAllByType('text').length,0);
+    records.push({id:'new-member',title:'New incoming member update',message:'New real record',type:'family_update',is_read:false,created_at:new Date().toISOString()});
+    await act(async()=>publishUnread());for(const r of [home,progress,other])badge(r,1);
+    await press(inbox,'Refresh');assert.ok(button(inbox,'New incoming member update. Unread.'));
+    await press(other,translate('ui_open_notifications'));assert.equal(routes.at(-1).pathname,homeRoute.pathname);
+    await act(async()=>{inbox.unmount();inbox=null;});await act(async()=>{inbox=create(React.createElement(Screen,{kind:'notifications'}));});
+    assert.ok(button(inbox,'Same assignment. Read.'));assert.ok(button(inbox,'New incoming member update. Unread.'));
+    records=[];await act(async()=>sessionListeners.forEach(listener=>listener()));for(const r of [home,progress,other])assert.equal(button(r,translate('ui_open_notifications')).findAllByType('text').length,0);
+  }finally{inboxParams={};for(const r of [home,progress,other,inbox])if(r)await act(async()=>r.unmount());}
+});
+
+test('late unread responses cannot undo mark-all-read or leak a previous account inbox',async()=>{
+  let release,countRequest;const counts=[],off=realService.subscribeUnreadCount(count=>counts.push(count));
+  try{
+    realApiHandler=path=>path.endsWith('unread-count')?new Promise(resolve=>{release=resolve;}):Promise.resolve({});
+    countRequest=realService.getUnreadCount(true);
+    while(!release)await Promise.resolve();
+    await realService.markAllRead(true);release({count:3});assert.equal(await countRequest,0);assert.deepEqual(counts,[0]);
+    realApiHandler=()=>new Promise(resolve=>{release=resolve;});release=undefined;
+    const oldInbox=realService.getNotifications('all',true);
+    while(!release)await Promise.resolve();
+    realAuthToken='new-account-token';release({notifications:[{id:'old-private-record'}]});
+    await assert.rejects(oldInbox,/session has changed/);
+  }finally{off();realApiHandler=undefined;realAuthToken='isolated-token';}
 });

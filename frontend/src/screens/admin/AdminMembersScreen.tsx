@@ -1,3 +1,5 @@
+import { useLanguage } from '@/context/LanguageContext';
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -15,6 +17,9 @@ import { familyService, FamilyMemberItem, FamilyInfo } from '@/services/familySe
 import { Avatar } from '@/components/profile/Avatar';
 
 export default function AdminMembersScreen() {
+  const { t } = useLanguage();
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
   const [family, setFamily] = useState<FamilyInfo | null>(null);
   const [members, setMembers] = useState<FamilyMemberItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,12 +56,12 @@ export default function AdminMembersScreen() {
       case 'Mother':
       case 'Father':
       case 'Parent':
-        return { bg: '#EDE9FE', text: '#713DE8' };
+        return { bg: (themeColors.isDark ? themeColors.surface : '#EDE9FE'), text: '#713DE8' };
       case 'Daughter':
       case 'Son':
-        return { bg: '#FFF4E6', text: '#FF9F1C' };
+        return { bg: (themeColors.isDark ? themeColors.surface : '#FFF4E6'), text: '#FF9F1C' };
       default:
-        return { bg: '#E6F0FF', text: '#3B82F6' };
+        return { bg: (themeColors.isDark ? themeColors.surface : '#E6F0FF'), text: '#3B82F6' };
     }
   };
 
@@ -77,9 +82,9 @@ export default function AdminMembersScreen() {
         {/* ── Top Header ── */}
         <View style={styles.headerRow}>
           <View>
-            <Text style={styles.headerTitle}>Household Members</Text>
+            <Text style={styles.headerTitle}>{t('ui_household_members')}</Text>
             <Text style={styles.headerSubtitle}>
-              {family?.name ? family.name : 'Your Family Household'}
+              {family?.name ? family.name : t('ag_family_household')}
             </Text>
           </View>
 
@@ -91,7 +96,7 @@ export default function AdminMembersScreen() {
             ]}
           >
             <Ionicons name="add" size={18} color="#FFFFFF" />
-            <Text style={styles.addMemberBtnText}>Add</Text>
+            <Text style={styles.addMemberBtnText}>{t('crud_add')}</Text>
           </Pressable>
         </View>
 
@@ -107,10 +112,8 @@ export default function AdminMembersScreen() {
             <Ionicons name="person-add" size={22} color="#713DE8" />
           </View>
           <View style={styles.addBannerTextWrap}>
-            <Text style={styles.addBannerTitle}>+ Add Family Member</Text>
-            <Text style={styles.addBannerSub}>
-              Connect an existing registered user to your household
-            </Text>
+            <Text style={styles.addBannerTitle}>{t('ag_add_member_button')}</Text>
+            <Text style={styles.addBannerSub}>{t('ag_connect_short')}</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#713DE8" />
         </Pressable>
@@ -119,7 +122,7 @@ export default function AdminMembersScreen() {
         <View style={styles.statsCard}>
           <View style={styles.statBox}>
             <Text style={styles.statNumber}>{members.length}</Text>
-            <Text style={styles.statLabel}>Family Members</Text>
+            <Text style={styles.statLabel}>{t('ag_family_members')}</Text>
           </View>
 
           <View style={styles.divider} />
@@ -128,7 +131,7 @@ export default function AdminMembersScreen() {
             <Text style={[styles.statNumber, { color: '#713DE8' }]}>
               {members.filter((m) => m.role === 'admin').length}
             </Text>
-            <Text style={styles.statLabel}>Admins</Text>
+            <Text style={styles.statLabel}>{t('ag_admins')}</Text>
           </View>
 
           <View style={styles.divider} />
@@ -137,13 +140,13 @@ export default function AdminMembersScreen() {
             <Text style={[styles.statNumber, { color: '#10B981' }]}>
               {members.filter((m) => m.is_active !== false).length}
             </Text>
-            <Text style={styles.statLabel}>Active</Text>
+            <Text style={styles.statLabel}>{t('ag_active')}</Text>
           </View>
         </View>
 
         {/* ── Family List Section ── */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Members List</Text>
+          <Text style={styles.sectionTitle}>{t('ag_members_list')}</Text>
           <View style={styles.countBadge}>
             <Text style={styles.countBadgeText}>{members.length}</Text>
           </View>
@@ -154,10 +157,8 @@ export default function AdminMembersScreen() {
         ) : members.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyIcon}>👨‍👩‍👧‍👦</Text>
-            <Text style={styles.emptyTitle}>No Family Members Yet</Text>
-            <Text style={styles.emptySubtitle}>
-              Tap "+ Add Family Member" above to add family members to your household.
-            </Text>
+            <Text style={styles.emptyTitle}>{t('ag_no_family')}</Text>
+            <Text style={styles.emptySubtitle}>{t('ag_add_family_help')}</Text>
           </View>
         ) : (
           <View style={styles.membersList}>
@@ -168,14 +169,14 @@ export default function AdminMembersScreen() {
 
               return (
                 <View key={m.id} style={styles.memberCard}>
-                  <Avatar name={m.name || 'Member'} uri={m.avatar || undefined} size={50} />
+                  <Avatar name={m.name || t('role_member')} uri={m.avatar || undefined} size={50} />
 
                   <View style={styles.memberInfo}>
                     <View style={styles.nameRow}>
                       <Text style={styles.memberName}>{m.name}</Text>
                       {isAdmin ? (
                         <View style={styles.adminRoleBadge}>
-                          <Text style={styles.adminRoleText}>ADMIN</Text>
+                          <Text style={styles.adminRoleText}>{t('ag_admin_badge')}</Text>
                         </View>
                       ) : null}
                     </View>
@@ -187,7 +188,7 @@ export default function AdminMembersScreen() {
                       <View style={[styles.relBadge, { backgroundColor: relStyle.bg }]}>
                         <Ionicons name="heart" size={11} color={relStyle.text} />
                         <Text style={[styles.relBadgeText, { color: relStyle.text }]}>
-                          {m.relationship || 'Member'}
+                          {m.relationship || t('role_member')}
                         </Text>
                       </View>
 
@@ -210,7 +211,7 @@ export default function AdminMembersScreen() {
                             { color: isActive ? '#065F46' : '#991B1B' },
                           ]}
                         >
-                          {isActive ? 'Active' : 'Inactive'}
+                          {isActive ? t('ag_active') : t('ag_inactive')}
                         </Text>
                       </View>
                     </View>
@@ -225,10 +226,10 @@ export default function AdminMembersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#FAFAFD'),
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -246,13 +247,13 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 26,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     letterSpacing: -0.4,
   },
   headerSubtitle: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     marginTop: 2,
   },
   addMemberBtn: {
@@ -277,7 +278,7 @@ const styles = StyleSheet.create({
 
   // Primary Add Banner Card
   addBannerCard: {
-    backgroundColor: '#F5F3FF',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F5F3FF'),
     borderRadius: 20,
     padding: 16,
     flexDirection: 'row',
@@ -290,7 +291,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE'),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -306,19 +307,19 @@ const styles = StyleSheet.create({
   addBannerSub: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
   },
 
   // Stats Card
   statsCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 20,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.04,
@@ -333,17 +334,17 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 22,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   statLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
   },
   divider: {
     width: 1,
     height: 32,
-    backgroundColor: '#EAE7F5',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EAE7F5'),
   },
 
   // Section Header
@@ -355,7 +356,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   countBadge: {
     backgroundColor: '#713DE8',
@@ -374,14 +375,14 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   memberCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 20,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.04,
@@ -400,12 +401,12 @@ const styles = StyleSheet.create({
   memberName: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     flex: 1,
     marginRight: 8,
   },
   adminRoleBadge: {
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE'),
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
@@ -417,7 +418,7 @@ const styles = StyleSheet.create({
   },
   memberEmail: {
     fontSize: 13,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     fontWeight: '500',
   },
   badgesRow: {
@@ -447,10 +448,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   activeStatusBg: {
-    backgroundColor: '#D1FAE5',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#D1FAE5'),
   },
   inactiveStatusBg: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEE2E2'),
   },
   statusDot: {
     width: 6,
@@ -463,12 +464,12 @@ const styles = StyleSheet.create({
   },
 
   emptyCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 20,
     padding: 28,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     gap: 8,
   },
   emptyIcon: {
@@ -477,11 +478,11 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   emptySubtitle: {
     fontSize: 13,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     textAlign: 'center',
   },
 });

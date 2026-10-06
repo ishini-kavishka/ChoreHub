@@ -287,7 +287,8 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
     backgroundColor: (themeColors.isDark ? themeColors.background : '#FAFAFD'),
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    width: '100%', maxWidth: 560, alignSelf: 'center',
+    paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 40,
     gap: 16,
@@ -357,7 +358,7 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   },
 
   groupsList: {
-    gap: 18,
+    gap: 16,
   },
   dateGroup: {
     gap: 10,

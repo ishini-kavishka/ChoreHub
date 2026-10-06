@@ -73,13 +73,16 @@ router.get('/progress', async (req, res, next) => {
 
 router.get('/completed', getCompletedChores);
 router.patch('/household', async (req, res, next) => {
+  let db;
   try {
     const { name } = req.body || {};
     if (typeof name !== 'string' || !name.trim() || name.trim().length > 100) return res.status(400).json({ message: 'Household name must contain 1–100 characters.' });
-    const result = await pool.query(`UPDATE families f SET name = $1 WHERE f.id = $2
+    db = await pool.connect(); await db.query('BEGIN');
+    const result = await db.query(`UPDATE families f SET name = $1 WHERE f.id = $2
       AND EXISTS (SELECT 1 FROM family_members fm WHERE fm.family_id = f.id AND fm.user_id = $3 AND fm.role = 'admin') RETURNING f.id, f.name`, [name.trim(), req.adminFamily.id, req.userId]);
-    if (!result.rows.length) return res.status(403).json({ message: 'Household admin membership is required.' });
-    res.json({ household: result.rows[0] });
-  } catch (error) { next(error); }
+    if (!result.rows.length) { await db.query('ROLLBACK'); return res.status(403).json({ message: 'Household admin membership is required.' }); }
+    if (req.adminFamily.name !== result.rows[0].name) await require('../services/notificationDeliveryService').notifyFamilyUpdate(db, req.adminFamily.id, req.userId, 'Family Update', `Household name changed to: ${result.rows[0].name}`);
+    await db.query('COMMIT'); res.json({ household: result.rows[0] });
+  } catch (error) { if(db) await db.query('ROLLBACK'); next(error); } finally { db?.release(); }
 });
 module.exports = router;

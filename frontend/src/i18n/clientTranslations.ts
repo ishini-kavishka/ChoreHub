@@ -1,6 +1,10 @@
 // Additional resources consumed by the existing app-wide translation dictionary.
 // English text is also used by the translation audit to identify interface literals.
 export const clientText = [
+  ['Reminder for: "{title}"', '"{title}" සඳහා මතක් කිරීම', '"{title}" க்கான நினைவூட்டல்'],
+  ['{person} joined the household.', '{person} නිවසට එක් විය.', '{person} குடும்பத்தில் இணைந்தார்.'],
+  ['{person} was added or updated in the household.', '{person} නිවසට එක් කරන ලදී හෝ යාවත්කාලීන කරන ලදී.', '{person} குடும்பத்தில் சேர்க்கப்பட்டார் அல்லது புதுப்பிக்கப்பட்டார்.'],
+  ['Household name changed to: {name}', 'නිවසේ නම වෙනස් විය: {name}', 'குடும்பப் பெயர் மாற்றப்பட்டது: {name}'],
   ['Information we collect', 'අප රැස් කරන තොරතුරු', 'நாங்கள் சேகரிக்கும் தகவல்கள்'],
   ['How we use it', 'අප ඒවා භාවිත කරන ආකාරය', 'அவற்றைப் பயன்படுத்தும் முறை'],
   ['Sharing within the app', 'යෙදුම තුළ බෙදා ගැනීම', 'செயலியில் பகிர்தல்'],
@@ -368,6 +372,10 @@ export function notificationDisplay(notification: { type: string; title: string;
   const titles: Record<string, string> = { chore_completed: 'Chore Completed', chore_assigned: 'New Chore Assigned', chore_reminder: 'Chore Reminder', weekly_progress: 'Weekly Progress Update', family_update: 'Family Update' };
   const title = notification.title === titles[notification.type] ? t(clientKey(notification.title)) : notification.title;
   const patterns: [string, RegExp, string, string[]][] = [
+    ['chore_reminder', /^Reminder for: "([\s\S]*)"$/, 'Reminder for: "{title}"', ['title']],
+    ['family_update', /^([\s\S]*) joined the household\.$/, '{person} joined the household.', ['person']],
+    ['family_update', /^([\s\S]*) was added or updated in the household\.$/, '{person} was added or updated in the household.', ['person']],
+    ['family_update', /^Household name changed to: ([\s\S]*)$/, 'Household name changed to: {name}', ['name']],
     ['chore_completed', /^"([\s\S]*)" has been marked as completed$/, '"{title}" has been marked as completed', ['title']],
     ['chore_completed', /^(.+) completed: (.+)$/, '{person} completed: {title}', ['person', 'title']],
     ['chore_assigned', /^You have been assigned to: "([\s\S]*)"$/, 'You have been assigned to: "{title}"', ['title']],

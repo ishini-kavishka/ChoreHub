@@ -1,6 +1,6 @@
 import { translateFeedback } from '@/i18n/translations';
 import React, { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, BackHandler, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, BackHandler, Modal, Platform, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
@@ -11,6 +11,8 @@ import { Announcement, Reminder, announcementService, reminderService } from '@/
 import { familyService } from '@/services/familyService';
 import { ApiError } from '@/services/api';
 import { useAppTheme } from '@/context/ThemeContext';
+import { reminderDeviceService } from '@/services/reminderDeviceService';
+import { reminderSnapshot } from '@/services/component04CrudService';
 
 type RecordItem = Reminder | Announcement;
 function localInput(value: string) {
@@ -28,7 +30,9 @@ export default function Component04CrudScreen({ kind, familyId, admin = false }:
   const { colors } = useAppTheme();
   const scroll = useRef<ScrollView>(null);
   const reveal = () => requestAnimationFrame(() => scroll.current?.scrollTo({ y: 0, animated: true }));
-  const [items, setItems] = useState<RecordItem[]>([]), [chores, setChores] = useState<{ id: string; title: string }[]>([]);
+  const [items, setItems] = useState<RecordItem[]>([]), [chores, setChores] = useState<{ id: string; title: string; due_date?: string | null }[]>([]);
+  const [vibrate, setVibrate] = useState(true), [quickMinutes, setQuickMinutes] = useState<number | null>(null);
+  const [picker, setPicker] = useState<'date' | 'time' | null>(null);
   const [family, setFamily] = useState(familyId || ''), [canManage, setCanManage] = useState(reminders);
   const [busy, setBusy] = useState(true), [saving, setSaving] = useState(false), lock = useRef(false);
   const [error, setError] = useState(''), [notice, setNotice] = useState(''), [noFamily, setNoFamily] = useState(false);
@@ -38,7 +42,9 @@ export default function Component04CrudScreen({ kind, familyId, admin = false }:
   const load = useCallback(async () => {
     setBusy(true); setError('');
     try {
-      if (reminders) { const [r, ch] = await Promise.all([reminderService.list(), reminderService.chores()]); setItems(r.reminders); setChores(ch.chores); }
+      if (reminders) { const [r, ch] = await Promise.all([reminderService.list(), reminderService.chores()]); setItems(r.reminders); setChores(ch.chores);
+        if (!admin && reminderDeviceService.supported()) await reminderDeviceService.reconcile(reminderSnapshot);
+      }
       else {
         const id = familyId || (await familyService.getMyFamily()).family?.id;
         setNoFamily(!id); if (!id) { setCanManage(false); return; }
@@ -46,7 +52,7 @@ export default function Component04CrudScreen({ kind, familyId, admin = false }:
       }
     } catch (e) { console.warn('Notification records load failed', e); setError(e instanceof ApiError && [401, 403].includes(e.status || 0) ? t('admin_denied') : t('crud_load_error')); }
     finally { setBusy(false); }
-  }, [reminders, familyId, t]);
+  }, [reminders, familyId, t, admin]);
   useFocusEffect(useCallback(() => { setEditor(null); setDetail(null); setDeleting(null); void load(); }, [load]));
   useFocusEffect(useCallback(() => {
     if (admin || !reminders) return;
@@ -72,16 +78,18 @@ export default function Component04CrudScreen({ kind, familyId, admin = false }:
     setTitle(item?.title || ''); setBody(item ? ('note' in item ? item.note : item.message) : '');
     setTime(item && 'remind_at' in item ? localInput(item.remind_at) : localInput(new Date(Date.now() + 3600000).toISOString()));
     setChore(item && 'chore_id' in item ? item.chore_id || '' : ''); setStatus(item?.status || 'draft');
+    setVibrate(item && 'vibrate' in item ? item.vibrate !== false : true); setQuickMinutes(null); setPicker(null);
     reveal();
   };
   const save = () => void action(async () => {
     if (!title.trim() || title.trim().length > 200 || body.trim().length > (reminders ? 2000 : 5000) || (!reminders && !body.trim()) || (reminders && !editor?.id && !chore)) throw new Error(t('crud_required'));
     if (reminders) {
     const iso = parseLocalTime(time); if (!iso) throw new Error(t('crud_future'));
-      await reminderService.save(editor?.id, { title, note: body, remind_at: iso, ...(!editor?.id ? { chore_id: chore } : {}) });
+      const result = await reminderService.save(editor?.id, { title, note: body, remind_at: iso, ...(!admin ? { vibrate } : {}), ...(!editor?.id ? { chore_id: chore } : {}) });
+      if (!admin) setNotice(`${t('crud_saved')} ${result?.device_status ? t(`reminder_device_${result.device_status}` as TranslationKey) : ''}`);
     } else await announcementService.save(family, editor?.id, { title, message: body, status });
     if (reminders && !admin) { setQuery(''); setFilter('all'); }
-    setEditor(null); setDetail(null); setNotice(t('crud_saved')); await load();
+    setEditor(null); setDetail(null); if (!reminders || admin) setNotice(t('crud_saved')); await load();
   });
   const date = (value: string) => new Date(value).toLocaleString(language);
   const labelStatus = (item: RecordItem) => t((`crud_${item.status}`) as TranslationKey);
@@ -100,6 +108,19 @@ export default function Component04CrudScreen({ kind, familyId, admin = false }:
     const field = (label: string, value: string, change: (value: string) => void, maxLength: number, placeholder = '', multiline = false) => <View style={{ gap: 7 }}>{text(label)}<TextInput accessibilityLabel={label} value={value} onChangeText={change} maxLength={maxLength} editable={!saving} multiline={multiline} placeholder={placeholder} placeholderTextColor={colors.textSecondary}
       style={[s.input, { backgroundColor: colors.inputBackground, color: colors.textPrimary, borderColor: colors.border, minHeight: multiline ? 96 : 48, textAlignVertical: multiline ? 'top' : 'center' }]} /></View>;
     const heading = t(editor ? editor.id ? 'reminder_edit' : 'reminder_add' : detail ? 'reminder_details' : 'my_reminders');
+    const chosen = chores.find(ch => ch.id === chore);
+    const due = chosen?.due_date;
+    const chooseChore = (id: string) => { setChore(id); setQuickMinutes(null); };
+    const chooseQuick = (minutes: number | null) => {
+      setQuickMinutes(minutes); if (minutes !== null && due) setTime(localInput(new Date(Date.parse(due) - minutes * 60_000).toISOString()));
+    };
+    const timeField = (mode: 'date' | 'time') => {
+      const label = `${t(mode === 'date' ? 'reminder_date' : 'reminder_time')} *`;
+      if (Platform?.OS !== 'android' && Platform?.OS !== 'ios') return field(label, mode === 'date' ? time.split(' ')[0] : time.split(' ')[1] || '', value => {
+        setQuickMinutes(null); setTime(mode === 'date' ? `${value} ${time.split(' ')[1] || ''}` : `${time.split(' ')[0]} ${value}`);
+      }, mode === 'date' ? 10 : 5, mode === 'date' ? 'YYYY-MM-DD' : 'HH:mm');
+      return <View style={{ gap: 7 }}>{text(label)}<Pressable accessibilityRole="button" accessibilityLabel={label} disabled={saving} onPress={() => setPicker(mode)} style={[s.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, minHeight: 48, justifyContent: 'center' }]}>{text(mode === 'date' ? time.split(' ')[0] : time.split(' ')[1])}</Pressable></View>;
+    };
     const clientBack = () => { if (editor || detail) { setEditor(null); setDetail(null); setError(''); reveal(); } else router.navigate('/home/notifications'); };
     const showDetails = (item: Reminder) => void action(async () => { setDetail((await reminderService.get(item.id)).reminder); setEditor(null); reveal(); });
     const editReminder = (item: Reminder) => void action(async () => openEditor((await reminderService.get(item.id)).reminder));
@@ -118,7 +139,7 @@ export default function Component04CrudScreen({ kind, familyId, admin = false }:
         <View style={{ flex: 1 }}>{text(heading, false, true)}</View>
         {!editor && !detail && <Pressable accessibilityRole="button" accessibilityLabel={t('crud_retry')} disabled={saving || busy} style={s.icon} onPress={() => void load()}><Ionicons name="refresh-outline" size={22} color={colors.primary}/></Pressable>}
       </View>
-      <ScrollView ref={scroll} keyboardShouldPersistTaps="handled" contentContainerStyle={s.body}>
+      <ScrollView ref={scroll} keyboardShouldPersistTaps="handled" contentContainerStyle={[s.body, { maxWidth: 560, padding: 16, gap: 12 }]}>
         {!!error && <Text accessibilityRole="alert" style={{ color: c.error, lineHeight: 22 }}>{translateFeedback(error, t)}</Text>}
         {!!notice && text(notice)}
         {busy && <ActivityIndicator color={colors.primary}/>}
@@ -128,14 +149,21 @@ export default function Component04CrudScreen({ kind, familyId, admin = false }:
           {text(`${t('reminder_chore')} *`)}
           {editor.id ? text(chores.find(ch => ch.id === chore)?.title || (items.find(item => item.id === editor.id) as Reminder | undefined)?.chore_name || t('crud_unavailable')) : <>
             {!chores.length && text(t('crud_no_chores'), true)}
-            {chores.map(ch => <Pressable key={ch.id} accessibilityRole="radio" accessibilityLabel={ch.title} accessibilityState={{ checked: chore === ch.id, disabled: saving }} disabled={saving} onPress={() => setChore(ch.id)}
+            {chores.map(ch => <Pressable key={ch.id} accessibilityRole="radio" accessibilityLabel={ch.title} accessibilityState={{ checked: chore === ch.id, disabled: saving }} disabled={saving} onPress={() => chooseChore(ch.id)}
               style={[s.action, { borderWidth: 1, borderColor: chore === ch.id ? colors.primary : colors.border, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 10 }]}>
               <Ionicons name={chore === ch.id ? 'radio-button-on' : 'radio-button-off'} color={colors.primary} size={20}/><View style={{ flex: 1 }}>{text(ch.title)}</View>
             </Pressable>)}
           </>}
-          {field(`${t('reminder_date')} *`, time.split(' ')[0], value => setTime(`${value} ${time.split(' ')[1] || ''}`), 10, 'YYYY-MM-DD')}
-          {field(`${t('reminder_time')} *`, time.split(' ')[1] || '', value => setTime(`${time.split(' ')[0]} ${value}`), 5, 'HH:mm')}
+          {!!due && <>{text(`${t('reminder_due')}: ${date(due)}`, true)}
+            {text(t('reminder_before'))}<View style={s.wrap}>{[5, 10, 15, 30, 60, null].map(minutes => <Pressable key={String(minutes)} accessibilityRole="radio" accessibilityLabel={t(minutes === null ? 'reminder_custom' : `reminder_before_${minutes}` as TranslationKey)} accessibilityState={{ selected: quickMinutes === minutes, disabled: saving }} disabled={saving} onPress={() => chooseQuick(minutes)} style={[s.action, { backgroundColor: quickMinutes === minutes ? colors.primary : colors.surface }]}><Text style={{ color: quickMinutes === minutes ? '#fff' : colors.primary }}>{t(minutes === null ? 'reminder_custom' : `reminder_before_${minutes}` as TranslationKey)}</Text></Pressable>)}</View>
+          </>}
+          {timeField('date')}{timeField('time')}
+          {picker && React.createElement(require('@react-native-community/datetimepicker').default, {
+            value: new Date(parseLocalTime(time) || new Date(Date.now() + 60_000).toISOString()), mode: picker,
+            onChange: (event: { type: string }, value?: Date) => { setPicker(null); if (event.type !== 'dismissed' && value) { setTime(localInput(value.toISOString())); setQuickMinutes(null); } },
+          })}
           {text(t('reminder_local_time'), true)}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>{text(t('reminder_vibrate'))}<Switch accessibilityLabel={t('reminder_vibrate')} value={vibrate} disabled={saving} onValueChange={setVibrate} trackColor={{ true: colors.primary }} /></View>
           {button(t(saving ? 'crud_saving' : editor.id ? 'reminder_save_changes' : 'reminder_create'), save, true, saving || (!editor.id && !chores.length))}
           {button(t('crud_cancel'), clientBack)}
         </>) : detail && 'remind_at' in detail ? card(<>
@@ -148,7 +176,7 @@ export default function Component04CrudScreen({ kind, familyId, admin = false }:
           {detail.status !== 'pending' && text(t('reminder_read_only'), true)}
           {recordActions(detail, false)}
         </>) : <>
-          {card(<><Ionicons name="alarm-outline" size={28} color={colors.primary}/>{text(t('reminder_intro'), false, true)}{text(t('reminder_intro_body'), true)}{text(t('crud_delivery'), true)}</>)}
+          {card(<><Ionicons name="alarm-outline" size={28} color={colors.primary}/>{text(t('reminder_intro'), false, true)}{text(t('reminder_intro_body'), true)}{text(t('reminder_device_delivery'), true)}</>)}
           {button(`+ ${t('reminder_add')}`, () => openEditor(), true, saving || busy)}
           {items.length > 0 && <>
             {field(t('crud_search'), query, setQuery, 200)}

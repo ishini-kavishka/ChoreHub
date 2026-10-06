@@ -1,7 +1,10 @@
+import { useAppAlert } from '@/components/ui/AppDialog';
+import { useLanguage } from '@/context/LanguageContext';
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
+
   Modal,
   Pressable,
   ScrollView,
@@ -19,6 +22,10 @@ import { supportTicketService, SupportTicket } from '@/services/supportTicketSer
 type FilterType = 'all' | 'open' | 'in_progress' | 'resolved';
 
 export default function AdminTicketsScreen() {
+  const alert = useAppAlert();
+  const { t, language } = useLanguage();
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterType>('all');
@@ -64,11 +71,11 @@ export default function AdminTicketsScreen() {
         status,
         adminNotes.trim() || undefined
       );
-      Alert.alert('Status Updated', `Ticket #${selectedTicket.ticketNumber} marked as ${status.replace('_', ' ')}.`);
+      alert(t('ag_status_updated'), {key: 'ag_ticket_updated', values: {number: selectedTicket.ticketNumber, status: {translationKey: 'ui_' + status}}});
       setSelectedTicket(null);
       loadTickets();
     } catch {
-      Alert.alert('Error', 'Could not update ticket.');
+      alert(t('error'), t('ag_ticket_update_failed'));
     } finally {
       setUpdating(false);
     }
@@ -78,7 +85,7 @@ export default function AdminTicketsScreen() {
     if (!selectedTicket) return;
     const reply = adminNotes.trim();
     if (!reply) {
-      Alert.alert('Reply Required', 'Enter a reply before sending it to the user.');
+      alert(t('ag_reply_required'), t('ag_enter_reply'));
       return;
     }
 
@@ -97,27 +104,27 @@ export default function AdminTicketsScreen() {
       setSelectedTicket(null);
       await loadTickets();
     } catch {
-      Alert.alert('Error', 'Could not send reply. Please try again.');
+      alert(t('error'), t('ag_reply_failed'));
     } finally {
       setUpdating(false);
     }
   };
 
   const handleDeleteTicket = async (ticket: SupportTicket) => {
-    Alert.alert('Delete ticket', `Remove ${ticket.ticketNumber} for ${ticket.userName}? This cannot be undone.`, [
-      { text: 'Cancel', style: 'cancel' },
+    alert(t('ui_delete_ticket'), {key: 'ag_ticket_delete_confirm', values: {number: ticket.ticketNumber, name: ticket.userName}}, [
+      { text: t('cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('delete'),
         style: 'destructive',
         onPress: async () => {
           setUpdating(true);
           try {
             await supportTicketService.deleteTicket(ticket.id);
-            Alert.alert('Ticket Deleted', `${ticket.ticketNumber} has been removed.`);
+            alert(t('ui_ticket_deleted'), {key: 'ag_ticket_removed', values: {number: ticket.ticketNumber}});
             setSelectedTicket(null);
             loadTickets();
           } catch {
-            Alert.alert('Error', 'Could not delete ticket.');
+            alert(t('error'), t('ag_ticket_delete_failed'));
           } finally {
             setUpdating(false);
           }
@@ -131,19 +138,19 @@ export default function AdminTicketsScreen() {
       case 'open':
         return (
           <View style={[styles.badge, styles.badgeOpen]}>
-            <Text style={[styles.badgeText, styles.badgeTextOpen]}>Open</Text>
+            <Text style={[styles.badgeText, styles.badgeTextOpen]}>{t('ui_open')}</Text>
           </View>
         );
       case 'in_progress':
         return (
           <View style={[styles.badge, styles.badgeInProgress]}>
-            <Text style={[styles.badgeText, styles.badgeTextInProgress]}>In Progress</Text>
+            <Text style={[styles.badgeText, styles.badgeTextInProgress]}>{t('ui_in_progress')}</Text>
           </View>
         );
       case 'resolved':
         return (
           <View style={[styles.badge, styles.badgeResolved]}>
-            <Text style={[styles.badgeText, styles.badgeTextResolved]}>Resolved</Text>
+            <Text style={[styles.badgeText, styles.badgeTextResolved]}>{t('ui_resolved')}</Text>
           </View>
         );
     }
@@ -157,11 +164,11 @@ export default function AdminTicketsScreen() {
           onPress={() => router.canGoBack() ? router.back() : router.replace('/support' as any)}
           style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t('admin_back')}
         >
-          <Ionicons name="chevron-back" size={24} color="#1E1B2E" />
+          <Ionicons name="chevron-back" size={24} color={themeColors.isDark ? themeColors.textPrimary : "#1E1B2E"} />
         </Pressable>
-        <Text style={styles.headerTitle}>Manage Support Tickets</Text>
+        <Text style={styles.headerTitle}>{t('ag_manage_tickets')}</Text>
         <View style={styles.placeholderBtn} />
       </View>
 
@@ -170,10 +177,10 @@ export default function AdminTicketsScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
           {(
             [
-              { id: 'all', label: `All (${tickets.length})` },
-              { id: 'open', label: `Open (${tickets.filter((t) => t.status === 'open').length})` },
-              { id: 'in_progress', label: `In Progress (${tickets.filter((t) => t.status === 'in_progress').length})` },
-              { id: 'resolved', label: `Resolved (${tickets.filter((t) => t.status === 'resolved').length})` },
+              { id: 'all', label: `${t('filter_all')} (${tickets.length})` },
+              { id: 'open', label: `${t('ui_open')} (${tickets.filter((t) => t.status === 'open').length})` },
+              { id: 'in_progress', label: `${t('ui_in_progress')} (${tickets.filter((t) => t.status === 'in_progress').length})` },
+              { id: 'resolved', label: `${t('ui_resolved')} (${tickets.filter((t) => t.status === 'resolved').length})` },
             ] as const
           ).map((item) => {
             const isSelected = filter === item.id;
@@ -200,8 +207,8 @@ export default function AdminTicketsScreen() {
         ) : filteredTickets.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="checkmark-circle-outline" size={48} color="#10B981" />
-            <Text style={styles.emptyTitle}>No tickets in this view</Text>
-            <Text style={styles.emptySub}>All customer requests for this filter are clear.</Text>
+            <Text style={styles.emptyTitle}>{t('ag_no_tickets')}</Text>
+            <Text style={styles.emptySub}>{t('ag_tickets_clear')}</Text>
           </View>
         ) : (
           <View style={styles.ticketList}>
@@ -227,7 +234,7 @@ export default function AdminTicketsScreen() {
                 </Text>
 
                 <View style={styles.ticketUserInfo}>
-                  <Ionicons name="person-outline" size={13} color="#656276" />
+                  <Ionicons name="person-outline" size={13} color={themeColors.isDark ? themeColors.textSecondary : "#656276"} />
                   <Text style={styles.ticketUserText}>
                     {ticket.userName} ({ticket.userEmail})
                   </Text>
@@ -236,7 +243,7 @@ export default function AdminTicketsScreen() {
                 {ticket.adminNotes && (
                   <View style={styles.replyBox}>
                     <Text style={styles.replyText}>
-                      <Text style={{ fontWeight: '700' }}>Admin Note: </Text>
+                      <Text style={{ fontWeight: '700' }}>{t('ag_admin_note')}</Text>
                       {ticket.adminNotes}
                     </Text>
                   </View>
@@ -244,9 +251,9 @@ export default function AdminTicketsScreen() {
 
                 <View style={styles.cardFooter}>
                   <Text style={styles.dateText}>
-                    {new Date(ticket.createdAt).toLocaleDateString()}
+                    {new Date(ticket.createdAt).toLocaleDateString(language)}
                   </Text>
-                  <Text style={styles.actionPrompt}>Tap to manage ›</Text>
+                  <Text style={styles.actionPrompt}>{t('ag_tap_manage')}</Text>
                 </View>
               </Pressable>
             ))}
@@ -265,25 +272,25 @@ export default function AdminTicketsScreen() {
                   <Text style={styles.modalSubject}>{selectedTicket.subject}</Text>
                 </View>
                 <Pressable onPress={() => setSelectedTicket(null)}>
-                  <Ionicons name="close-circle" size={26} color="#8A879A" />
+                  <Ionicons name="close-circle" size={26} color={themeColors.isDark ? themeColors.textSecondary : "#8A879A"} />
                 </Pressable>
               </View>
 
               <ScrollView style={{ maxHeight: 220, marginVertical: 10 }}>
-                <Text style={styles.modalLabel}>Customer Issue:</Text>
+                <Text style={styles.modalLabel}>{t('ag_customer_issue')}</Text>
                 <Text style={styles.modalDesc}>{selectedTicket.description}</Text>
 
-                <Text style={[styles.modalLabel, { marginTop: 12 }]}>From:</Text>
+                <Text style={[styles.modalLabel, { marginTop: 12 }]}>{t('ag_from')}</Text>
                 <Text style={styles.modalDesc}>
                   {selectedTicket.userName} &lt;{selectedTicket.userEmail}&gt;
                 </Text>
 
-                <Text style={[styles.modalLabel, { marginTop: 12 }]}>Reply to Support Request:</Text>
+                <Text style={[styles.modalLabel, { marginTop: 12 }]}>{t('ag_reply_request')}</Text>
                 <TextInput
                   value={adminNotes}
                   onChangeText={setAdminNotes}
-                  placeholder="Write a reply to the user..."
-                  placeholderTextColor="#9EA5B1"
+                  placeholder={t('ag_write_reply')}
+                  placeholderTextColor={themeColors.isDark ? themeColors.textSecondary : "#9EA5B1"}
                   multiline
                   style={styles.modalInput}
                 />
@@ -294,41 +301,41 @@ export default function AdminTicketsScreen() {
                 disabled={updating}
                 style={[styles.replyButton, updating && { opacity: 0.65 }]}
               >
-                <Text style={styles.replyButtonText}>{updating ? 'Sending...' : 'Send Reply'}</Text>
+                <Text style={styles.replyButtonText}>{updating ? t('ag_sending') : t('ag_send_reply')}</Text>
               </Pressable>
 
-              <Text style={styles.modalLabel}>Update Status:</Text>
+              <Text style={styles.modalLabel}>{t('ag_update_status')}</Text>
               <View style={styles.modalBtnRow}>
                 <Pressable
                   onPress={() => handleUpdateStatus('in_progress')}
                   disabled={updating}
-                  style={[styles.statusBtn, { backgroundColor: '#EDE9FE' }]}
+                  style={[styles.statusBtn, { backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE') }]}
                 >
-                  <Text style={[styles.statusBtnText, { color: '#6C3BEA' }]}>In Progress</Text>
+                  <Text style={[styles.statusBtnText, { color: '#6C3BEA' }]}>{t('ui_in_progress')}</Text>
                 </Pressable>
 
                 <Pressable
                   onPress={() => handleUpdateStatus('resolved')}
                   disabled={updating}
-                  style={[styles.statusBtn, { backgroundColor: '#D1FAE5' }]}
+                  style={[styles.statusBtn, { backgroundColor: (themeColors.isDark ? themeColors.surface : '#D1FAE5') }]}
                 >
-                  <Text style={[styles.statusBtnText, { color: '#059669' }]}>Resolve</Text>
+                  <Text style={[styles.statusBtnText, { color: '#059669' }]}>{t('ag_resolve')}</Text>
                 </Pressable>
 
                 <Pressable
                   onPress={() => handleUpdateStatus('open')}
                   disabled={updating}
-                  style={[styles.statusBtn, { backgroundColor: '#FEF3C7' }]}
+                  style={[styles.statusBtn, { backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEF3C7') }]}
                 >
-                  <Text style={[styles.statusBtnText, { color: '#D97706' }]}>Re-Open</Text>
+                  <Text style={[styles.statusBtnText, { color: '#D97706' }]}>{t('ag_reopen')}</Text>
                 </Pressable>
 
                 <Pressable
                   onPress={() => handleDeleteTicket(selectedTicket)}
                   disabled={updating}
-                  style={[styles.statusBtn, { backgroundColor: '#FEE2E2' }]}
+                  style={[styles.statusBtn, { backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEE2E2') }]}
                 >
-                  <Text style={[styles.statusBtnText, { color: '#B91C1C' }]}>Delete</Text>
+                  <Text style={[styles.statusBtnText, { color: '#B91C1C' }]}>{t('delete')}</Text>
                 </Pressable>
               </View>
             </View>
@@ -342,10 +349,10 @@ export default function AdminTicketsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#FAFAFD'),
   },
   header: {
     flexDirection: 'row',
@@ -354,8 +361,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0EEF8',
-    backgroundColor: '#FFFFFF',
+    borderBottomColor: (themeColors.isDark ? themeColors.border : '#F0EEF8'),
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
   },
   backBtn: {
     width: 36,
@@ -370,12 +377,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   filterBar: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderBottomWidth: 1,
-    borderBottomColor: '#EAE7F5',
+    borderBottomColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
   },
   filterScroll: {
     flexDirection: 'row',
@@ -392,12 +399,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#6C3BEA',
   },
   filterPillInactive: {
-    backgroundColor: '#F4F2FA',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F4F2FA'),
   },
   filterPillText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
   },
   filterPillTextActive: {
     color: '#FFFFFF',
@@ -419,21 +426,21 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   emptySub: {
     fontSize: 13,
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
   },
   ticketList: {
     gap: 12,
   },
   ticketCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#6C3BEA',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -457,7 +464,7 @@ const styles = StyleSheet.create({
     color: '#6C3BEA',
   },
   categoryPill: {
-    backgroundColor: '#F4F2FA',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F4F2FA'),
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
@@ -465,7 +472,7 @@ const styles = StyleSheet.create({
   categoryPillText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
   },
   badge: {
     paddingHorizontal: 8,
@@ -477,7 +484,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   badgeOpen: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEF3C7'),
   },
   badgeTextOpen: {
     color: '#D97706',
@@ -485,7 +492,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   badgeInProgress: {
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE'),
   },
   badgeTextInProgress: {
     color: '#6C3BEA',
@@ -493,21 +500,21 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   badgeResolved: {
-    backgroundColor: '#D1FAE5',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#D1FAE5'),
   },
   badgeTextResolved: {
-    color: '#059669',
+    color: (themeColors.isDark ? themeColors.success : '#059669'),
     fontSize: 10,
     fontWeight: '800',
   },
   ticketSubject: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   ticketDesc: {
     fontSize: 12,
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
     lineHeight: 16,
   },
   ticketUserInfo: {
@@ -518,10 +525,10 @@ const styles = StyleSheet.create({
   },
   ticketUserText: {
     fontSize: 11,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
   },
   replyBox: {
-    backgroundColor: '#F6F3FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F6F3FE'),
     padding: 8,
     borderRadius: 8,
     marginTop: 4,
@@ -535,13 +542,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderTopWidth: 1,
-    borderTopColor: '#F4F2FA',
+    borderTopColor: (themeColors.isDark ? themeColors.border : '#F4F2FA'),
     paddingTop: 8,
     marginTop: 4,
   },
   dateText: {
     fontSize: 11,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
   },
   actionPrompt: {
     fontSize: 12,
@@ -554,7 +561,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 20,
@@ -565,7 +572,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     borderBottomWidth: 1,
-    borderBottomColor: '#F0EEF8',
+    borderBottomColor: (themeColors.isDark ? themeColors.border : '#F0EEF8'),
     paddingBottom: 12,
   },
   modalTicketNum: {
@@ -576,28 +583,28 @@ const styles = StyleSheet.create({
   modalSubject: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     marginTop: 2,
   },
   modalLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#4B485A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#4B485A'),
     marginBottom: 4,
   },
   modalDesc: {
     fontSize: 13,
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
     lineHeight: 18,
   },
   modalInput: {
-    backgroundColor: '#F7F6FC',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#F7F6FC'),
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     borderRadius: 12,
     padding: 10,
     fontSize: 13,
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     minHeight: 65,
     marginTop: 4,
   },

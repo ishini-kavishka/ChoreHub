@@ -79,7 +79,7 @@ export function MemberTabBar({ state, descriptors, navigation }: BottomTabBarPro
           const activeColor = colors.primary;
           const inactiveColor = colors.textSecondary;
           const currentColor = isFocused ? activeColor : inactiveColor;
-          const iconName = isFocused ? tabConfig.activeIcon : tabConfig.inactiveIcon;
+          const iconName = tabConfig.inactiveIcon;
 
           return (
             <Pressable
@@ -114,10 +114,10 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     paddingTop: 8,
-    elevation: 8,
+    elevation: 2,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.02,
     shadowRadius: 6,
   },
   tabItem: {
@@ -125,7 +125,8 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    paddingVertical: 2,
+    paddingVertical: 4,
+    minHeight: 44,
   },
   tabPressed: {
     opacity: 0.7,

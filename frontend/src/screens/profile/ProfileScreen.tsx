@@ -95,7 +95,7 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, segments[0] !== 'admin' && { width: '100%', maxWidth: 560, alignSelf: 'center', paddingHorizontal: 16, gap: 16 }]}
         showsVerticalScrollIndicator={false}
       >
         {/* ── Header Bar ── */}

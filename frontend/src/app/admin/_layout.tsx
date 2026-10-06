@@ -1,8 +1,10 @@
+import { useLanguage } from '@/context/LanguageContext';
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { AdminTabBar } from '@/components/navigation/AdminTabBar';
 
 export default function AdminLayout() {
+  const { t } = useLanguage();
   return (
     <Tabs
       tabBar={(props: any) => <AdminTabBar {...props} />}
@@ -10,12 +12,12 @@ export default function AdminLayout() {
         headerShown: false,
       }}
     >
-      <Tabs.Screen name="dashboard" options={{ title: 'Home' }} />
-      <Tabs.Screen name="progress" options={{ title: 'Progress' }} />
-      <Tabs.Screen name="notifications" options={{ title: 'Notifications' }} />
-      <Tabs.Screen name="chores" options={{ title: 'Chores' }} />
-      <Tabs.Screen name="members" options={{ title: 'Members' }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
+      <Tabs.Screen name="dashboard" options={{ title: t('home') }} />
+      <Tabs.Screen name="progress" options={{ title: t('progress_title') }} />
+      <Tabs.Screen name="notifications" options={{ title: t('notifications_title') }} />
+      <Tabs.Screen name="chores" options={{ title: t('chores') }} />
+      <Tabs.Screen name="members" options={{ title: t('admin_members') }} />
+      <Tabs.Screen name="profile" options={{ title: t('profile_title') }} />
       <Tabs.Screen name="add-chore" options={{ href: null }} />
       <Tabs.Screen name="edit-chore" options={{ href: null }} />
       <Tabs.Screen name="chore-details" options={{ href: null }} />

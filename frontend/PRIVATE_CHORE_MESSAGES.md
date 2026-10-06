@@ -1,5 +1,53 @@
 # Private Client → Admin Chore Messages
 
+## Current Message Admin completion check (2026-10-06)
+
+The existing modal and real API are retained. This change modifies these existing files only:
+
+- `backend/src/controllers/notificationController.js`: require the assigning Admin to belong to the sender's household, validate fallback recipients' Admin role, and reject raw message input over 500 characters before trimming.
+- `backend/test/privateChoreMessages.postgres.test.js`: verify the assigned-chore dropdown API, whitespace/length validation, and routing away from an unrelated stale creator to the actual household Admin.
+- `backend/test/privateChoreMessageFailure.test.js`: keep transaction rollback coverage aligned with the authorization query.
+- `frontend/src/components/notifications/PrivateChoreMessageForm.tsx`: clamp edited input to 500 characters and guard Send while chores load. The existing layout and colors are unchanged.
+- `frontend/src/i18n/privateMessageTranslations.ts`: English success confirmation now reads “Message sent to Admin successfully.”
+- `frontend/scripts/test-private-chore-messages.cjs`: verify editing, the live 500/500 counter, missing selection, retry and duplicate-click protection.
+- `frontend/PRIVATE_CHORE_MESSAGES.md`: this report.
+
+No new files, database columns, tables, migrations or API endpoints were added in this change. Household context is resolved through the existing Chore/family membership relationships. The existing notification stores its recipient, sender, Chore, message, type, timestamp and read state. No frontend-supplied sender or recipient identity is trusted.
+
+Send uses `POST /api/notifications/chore-messages`; choices use `GET /api/chores/my-chores`. Admin inbox, read state and badge use the existing `GET /api/notifications`, `PATCH /api/notifications/:id/read`, and `GET /api/notifications/unread-count`. Existing Admin focus refresh and 30-second polling continue to load messages.
+
+Run in two PowerShell terminals from the project root:
+
+```powershell
+cd backend
+npm.cmd run dev
+```
+
+```powershell
+cd frontend
+npx.cmd expo start --web
+```
+
+Run checks from their respective directories:
+
+```powershell
+# backend: configured PostgreSQL connection required
+$env:RUN_DATABASE_TESTS='1'
+node --test test/privateChoreMessages.postgres.test.js
+node --test test/privateChoreMessageFailure.test.js
+```
+
+```powershell
+# frontend
+node --test scripts/test-private-chore-messages.cjs scripts/test-message-admin-request.cjs scripts/test-admin-notifications.cjs
+npx.cmd tsc --noEmit
+npx.cmd expo export --platform web
+```
+
+The real authenticated HTTP/PostgreSQL flow passed, including member login, authorized recipient routing, persisted unread message, fresh-login read persistence, isolation from other members/Admins and unchanged Chores. Six frontend tests and the rollback test passed; TypeScript and the 59-route Expo web export passed. The running member/Admin Notifications routes returned HTTP 200. Automated component tests verify form interaction; this is not a claim of manual browser/device clicks.
+
+The initial database test was blocked by sandbox network access (`EACCES`); it passed after approved network access. React test-renderer deprecation, PostgreSQL SSL compatibility and build color warnings were non-fatal. Deliberate negative tests log expected authorization/validation/database failures. Self-owned chores with no separate authorized Admin still return `409 ADMIN_UNAVAILABLE`; the feature never chooses an unrelated user to manufacture a recipient.
+
 The existing client Notifications screen now has a small **Message Admin** chip. The modal selects a Chore from the existing authenticated **My Chores** API and accepts a required message of up to 500 characters. A linked assignment notification can preselect its Chore. Send calls the real API; only a successful response closes the form and displays “Message sent to Admin”. Failed sends retain the text, and repeated taps are guarded.
 
 The existing Admin Notifications screen displays **Client Message**, the real sender name, related Chore title, its current assigned date/time when scheduled, the original message, and the database sent date/time in the current locale. Opening the card marks it read using the existing API. The trash action asks **Delete message?**, supports Cancel, and removes the notification only after successful persistent deletion. Counts update from the remaining data. Failed deletion retains the card and confirmation for retry.

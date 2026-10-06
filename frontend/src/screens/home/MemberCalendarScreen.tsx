@@ -327,10 +327,11 @@ export default function MemberCalendarScreen() {
 const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: (themeColors.isDark ? themeColors.background : '#FAFAFD') },
   scrollContent: {
-    paddingHorizontal: 20,
+    width: '100%', maxWidth: 560, alignSelf: 'center',
+    paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 36,
-    gap: 18,
+    gap: 16,
   },
   header: { gap: 4 },
   headerTopRow: {
@@ -339,7 +340,7 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerTitle: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: '900',
     color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     letterSpacing: -0.4,
@@ -363,7 +364,7 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   // Month Calendar
   calendarCard: {
     backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
-    borderRadius: 22,
+    borderRadius: 16,
     padding: 16,
     borderWidth: 1,
     borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),

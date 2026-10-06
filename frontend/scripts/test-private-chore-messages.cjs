@@ -29,6 +29,10 @@ test('simple form uses own Chores, validates, retains failed input, prevents dou
     assert.equal(r.root.findByType('input').props.maxLength,500);
     assert.equal(r.root.findByType('scroll').props.style.backgroundColor,colors.card);
     await press(r,'pm_send');assert.equal(calls.filter(c=>c[0]==='send').length,0);
+    await act(async()=>r.root.findByType('input').props.onChangeText('x'.repeat(501)));
+    assert.equal(r.root.findByType('input').props.value.length,500);
+    assert.ok(r.root.findAllByType('text').some(n=>n.children.join('')==='500/500'));
+    await act(async()=>r.root.findByType('input').props.onChangeText('Original draft to edit'));
     await act(async()=>r.root.findByType('input').props.onChangeText(' I cannot do 6 PM. Can I do 8 PM? '));
     failSend=true;await press(r,'pm_send');assert.equal(closed,0);assert.equal(sent,0);assert.ok(r.root.findByType('input').props.value.includes('6 PM'));
     assert.ok(r.root.findAllByType('text').some(n=>n.children.join('').includes(translations.en.pm_send_error)));
@@ -52,6 +56,9 @@ test('empty selection, load retry, cancellation and all supported translations p
       failLoad=true;await act(async()=>{r=create(React.createElement(Form,{visible:true,initialChoreId:'foreign',onClose:()=>closed++,onSent:()=>assert.fail('Must not send')}));});
       assert.ok(button(r,'crud_retry'));failLoad=false;await press(r,'crud_retry');
       assert.ok(button(r,'pm_select_chore'));await press(r,'pm_select_chore');
+      const sends=calls.filter(c=>c[0]==='send').length;
+      await act(async()=>r.root.findByType('input').props.onChangeText('No chore selected'));
+      await press(r,'pm_send');assert.equal(calls.filter(c=>c[0]==='send').length,sends);
       assert.equal(r.root.findAllByType('button').filter(n=>n.children.some(child=>typeof child!=='string'&&child.type==='text'&&child.children.includes('Clean Kitchen'))).length,1);
       await press(r,'cancel');assert.equal(closed,1);
       assert.equal(r.root.findAllByType('input').length,1,'No requested-date/time or approval fields');

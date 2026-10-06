@@ -7,7 +7,7 @@ export const privateMessageTranslations = {
     "pm_select_chore": "Select your assigned Chore",
     "pm_message": "Message (maximum 500 characters)",
     "pm_send": "Send",
-    "pm_sent": "Message sent to Admin",
+    "pm_sent": "Message sent to Admin successfully.",
     "pm_client_message": "Client Message",
     "pm_from": "From",
     "pm_chore": "Chore",

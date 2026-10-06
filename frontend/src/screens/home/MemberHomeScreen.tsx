@@ -1,6 +1,9 @@
+import { notificationService, type AppNotification } from '@/services/notificationService';
+import { subscribeSession } from '@/services/authStorage';
+import { notificationDisplay } from '@/i18n/clientTranslations';
 import { useAppAlert } from '@/components/ui/AppDialog';
 import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,11 +20,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '@/components/profile/Avatar';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { NotificationPanel } from '@/components/notifications/NotificationPanel';
 import { authService, Member } from '@/services/authService';
 import { profileService } from '@/services/profileService';
 import { choreService, ChoreItem, ChoreStats } from '@/services/choreService';
-import { notificationService } from '@/services/notificationService';
+import { NotificationBell, refreshMemberUnread } from '@/components/notifications/NotificationBell';
 
 export default function MemberHomeScreen() {
   const alert = useAppAlert();
@@ -37,9 +39,9 @@ export default function MemberHomeScreen() {
     total: 0,
     completionPercentage: 0,
   });
+  const [recentNotifications, setRecentNotifications] = useState<AppNotification[]>([]);
+  const [notificationError, setNotificationError] = useState(false);
   const [chores, setChores] = useState<ChoreItem[]>([]);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -64,12 +66,6 @@ export default function MemberHomeScreen() {
         setChores(memberRes.chores);
       }
 
-      try {
-        const unreadCount = await notificationService.getUnreadCount();
-        setUnreadNotifsCount(unreadCount);
-      } catch {
-        // Fallback
-      }
     } catch {
       // Soft fail
     } finally {
@@ -84,8 +80,16 @@ export default function MemberHomeScreen() {
     }, [loadData])
   );
 
+  const loadRecent = useCallback(async () => {
+    try { const notices = await notificationService.getNotifications('all', true); setRecentNotifications(notices.slice(0, 3)); setNotificationError(false); }
+    catch { setNotificationError(true); }
+  }, []);
+  useFocusEffect(useCallback(() => { void loadRecent(); }, [loadRecent]));
+  useEffect(() => subscribeSession(() => setRecentNotifications([])), []);
   const onRefresh = () => {
+    void loadRecent();
     setRefreshing(true);
+    void refreshMemberUnread(true);
     loadData();
   };
 
@@ -217,26 +221,7 @@ export default function MemberHomeScreen() {
           {/* Right Header Controls */}
           <View style={styles.headerRight}>
             {/* Notification Bell */}
-            <Pressable
-              style={({ pressed }) => [
-                styles.bellBtn,
-                { backgroundColor: colors.card, borderColor: colors.border },
-                pressed && { opacity: 0.7 },
-              ]}
-              onPress={() => setShowNotifications(true)}
-              accessibilityLabel={t('ui_open_notifications')}
-            >
-              <Ionicons name="notifications-outline" size={24} color={colors.textPrimary} />
-              {unreadNotifsCount > 0 ? (
-                <View style={styles.bellBadgeDot}>
-                  <Text style={styles.bellBadgeText}>
-                    {unreadNotifsCount > 9 ? '9+' : unreadNotifsCount}
-                  </Text>
-                </View>
-              ) : (
-                <View style={styles.bellBadgeDot} />
-              )}
-            </Pressable>
+            <NotificationBell returnTo="/home"/>
 
             {/* Avatar Badge */}
             <Pressable
@@ -276,7 +261,7 @@ export default function MemberHomeScreen() {
             <Text style={styles.progressCardTitle}>{t('my_progress')}</Text>
           <Pressable onPress={() => router.push('/home/progress' as any)} style={styles.viewLinkRow}>
               <Text style={styles.viewLinkText}>{t('view')}</Text>
-              <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
+              <Ionicons name="chevron-forward" size={14} color={themeColors.primary} />
             </Pressable>
           </View>
 
@@ -300,7 +285,7 @@ export default function MemberHomeScreen() {
                 {stats.completed} / {stats.total} {t('chores_completed_this_week')}
               </Text>
               <View style={styles.chartIconBadge}>
-                <Ionicons name="bar-chart" size={20} color="#FFFFFF" />
+                <Ionicons name="bar-chart" size={20} color={themeColors.primary} />
               </View>
             </View>
           </View>
@@ -452,32 +437,23 @@ export default function MemberHomeScreen() {
             </Pressable>
           </View>
 
-          <View style={styles.notificationCard}>
-            <View style={styles.notifLeftBorder} />
-            <View style={styles.notifIconWrap}>
-              <Ionicons name="notifications" size={20} color="#EF4444" />
-            </View>
-            <View style={styles.notifContent}>
-              <View style={styles.notifTitleRow}>
-                <Text style={styles.notifTitle}>{t('chore_due_today')}</Text>
-                <Text style={styles.notifTime}>{t('ui_two_hours_ago')}</Text>
+          {recentNotifications.map(notice => {
+            const display = notificationDisplay(notice, t);
+            return <Pressable key={notice.id} accessibilityRole="button" onPress={() => router.push({ pathname: '/home/notifications', params: { returnTo: '/home' } })} style={styles.notificationCard}>
+              <View style={styles.notifLeftBorder}/>
+              <View style={styles.notifIconWrap}><Ionicons name="notifications-outline" size={20} color={colors.primary}/></View>
+              <View style={styles.notifContent}>
+                <Text style={styles.notifTitle}>{display.title}</Text>
+                <Text style={styles.notifSub}>{display.message}</Text>
+                <Text style={styles.notifTime}>{new Date(notice.created_at).toLocaleString(language)}</Text>
               </View>
-              <Text style={styles.notifSub}>
-                {chores[0]?.title
-                  ? `${chores[0].title} ${t('due_today_at')} 10:00 AM.`
-                  : `${t('ui_water_plants')} ${t('due_today_at')} ${new Date(2026, 0, 1, 10).toLocaleTimeString(language, {hour: 'numeric', minute: '2-digit'})}`}
-              </Text>
-            </View>
-          </View>
+            </Pressable>;
+          })}
+          {!recentNotifications.length && <Text style={{ color: colors.textSecondary }}>{t(notificationError ? 'admin_error' : 'no_notifications')}</Text>}
+
         </View>
       </ScrollView>
 
-      {/* Notification Panel Modal */}
-      <NotificationPanel
-        visible={showNotifications}
-        onClose={() => setShowNotifications(false)}
-        onUnreadCountChange={setUnreadNotifsCount}
-      />
     </SafeAreaView>
   );
 }
@@ -493,10 +469,11 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
     justifyContent: 'center',
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    width: '100%', maxWidth: 560, alignSelf: 'center',
+    paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 36,
-    gap: 20,
+    gap: 16,
   },
 
   // ── Top Header Bar ──
@@ -511,13 +488,13 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
   },
   logoChore: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: '900',
     color: '#713DE8',
     letterSpacing: -0.5,
   },
   logoHub: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: '900',
     color: '#FF9F1C',
     letterSpacing: -0.5,
@@ -576,7 +553,7 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
     color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
   },
   greetingTitle: {
-    fontSize: 30,
+    fontSize: 26,
     fontWeight: '900',
     color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     letterSpacing: -0.5,
@@ -618,15 +595,16 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
 
   // ── My Progress Purple Card ──
   progressCard: {
-    backgroundColor: '#6D28D9',
-    borderRadius: 24,
-    padding: 20,
+    backgroundColor: themeColors.card,
+    borderWidth: 1, borderColor: themeColors.border,
+    borderRadius: 16,
+    padding: 16,
     gap: 16,
     shadowColor: '#6D28D9',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.04,
     shadowRadius: 16,
-    elevation: 6,
+    elevation: 1,
   },
   progressCardHeader: {
     flexDirection: 'row',
@@ -636,7 +614,7 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   progressCardTitle: {
     fontSize: 18,
     fontWeight: '900',
-    color: (themeColors.isDark ? themeColors.textPrimary : '#FFFFFF'),
+    color: themeColors.textPrimary,
   },
   viewLinkRow: {
     flexDirection: 'row',
@@ -646,7 +624,7 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   viewLinkText: {
     fontSize: 13,
     fontWeight: '700',
-    color: (themeColors.isDark ? themeColors.textPrimary : '#FFFFFF'),
+    color: themeColors.textPrimary,
     opacity: 0.9,
   },
   gaugeRow: {
@@ -665,7 +643,7 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
     borderRadius: 40,
     borderWidth: 7,
     borderColor: '#A78BFA',
-    borderTopColor: (themeColors.isDark ? themeColors.border : '#FFFFFF'),
+    borderTopColor: themeColors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -685,7 +663,7 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   gaugePercentText: {
     fontSize: 18,
     fontWeight: '900',
-    color: (themeColors.isDark ? themeColors.textPrimary : '#FFFFFF'),
+    color: themeColors.textPrimary,
   },
   gaugeRightCol: {
     flex: 1,
@@ -698,14 +676,14 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: '700',
-    color: (themeColors.isDark ? themeColors.textPrimary : '#FFFFFF'),
+    color: themeColors.textPrimary,
     lineHeight: 20,
   },
   chartIconBadge: {
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: themeColors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },

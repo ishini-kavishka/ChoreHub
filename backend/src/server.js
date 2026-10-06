@@ -104,6 +104,8 @@ if (require.main === module) {
     ensureAuthSchema()
       .then(() => {
         console.log('Neon database connected');
+        const stopReminders = require('./services/notificationDeliveryService').startReminderDeliveryWorker();
+        server.on('close', stopReminders);
       })
       .catch((error) => {
         console.error(

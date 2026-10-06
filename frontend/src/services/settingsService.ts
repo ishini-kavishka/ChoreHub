@@ -2,6 +2,7 @@ import { apiRequest } from './api';
 import { authService } from './authService';
 import { ApiError } from './api';
 import languageCatalog from '../../../shared/languages.json';
+import { reminderDeviceService } from './reminderDeviceService';
 export let settingsDemoMode = false;
 
 export interface NotificationSettings {
@@ -47,7 +48,7 @@ async function token() {
 }
 
 export const settingsService = {
-  async getNotificationSettings(requireBackend = false): Promise<NotificationSettings> {
+  async getNotificationSettings(requireBackend = true): Promise<NotificationSettings> {
     const authToken = await token();
     try {
       const res = await apiRequest<{ settings: NotificationSettings }>(
@@ -65,13 +66,17 @@ export const settingsService = {
     }
   },
 
-  async saveNotificationSettings(settings: NotificationSettings): Promise<NotificationSettings> {
+  async saveNotificationSettings(settings: Partial<NotificationSettings>): Promise<NotificationSettings> {
     const res = await apiRequest<{ settings: NotificationSettings }>(
       '/api/settings/notifications',
-      { method: 'PUT', body: JSON.stringify(settings) },
+      { method: 'PUT', body: JSON.stringify(Object.fromEntries(Object.entries(settings).filter(([key]) => ['chore_reminders','chore_completions','family_updates','announcements','reminder_time','due_date_alerts','weekly_summary'].includes(key)))) },
       await token()
     );
     if (!res.settings) throw new Error('Missing saved notification settings.');
+    if (settings.chore_reminders !== undefined && reminderDeviceService.supported()) {
+      if (!res.settings.chore_reminders) await reminderDeviceService.clear().catch(() => {});
+      reminderDeviceService.preferencesChanged();
+    }
     return res.settings;
   },
 

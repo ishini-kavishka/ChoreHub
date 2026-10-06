@@ -174,7 +174,8 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
     backgroundColor: (themeColors.isDark ? themeColors.background : '#F8F7FC'),
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    width: '100%', maxWidth: 560, alignSelf: 'center',
+    paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 32,
     gap: 16,
@@ -183,7 +184,7 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
     gap: 4,
   },
   headerTitle: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: '800',
     color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
@@ -211,6 +212,7 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
     color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   filterRow: {
+    flexWrap: 'wrap',
     flexDirection: 'row',
     gap: 8,
   },

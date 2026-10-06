@@ -16,106 +16,27 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import Svg, { Circle } from 'react-native-svg';
-import { Avatar } from '@/components/profile/Avatar';
-import { NotificationPanel } from '@/components/notifications/NotificationPanel';
-import { authService, Member } from '@/services/authService';
-import { profileService } from '@/services/profileService';
+import Svg, { Circle, Line, Polyline } from 'react-native-svg';
+import { NotificationBell, refreshMemberUnread } from '@/components/notifications/NotificationBell';
 import { choreService, ChoreItem } from '@/services/choreService';
-import { notificationService } from '@/services/notificationService';
 import { useLanguage } from '@/context/LanguageContext';
 
 type TimeRange = 'week' | 'month' | 'all';
-
-// ─── Green Donut Ring Chart Component ─────────────────────────────────────────
-function DonutRing({ percentage, size = 140, completedLabel }: { percentage: number; size?: number; completedLabel?: string }) {
-  const themeColors = useClientTheme().colors;
-  const { t } = useLanguage();
-  const strokeWidth = 14;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const pct = Math.min(100, Math.max(0, percentage));
-  const strokeDashoffset = circumference * (1 - pct / 100);
-
-  return (
-    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-      <Svg
-        width={size}
-        height={size}
-        style={{ position: 'absolute', transform: [{ rotate: '-90deg' }] }}
-      >
-        {/* Background Track */}
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={themeColors.isDark ? themeColors.border : "#E6F7EC"}
-          strokeWidth={strokeWidth}
-          fill="none"
-        />
-        {/* Filled Green Stroke */}
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke="#10B981"
-          strokeWidth={strokeWidth}
-          fill="none"
-          strokeDasharray={`${circumference} ${circumference}`}
-          strokeDashoffset={strokeDashoffset}
-          strokeLinecap="round"
-        />
-      </Svg>
-
-      {/* Donut Center Content */}
-      <View style={{ alignItems: 'center', gap: 2 }}>
-        <Text style={{ fontSize: 28, fontWeight: '900', color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E') }}>
-          {Math.round(pct)}%
-        </Text>
-        <Text style={{ fontSize: 13, fontWeight: '600', color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A') }}>
-          {completedLabel ?? t('filter_completed')}
-        </Text>
-      </View>
-    </View>
-  );
-}
 
 export default function ProgressDashboardScreen() {
   const themeColors = useClientTheme().colors;
   const styles = useThemedStyles(createStyles);
   const { t } = useLanguage();
-  const [profile, setProfile] = useState<Member | null>(null);
   const [chores, setChores] = useState<ChoreItem[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [timeRange, setTimeRange] = useState<TimeRange>('week');
-  const [showNotifications, setShowNotifications] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
-      const user = await authService.getCurrentMember();
-      if (user) setProfile(user);
-
-      try {
-        const fresh = await profileService.getProfile();
-        setProfile(fresh);
-      } catch {
-        // Soft fail
-      }
-
-      const [resChores, unread] = await Promise.allSettled([
-        choreService.getMemberChores(),
-        notificationService.getUnreadCount(),
-      ]);
-
-      if (resChores.status === 'fulfilled' && resChores.value?.chores) {
-        setChores(resChores.value.chores);
-      }
-      if (unread.status === 'fulfilled') {
-        setUnreadCount(unread.value);
-      }
+      const response = await choreService.getMemberChores();
+      setChores(response.chores ?? []);
     } catch {
       // Soft fail
     } finally {
@@ -133,6 +54,7 @@ export default function ProgressDashboardScreen() {
 
   const onRefresh = () => {
     setRefreshing(true);
+    void refreshMemberUnread(true);
     loadData();
   };
 
@@ -240,446 +162,137 @@ export default function ProgressDashboardScreen() {
     return streak > 0 ? streak : Math.max(1, uniqueDates.length);
   }, [chores]);
 
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return t('greeting_morning');
-    if (hour < 18) return t('greeting_afternoon');
-    return t('greeting_evening');
-  };
-
-  const firstName = profile?.name ? profile.name.trim().split(' ')[0] : t('role_member');
+  // Categories and daily completion counts use the same authenticated chore data.
+  const categories = useMemo(() => {
+    const counts = new Map<string, number>();
+    filteredChores.forEach(chore => {
+      const name = chore.category?.trim() || t('category_general');
+      counts.set(name, (counts.get(name) || 0) + 1);
+    });
+    return Array.from(counts, ([name, count]) => ({ name, count }));
+  }, [filteredChores, t]);
+  const weekly = useMemo(() => {
+    const monday = new Date(); monday.setHours(0, 0, 0, 0);
+    monday.setDate(monday.getDate() - (monday.getDay() + 6) % 7);
+    return Array.from({ length: 7 }, (_, index) => {
+      const start = new Date(monday); start.setDate(start.getDate() + index);
+      const end = new Date(start); end.setDate(end.getDate() + 1);
+      return chores.filter(chore => {
+        if (chore.status !== 'completed' || !chore.completed_at) return false;
+        const date = new Date(chore.completed_at);
+        return date >= start && date < end;
+      }).length;
+    });
+  }, [chores]);
+  const chartColors = [themeColors.primary, '#9B79EE', '#FFBB55', '#4CCDA5', '#FF929F', '#6FA9F8'];
+  const radius = 49, circumference = 2 * Math.PI * radius;
+  let categoryOffset = 0;
+  const chartMax = Math.max(1, ...weekly);
+  const points = weekly.map((count, index) => `${24 + index * 42},${96 - count / chartMax * 76}`).join(' ');
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#713DE8"
-            colors={['#713DE8']}
-          />
-        }
-      >
-        {/* ── Top Header ── */}
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={themeColors.primary} colors={[themeColors.primary]}/> }>
         <View style={styles.headerRow}>
-          {/* Left Avatar */}
-          <Avatar name={profile?.name || 'I'} uri={profile?.avatarUri} size={54} />
-
-          {/* Greeting Text Group */}
-          <View style={styles.headerTextGroup}>
-            <Text style={styles.greetingSub}>{getGreeting()}</Text>
-            <Text style={styles.greetingTitle}>{firstName}! 👋</Text>
-            <Text style={styles.greetingCaption}>{t('heres_your_progress')}</Text>
-          </View>
-
-          {/* Right Bell Icon */}
-          <Pressable
-            onPress={() => setShowNotifications(true)}
-            style={styles.bellBtn}
-          >
-            <Ionicons name="notifications-outline" size={24} color="#713DE8" />
-            {unreadCount > 0 && (
-              <View style={styles.bellBadge}>
-                <Text style={styles.bellBadgeText}>
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </Text>
-              </View>
-            )}
+          <Pressable accessibilityRole="button" accessibilityLabel={t('admin_back')} style={styles.backButton} onPress={() => router.canGoBack() ? router.back() : router.replace('/home')}>
+            <Ionicons name="arrow-back" size={22} color={themeColors.primary}/>
           </Pressable>
+          <Text style={styles.title}>{t('my_progress')}</Text>
+          <NotificationBell returnTo="/home/progress"/>
         </View>
-
-        {/* ── 3-Segment Time Range Filter Tab Bar ── */}
         <View style={styles.filterContainer}>
-          {(['week', 'month', 'all'] as TimeRange[]).map((tab) => {
-            const isSelected = timeRange === tab;
-            const labels: Record<TimeRange, string> = {
-              week: t('this_week'),
-              month: t('this_month'),
-              all: t('all_time'),
-            };
-
-            return (
-              <Pressable
-                key={tab}
-                onPress={() => setTimeRange(tab)}
-                style={[styles.filterPill, isSelected && styles.filterPillSelected]}
-              >
-                <Text
-                  style={[
-                    styles.filterPillText,
-                    isSelected && styles.filterPillTextSelected,
-                  ]}
-                >
-                  {labels[tab]}
-                </Text>
-              </Pressable>
-            );
-          })}
+          {(['week', 'month', 'all'] as TimeRange[]).map(tab => <Pressable key={tab} accessibilityRole="button" accessibilityState={{ selected: timeRange === tab }}
+            onPress={() => setTimeRange(tab)} style={[styles.filterPill, timeRange === tab && styles.filterSelected]}>
+            <Text style={[styles.filterText, timeRange === tab && styles.selectedText]}>{t({ week: 'this_week', month: 'this_month', all: 'all_time' }[tab])}</Text>
+          </Pressable>)}
         </View>
-
-        {loading ? (
-          <ActivityIndicator size="large" color="#713DE8" style={{ marginTop: 30 }} />
-        ) : (
-          <>
-            {/* ── Main Progress Donut Card ── */}
-            <View style={styles.donutCard}>
-              {/* Left Green Ring */}
-              <DonutRing percentage={stats.completionPercentage} size={145} completedLabel={t('status_completed')} />
-
-              {/* Right Breakdowns Column */}
-              <View style={styles.breakdownColumn}>
-                {/* Completed Row */}
-                <View style={styles.breakdownRow}>
-                  <Ionicons name="checkmark-circle" size={22} color="#10B981" />
-                  <View style={styles.statGroup}>
-                    <Text style={styles.statNum}>{stats.completed}</Text>
-                    <Text style={styles.statLabel}>{t('status_completed')}</Text>
-                  </View>
-                </View>
-
-                {/* Pending Row */}
-                <View style={styles.breakdownRow}>
-                  <View style={styles.purpleIconCircle}>
-                    <Ionicons name="time" size={14} color="#FFFFFF" />
-                  </View>
-                  <View style={styles.statGroup}>
-                    <Text style={styles.statNum}>{stats.pending}</Text>
-                    <Text style={styles.statLabel}>{t('status_pending')}</Text>
-                  </View>
-                </View>
-
-                {/* Overdue Row */}
-                <View style={styles.breakdownRow}>
-                  <Ionicons name="alert-circle" size={22} color="#EF4444" />
-                  <View style={styles.statGroup}>
-                    <Text style={styles.statNum}>{stats.overdue}</Text>
-                    <Text style={styles.statLabel}>{t('status_overdue')}</Text>
-                  </View>
-                </View>
-
-                {/* Total Footnote */}
-                <Text style={styles.totalFootnote}>
-                  {t('total_chores_count')}: {stats.total} {stats.total === 1 ? t('chores') : t('chores')}
-                </Text>
+        {loading ? <ActivityIndicator color={themeColors.primary}/> : <>
+          <View style={styles.card}>
+            <View style={styles.cardHeading}><Text style={styles.sectionTitle}>{t('overall_completion')}</Text><Text style={styles.percent}>{stats.completionPercentage}%</Text></View>
+            <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: stats.completionPercentage }} style={styles.track}>
+              <View style={[styles.fill, { width: `${stats.completionPercentage}%` }]}/>
+            </View>
+            <View style={styles.statsRow}>
+              {[{ value: stats.total, label: t('total_chores_count'), color: themeColors.textPrimary }, { value: stats.completed, label: t('status_completed'), color: '#16B879' }, { value: stats.pending, label: t('status_pending'), color: '#F25968' }].map(item =>
+                <View key={item.label} style={styles.stat}><Text style={[styles.statNumber, { color: item.color }]}>{item.value}</Text><Text style={styles.caption}>{item.label}</Text></View>)}
+            </View>
+            {stats.overdue > 0 && <Text style={styles.caption}>{t('status_overdue')}: {stats.overdue}</Text>}
+          </View>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{t('client_category_completion')}</Text>
+            <View style={styles.categoryRow}>
+              <View style={styles.donut} accessibilityLabel={t('total_chores_count') + ': ' + stats.total}>
+                <Svg width={120} height={120} style={{ position: 'absolute', transform: [{ rotate: '-90deg' }] }}>
+                  <Circle cx={60} cy={60} r={radius} fill="none" stroke={themeColors.surface} strokeWidth={20}/>
+                  {categories.map((item, index) => {
+                    const length = stats.total ? item.count / stats.total * circumference : 0;
+                    const offset = categoryOffset; categoryOffset += length;
+                    return <Circle key={item.name} cx={60} cy={60} r={radius} fill="none" stroke={chartColors[index % chartColors.length]} strokeWidth={20}
+                      strokeDasharray={`${length} ${circumference - length}`} strokeDashoffset={-offset}/>;
+                  })}
+                </Svg>
+                <Text style={styles.donutNumber}>{stats.total}</Text><Text style={styles.caption}>{t('total_chores_count')}</Text>
+              </View>
+              <View style={styles.legend}>
+                {categories.length ? categories.map((item, index) => <View key={item.name} style={styles.legendRow}>
+                  <View style={[styles.legendDot, { backgroundColor: chartColors[index % chartColors.length] }]}/>
+                  <Text style={styles.legendName}>{item.name}</Text><Text style={styles.legendCount}>{item.count}</Text>
+                </View>) : <Text style={styles.caption}>{t('no_chores_on_date')}</Text>}
               </View>
             </View>
-
-            {/* ── Streak Card ── */}
-            <View style={styles.streakCard}>
-              <View style={styles.flameIconWrap}>
-                <Text style={{ fontSize: 24 }}>🔥</Text>
-              </View>
-
-              <View style={styles.streakTextGroup}>
-                <Text style={styles.streakCaption}>{t('streak')}</Text>
-                <Text style={styles.streakTitle}>{streakDays} {t('days')}</Text>
-                <Text style={styles.streakSub}>{t('keep_going')}</Text>
-              </View>
+          </View>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{t('client_weekly_progress')}</Text>
+            <View accessibilityLabel={t('client_weekly_progress')}>
+              <Svg width="100%" height={130} viewBox="0 0 300 120" preserveAspectRatio="none">
+                {[0, .5, 1].map(value => <Line key={value} x1={24} x2={276} y1={96 - value * 76} y2={96 - value * 76} stroke={themeColors.border} strokeWidth={.5}/>)}
+                <Polyline points={points} fill="none" stroke={themeColors.primary} strokeWidth={3} strokeLinejoin="round"/>
+                {weekly.map((count, index) => <Circle key={index} cx={24 + index * 42} cy={96 - count / chartMax * 76} r={3} fill={themeColors.primary}/>)}
+              </Svg>
+              <View style={styles.days}>{['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map((day, index) => <View key={day} style={styles.day}><Text style={styles.caption}>{t(day)}</Text><Text style={styles.dailyCount}>{weekly[index]}</Text></View>)}</View>
             </View>
-
-            {/* ── 2x2 Stats Grid ── */}
-            <View style={styles.statsGrid}>
-              {/* Grid 1: Completed */}
-              <View style={styles.gridCard}>
-                <View style={[styles.gridIconCircle, { backgroundColor: (themeColors.isDark ? themeColors.surface : '#DCFCE7') }]}>
-                  <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-                </View>
-                <View style={styles.gridTextGroup}>
-                  <Text style={styles.gridNum}>{stats.completed}</Text>
-                  <Text style={styles.gridLabel}>{t('status_completed')}</Text>
-                </View>
-              </View>
-
-              {/* Grid 2: Pending */}
-              <View style={styles.gridCard}>
-                <View style={[styles.gridIconCircle, { backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE') }]}>
-                  <Ionicons name="time" size={20} color="#8B5CF6" />
-                </View>
-                <View style={styles.gridTextGroup}>
-                  <Text style={styles.gridNum}>{stats.pending}</Text>
-                  <Text style={styles.gridLabel}>{t('status_pending')}</Text>
-                </View>
-              </View>
-
-              {/* Grid 3: Overdue */}
-              <View style={styles.gridCard}>
-                <View style={[styles.gridIconCircle, { backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEE2E2') }]}>
-                  <Ionicons name="alert-circle" size={20} color="#EF4444" />
-                </View>
-                <View style={styles.gridTextGroup}>
-                  <Text style={styles.gridNum}>{stats.overdue}</Text>
-                  <Text style={styles.gridLabel}>{t('status_overdue')}</Text>
-                </View>
-              </View>
-
-              {/* Grid 4: Total */}
-              <View style={styles.gridCard}>
-                <View style={[styles.gridIconCircle, { backgroundColor: (themeColors.isDark ? themeColors.surface : '#DBEAFE') }]}>
-                  <Ionicons name="list" size={20} color="#2563EB" />
-                </View>
-                <View style={styles.gridTextGroup}>
-                  <Text style={styles.gridNum}>{stats.total}</Text>
-                  <Text style={styles.gridLabel}>{t('total_chores_count')}</Text>
-                </View>
-              </View>
-            </View>
-          </>
-        )}
+            <Text style={styles.caption}>{t('streak')}: {streakDays} {t('days')} ? {t('keep_going')}</Text>
+          </View>
+        </>}
       </ScrollView>
-
-      {/* Notification Panel Modal */}
-      <NotificationPanel
-        visible={showNotifications}
-        onClose={() => setShowNotifications(false)}
-        onUnreadCountChange={setUnreadCount}
-      />
     </SafeAreaView>
   );
 }
 
-const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: (themeColors.isDark ? themeColors.background : '#FAFAFD'),
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 40,
-    gap: 16,
-  },
-
-  // Header
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  headerTextGroup: {
-    flex: 1,
-    gap: 1,
-  },
-  greetingSub: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
-  },
-  greetingTitle: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
-    letterSpacing: -0.3,
-  },
-  greetingCaption: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
-  },
-  bellBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
-    position: 'relative',
-  },
-  bellBadge: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    backgroundColor: '#EF4444',
-    borderRadius: 8,
-    minWidth: 16,
-    height: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 3,
-  },
-  bellBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 9,
-    fontWeight: '800',
-  },
-
-  // 3-Segment Time Range Filter Tab Bar
-  filterContainer: {
-    flexDirection: 'row',
-    backgroundColor: (themeColors.isDark ? themeColors.background : '#EDE9FE'),
-    borderRadius: 16,
-    padding: 4,
-    gap: 4,
-  },
-  filterPill: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  filterPillSelected: {
-    backgroundColor: '#713DE8',
-    shadowColor: '#713DE8',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  filterPillText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
-  },
-  filterPillTextSelected: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-  },
-
-  // Main Donut Card
-  donutCard: {
-    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
-    borderRadius: 22,
-    padding: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
-    shadowColor: '#713DE8',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  breakdownColumn: {
-    flex: 1,
-    marginLeft: 20,
-    gap: 12,
-  },
-  breakdownRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  purpleIconCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#8B5CF6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statGroup: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 6,
-  },
-  statNum: {
-    fontSize: 17,
-    fontWeight: '900',
-    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
-  },
-  statLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
-  },
-  totalFootnote: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
-    marginTop: 4,
-  },
-
-  // Streak Card
-  streakCard: {
-    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
-    borderRadius: 20,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    borderWidth: 1,
-    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
-    shadowColor: '#713DE8',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  flameIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: (themeColors.isDark ? themeColors.surface : '#FFF4E6'),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  streakTextGroup: {
-    gap: 2,
-  },
-  streakCaption: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
-  },
-  streakTitle: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
-  },
-  streakSub: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
-  },
-
-  // 2x2 Stats Grid
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  gridCard: {
-    width: '48%',
-    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
-    borderRadius: 18,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderWidth: 1,
-    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
-    shadowColor: '#713DE8',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  gridIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  gridTextGroup: {
-    gap: 1,
-  },
-  gridNum: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
-  },
-  gridLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
-  },
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: colors.isDark ? colors.background : '#FAFAFD' },
+  scrollContent: { width: '100%', maxWidth: 560, alignSelf: 'center', padding: 16, paddingBottom: 32, gap: 16 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  title: { flex: 1, fontSize: 22, fontWeight: '800', color: colors.textPrimary },
+  backButton: { width: 40, height: 44, alignItems: 'center', justifyContent: 'center' },
+  badge: { position: 'absolute', top: 0, right: 0, backgroundColor: '#EF4444', borderRadius: 10, paddingHorizontal: 4 },
+  badgeText: { fontSize: 10, color: '#fff' },
+  filterContainer: { flexDirection: 'row', backgroundColor: colors.surface, padding: 4, borderRadius: 12, gap: 4 },
+  filterPill: { flex: 1, minHeight: 44, padding: 6, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  filterSelected: { backgroundColor: colors.primary, shadowColor: colors.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: .2, shadowRadius: 4, elevation: 2 },
+  filterText: { color: colors.textSecondary, fontSize: 12, fontWeight: '700', textAlign: 'center' },
+  selectedText: { color: '#fff' },
+  card: { backgroundColor: colors.card, borderRadius: 16, padding: 16, gap: 14, borderWidth: 1, borderColor: colors.border, shadowColor: colors.primary, shadowOpacity: .04, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 1 },
+  cardHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  sectionTitle: { flexShrink: 1, fontSize: 16, fontWeight: '800', color: colors.textPrimary },
+  percent: { color: colors.primary, backgroundColor: colors.surface, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, fontWeight: '800', fontSize: 16 },
+  track: { height: 9, borderRadius: 5, backgroundColor: colors.surface, overflow: 'hidden' },
+  fill: { height: '100%', backgroundColor: colors.primary, borderRadius: 5 },
+  statsRow: { flexDirection: 'row', paddingVertical: 2 },
+  stat: { flex: 1, alignItems: 'center', gap: 5 },
+  statNumber: { fontSize: 23, fontWeight: '800' },
+  caption: { color: colors.textSecondary, fontSize: 11, textAlign: 'center' },
+  section: { gap: 10 },
+  categoryRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  donut: { width: 120, height: 120, alignItems: 'center', justifyContent: 'center' },
+  donutNumber: { fontSize: 26, fontWeight: '800', color: colors.textPrimary },
+  legend: { flex: 1, minWidth: 0, gap: 10 },
+  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendDot: { width: 7, height: 7, borderRadius: 2 },
+  legendName: { flex: 1, flexShrink: 1, fontSize: 12, color: colors.textSecondary },
+  legendCount: { fontSize: 12, fontWeight: '700', color: colors.textPrimary },
+  days: { flexDirection: 'row' },
+  day: { flex: 1, gap: 4 },
+  dailyCount: { fontSize: 10, color: colors.primary, textAlign: 'center' },
 });

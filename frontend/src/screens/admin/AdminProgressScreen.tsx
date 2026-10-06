@@ -1,3 +1,5 @@
+import { translateFeedback } from '@/i18n/translations';
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
 import React, { useCallback, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
@@ -47,6 +49,7 @@ export default function AdminProgressScreen() {
 }
 
 function Progress({ household }: { household: Household }) {
+  const themeColors = useClientTheme().colors;
   const { t, language } = useLanguage();
   const c = useAdminColors();
 
@@ -92,7 +95,7 @@ function Progress({ household }: { household: Household }) {
       title={t('admin_progress')}
       household={household}
       busy={busy}
-      error={error}
+      error={translateFeedback(error, t)}
       refresh={() => void load()}
     >
       {/* ── Date Range Filters (Today / This Week / This Month) ──────────── */}
@@ -128,8 +131,8 @@ function Progress({ household }: { household: Household }) {
                   styles.filterTabText,
                   {
                     color: isSelected
-                      ? c.bg === '#14121F'
-                        ? '#211C35'
+                      ? c.bg === (themeColors.isDark ? themeColors.textPrimary : '#14121F')
+                        ? (themeColors.isDark ? themeColors.textPrimary : '#211C35')
                         : '#FFFFFF'
                       : c.accent,
                   },
@@ -189,7 +192,7 @@ function Progress({ household }: { household: Household }) {
                   pressed && styles.tilePressed,
                 ]}
               >
-                <View style={[styles.iconCircle, { backgroundColor: '#FFF8E6' }]}>
+                <View style={[styles.iconCircle, { backgroundColor: (themeColors.isDark ? themeColors.surface : '#FFF8E6') }]}>
                   <Ionicons name="list" size={18} color="#D97706" />
                 </View>
                 <Text style={[styles.summaryNumber, { color: c.text }]}>
@@ -212,7 +215,7 @@ function Progress({ household }: { household: Household }) {
                   pressed && styles.tilePressed,
                 ]}
               >
-                <View style={[styles.iconCircle, { backgroundColor: '#F0EAFF' }]}>
+                <View style={[styles.iconCircle, { backgroundColor: (themeColors.isDark ? themeColors.surface : '#F0EAFF') }]}>
                   <Ionicons name="hourglass" size={17} color="#713DE8" />
                 </View>
                 <Text style={[styles.summaryNumber, { color: c.text }]}>
@@ -235,7 +238,7 @@ function Progress({ household }: { household: Household }) {
                   pressed && styles.tilePressed,
                 ]}
               >
-                <View style={[styles.iconCircle, { backgroundColor: '#ECFDF5' }]}>
+                <View style={[styles.iconCircle, { backgroundColor: (themeColors.isDark ? themeColors.surface : '#ECFDF5') }]}>
                   <Ionicons name="checkmark" size={18} color="#10B981" />
                 </View>
                 <Text style={[styles.summaryNumber, { color: c.text }]}>
@@ -258,7 +261,7 @@ function Progress({ household }: { household: Household }) {
                   pressed && styles.tilePressed,
                 ]}
               >
-                <View style={[styles.iconCircle, { backgroundColor: '#FEF2F2' }]}>
+                <View style={[styles.iconCircle, { backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEF2F2') }]}>
                   <Ionicons name="alert" size={17} color="#EF4444" />
                 </View>
                 <Text
