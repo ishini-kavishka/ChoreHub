@@ -1,3 +1,6 @@
+import { useAppAlert } from '@/components/ui/AppDialog';
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
+import { useLanguage } from '@/context/LanguageContext';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -21,14 +24,19 @@ import { supportTicketService, SupportTicket } from '@/services/supportTicketSer
 type TicketTab = 'my_tickets' | 'submit_ticket';
 type TicketCategory = SupportTicket['category'];
 
+
+
+export default function CustomerTicketsScreen() {
+  const alert = useAppAlert();
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
 const CATEGORIES: TicketCategory[] = [
   'Chore Issue',
   'Technical Bug',
   'Account & Login',
   'General Inquiry',
 ];
-
-export default function CustomerTicketsScreen() {
+  const { t, language } = useLanguage();
   const [activeTab, setActiveTab] = useState<TicketTab>('my_tickets');
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,11 +75,11 @@ export default function CustomerTicketsScreen() {
 
   const handleSubmit = async () => {
     if (!subject.trim()) {
-      Alert.alert('Required Field', 'Please enter a ticket subject.');
+      alert(t('ui_required_field'), t('ui_please_enter_a_ticket_subject'));
       return;
     }
     if (!description.trim()) {
-      Alert.alert('Required Field', 'Please describe the issue or inquiry.');
+      alert(t('ui_required_field'), t('ui_please_describe_the_issue_or_inquiry'));
       return;
     }
 
@@ -114,16 +122,16 @@ export default function CustomerTicketsScreen() {
         setActiveTab('my_tickets');
       }
     } catch {
-      Alert.alert('Error', editingTicketId ? 'Could not update support ticket. Please try again.' : 'Could not create support ticket. Please try again.');
+      alert(t('error'), t('admin_error'));
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleViewTicket = (ticket: SupportTicket) => {
-    Alert.alert(
+    alert(
       `${ticket.ticketNumber} • ${ticket.subject}`,
-      `${ticket.description}\n\nStatus: ${ticket.status.replace('_', ' ')}\nPriority: ${ticket.priority}`
+      `${ticket.description}\n\n${t('ui_status')}: ${t('ui_' + ticket.status)}\n${t('ui_priority')} ${t('priority_' + ticket.priority)}`
     );
   };
 
@@ -144,20 +152,20 @@ export default function CustomerTicketsScreen() {
 
         setTickets((current) => current.filter((item) => item.id !== ticket.id));
         if (Platform.OS === 'web') {
-          window.alert('The support ticket has been removed.');
+          window.alert(t('ui_the_support_ticket_has_been_removed'));
         } else {
-          Alert.alert('Ticket Deleted', 'The support ticket has been removed.');
+          alert(t('ui_ticket_deleted'), t('ui_the_support_ticket_has_been_removed'));
         }
       } catch {
         if (Platform.OS === 'web') {
-          window.alert('Could not delete support ticket. Please try again.');
+          window.alert(t('admin_error'));
         } else {
-          Alert.alert('Error', 'Could not delete support ticket. Please try again.');
+          alert(t('error'), t('admin_error'));
         }
       }
     };
 
-    const confirmationMessage = `Remove ${ticket.ticketNumber}? This action cannot be undone.`;
+    const confirmationMessage = t('ui_remove_ticket_this_action_cannot_be_undone').replace('{ticket}', ticket.ticketNumber);
     if (Platform.OS === 'web') {
       if (window.confirm(confirmationMessage)) {
         await deleteConfirmedTicket();
@@ -165,10 +173,10 @@ export default function CustomerTicketsScreen() {
       return;
     }
 
-    Alert.alert('Delete ticket', confirmationMessage, [
-      { text: 'Cancel', style: 'cancel' },
+    alert(t('ui_delete_ticket'), confirmationMessage, [
+      { text: t('cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('delete'),
         style: 'destructive',
         onPress: () => { void deleteConfirmedTicket(); },
       },
@@ -180,19 +188,19 @@ export default function CustomerTicketsScreen() {
       case 'open':
         return (
           <View style={[styles.badge, styles.badgeOpen]}>
-            <Text style={[styles.badgeText, styles.badgeTextOpen]}>Open</Text>
+            <Text style={[styles.badgeText, styles.badgeTextOpen]}>{t('ui_open')}</Text>
           </View>
         );
       case 'in_progress':
         return (
           <View style={[styles.badge, styles.badgeInProgress]}>
-            <Text style={[styles.badgeText, styles.badgeTextInProgress]}>In Progress</Text>
+            <Text style={[styles.badgeText, styles.badgeTextInProgress]}>{t('ui_in_progress')}</Text>
           </View>
         );
       case 'resolved':
         return (
           <View style={[styles.badge, styles.badgeResolved]}>
-            <Text style={[styles.badgeText, styles.badgeTextResolved]}>Resolved</Text>
+            <Text style={[styles.badgeText, styles.badgeTextResolved]}>{t('ui_resolved')}</Text>
           </View>
         );
     }
@@ -206,11 +214,11 @@ export default function CustomerTicketsScreen() {
           onPress={() => router.canGoBack() ? router.back() : router.replace('/support' as any)}
           style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t('admin_back')}
         >
-          <Ionicons name="chevron-back" size={24} color="#1E1B2E" />
+          <Ionicons name="chevron-back" size={24} color={themeColors.isDark ? themeColors.textPrimary : "#1E1B2E"} />
         </Pressable>
-        <Text style={styles.headerTitle}>Support Requests & Tickets</Text>
+        <Text style={styles.headerTitle}>{t('ui_support_requests_tickets')}</Text>
         <View style={styles.placeholderBtn} />
       </View>
 
@@ -226,8 +234,7 @@ export default function CustomerTicketsScreen() {
               styles.tabButtonText,
               activeTab === 'my_tickets' && styles.tabButtonTextActive,
             ]}
-          >
-            My Requests ({tickets.length})
+          >{t('ui_my_requests')}{tickets.length})
           </Text>
         </Pressable>
 
@@ -241,9 +248,7 @@ export default function CustomerTicketsScreen() {
               styles.tabButtonText,
               activeTab === 'submit_ticket' && styles.tabButtonTextActive,
             ]}
-          >
-            + Submit New Ticket
-          </Text>
+          >{t('ui_submit_new_ticket')}</Text>
         </Pressable>
       </View>
 
@@ -259,17 +264,15 @@ export default function CustomerTicketsScreen() {
           ) : tickets.length === 0 ? (
             <View style={styles.emptyState}>
               <View style={styles.emptyIconCircle}>
-                <Ionicons name="file-tray-outline" size={36} color="#8A879A" />
+                <Ionicons name="file-tray-outline" size={36} color={themeColors.isDark ? themeColors.textSecondary : "#8A879A"} />
               </View>
-              <Text style={styles.emptyTitle}>No support tickets yet</Text>
-              <Text style={styles.emptySubtitle}>
-                Have a question or issue? Submit a ticket and our support team will resolve it.
-              </Text>
+              <Text style={styles.emptyTitle}>{t('ui_no_support_tickets_yet')}</Text>
+              <Text style={styles.emptySubtitle}>{t('ui_have_a_question_or_issue_submit_a_ticket_and_our_support_team_will_resolve_it')}</Text>
               <Pressable
                 onPress={() => setActiveTab('submit_ticket')}
                 style={styles.submitFirstBtn}
               >
-                <Text style={styles.submitFirstBtnText}>Submit a Ticket</Text>
+                <Text style={styles.submitFirstBtnText}>{t('ui_submit_a_ticket')}</Text>
               </Pressable>
             </View>
           ) : (
@@ -280,7 +283,7 @@ export default function CustomerTicketsScreen() {
                     <View style={styles.ticketIdRow}>
                       <Text style={styles.ticketNumber}>{ticket.ticketNumber}</Text>
                       <View style={styles.categoryPill}>
-                        <Text style={styles.categoryPillText}>{ticket.category}</Text>
+                        <Text style={styles.categoryPillText}>{t('ui_' + ticket.category.toLowerCase().replace(/[^a-z0-9]+/g, '_'), ticket.category)}</Text>
                       </View>
                     </View>
                     {renderStatusBadge(ticket.status)}
@@ -293,18 +296,16 @@ export default function CustomerTicketsScreen() {
                     <View style={styles.adminNotesWrap}>
                       <Ionicons name="chatbubbles-outline" size={14} color="#6C3BEA" />
                       <Text style={styles.adminNotesText}>
-                        <Text style={{ fontWeight: '700' }}>Support Reply: </Text>
+                        <Text style={{ fontWeight: '700' }}>{t('ui_support_reply')}</Text>
                         {ticket.adminNotes}
                       </Text>
                     </View>
                   )}
 
                   <View style={styles.ticketFooter}>
-                    <Text style={styles.ticketDate}>
-                      Logged {new Date(ticket.createdAt).toLocaleDateString()}
+                    <Text style={styles.ticketDate}>{t('ui_logged')}{' '}{new Date(ticket.createdAt).toLocaleDateString(language)}
                     </Text>
-                    <Text style={styles.ticketPriority}>
-                      Priority:{' '}
+                    <Text style={styles.ticketPriority}>{t('ui_priority')}{' '}
                       <Text
                         style={{
                           color:
@@ -317,7 +318,7 @@ export default function CustomerTicketsScreen() {
                           textTransform: 'capitalize',
                         }}
                       >
-                        {ticket.priority}
+                        {t('priority_' + ticket.priority)}
                       </Text>
                     </Text>
                   </View>
@@ -327,21 +328,21 @@ export default function CustomerTicketsScreen() {
                       onPress={() => handleViewTicket(ticket)}
                       style={[styles.ticketActionBtn, styles.ticketActionSecondary]}
                     >
-                      <Text style={styles.ticketActionText}>View</Text>
+                      <Text style={styles.ticketActionText}>{t('view')}</Text>
                     </Pressable>
                     {!ticket.adminNotes && (
                       <Pressable
                         onPress={() => handleEditTicket(ticket)}
                         style={[styles.ticketActionBtn, styles.ticketActionPrimary]}
                       >
-                        <Text style={styles.ticketActionText}>Edit</Text>
+                        <Text style={styles.ticketActionText}>{t('edit')}</Text>
                       </Pressable>
                     )}
                     <Pressable
                       onPress={() => handleDeleteTicket(ticket)}
                       style={[styles.ticketActionBtn, styles.ticketActionDanger]}
                     >
-                      <Text style={styles.ticketActionText}>Delete</Text>
+                      <Text style={styles.ticketActionText}>{t('delete')}</Text>
                     </Pressable>
                   </View>
                 </View>
@@ -360,20 +361,20 @@ export default function CustomerTicketsScreen() {
             keyboardShouldPersistTaps="handled"
           >
             <View style={styles.formContainer}>
-              <Text style={styles.formTitle}>{editingTicketId ? 'Edit Support Ticket' : 'Submit a Support Ticket'}</Text>
+              <Text style={styles.formTitle}>{editingTicketId ? t('ui_edit_support_ticket') : t('ui_submit_a_support_ticket')}</Text>
               <Text style={styles.formSubtitle}>
-                {editingTicketId ? 'Update the details of your existing support request.' : 'Provide details about your question, chore dispute, or technical issue.'}
+                {editingTicketId ? t('ui_update_the_details_of_your_existing_support_request') : t('ui_provide_details_about_your_question_chore_dispute_or_technical_issue')}
               </Text>
 
               {/* Category Selection */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Issue Category</Text>
+                <Text style={styles.inputLabel}>{t('ui_issue_category')}</Text>
                 <View style={styles.categoryRow}>
                   {CATEGORIES.map((cat) => {
                     const isSelected = category === cat;
                     return (
                       <Pressable
-                        key={cat}
+                        key={t('ui_' + cat.toLowerCase().replace(/[^a-z0-9]+/g, '_'), cat)}
                         onPress={() => setCategory(cat)}
                         style={[
                           styles.catPill,
@@ -396,24 +397,24 @@ export default function CustomerTicketsScreen() {
 
               {/* Subject */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Subject / Summary</Text>
+                <Text style={styles.inputLabel}>{t('ui_subject_summary')}</Text>
                 <TextInput
                   value={subject}
                   onChangeText={setSubject}
-                  placeholder="e.g. Chore points did not update"
-                  placeholderTextColor="#9EA5B1"
+                  placeholder={t('ui_e_g_chore_points_did_not_update')}
+                  placeholderTextColor={themeColors.isDark ? themeColors.textSecondary : "#9EA5B1"}
                   style={styles.textInput}
                 />
               </View>
 
               {/* Description */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Detailed Description</Text>
+                <Text style={styles.inputLabel}>{t('ui_detailed_description')}</Text>
                 <TextInput
                   value={description}
                   onChangeText={setDescription}
-                  placeholder="Describe what happened and any steps to reproduce..."
-                  placeholderTextColor="#9EA5B1"
+                  placeholder={t('ui_describe_what_happened_and_any_steps_to_reproduce')}
+                  placeholderTextColor={themeColors.isDark ? themeColors.textSecondary : "#9EA5B1"}
                   multiline
                   numberOfLines={4}
                   textAlignVertical="top"
@@ -423,13 +424,13 @@ export default function CustomerTicketsScreen() {
 
               {/* Priority */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Urgency / Priority</Text>
+                <Text style={styles.inputLabel}>{t('ui_urgency_priority')}</Text>
                 <View style={styles.priorityRow}>
                   {(['low', 'medium', 'high'] as const).map((p) => {
                     const isSelected = priority === p;
                     return (
                       <Pressable
-                        key={p}
+                        key={t('priority_' + p)}
                         onPress={() => setPriority(p)}
                         style={[
                           styles.priorityPill,
@@ -442,7 +443,7 @@ export default function CustomerTicketsScreen() {
                             isSelected && styles.priorityPillTextSelected,
                           ]}
                         >
-                          {p.toUpperCase()}
+                          {t('priority_' + p)}
                         </Text>
                       </Pressable>
                     );
@@ -463,7 +464,7 @@ export default function CustomerTicketsScreen() {
                 {submitting ? (
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.submitBtnText}>{editingTicketId ? 'Update Support Request' : 'Submit Support Request'}</Text>
+                  <Text style={styles.submitBtnText}>{editingTicketId ? t('ui_update_support_request') : t('ui_submit_support_request')}</Text>
                 )}
               </Pressable>
 
@@ -478,7 +479,7 @@ export default function CustomerTicketsScreen() {
                   }}
                   style={({ pressed }) => [styles.cancelEditBtn, pressed && { opacity: 0.8 }]}
                 >
-                  <Text style={styles.cancelEditBtnText}>Cancel Edit</Text>
+                  <Text style={styles.cancelEditBtnText}>{t('ui_cancel_edit')}</Text>
                 </Pressable>
               )}
             </View>
@@ -492,10 +493,10 @@ export default function CustomerTicketsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#FAFAFD'),
   },
   header: {
     flexDirection: 'row',
@@ -504,8 +505,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0EEF8',
-    backgroundColor: '#FFFFFF',
+    borderBottomColor: (themeColors.isDark ? themeColors.border : '#F0EEF8'),
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
   },
   backBtn: {
     width: 36,
@@ -520,16 +521,16 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   tabBar: {
     flexDirection: 'row',
     paddingHorizontal: 20,
     paddingVertical: 12,
     gap: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderBottomWidth: 1,
-    borderBottomColor: '#EAE7F5',
+    borderBottomColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
   },
   tabButton: {
     flex: 1,
@@ -537,7 +538,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F4F2FA',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F4F2FA'),
   },
   tabButtonActive: {
     backgroundColor: '#6C3BEA',
@@ -545,7 +546,7 @@ const styles = StyleSheet.create({
   tabButtonText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
   },
   tabButtonTextActive: {
     color: '#FFFFFF',
@@ -568,7 +569,7 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: 34,
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE'),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 14,
@@ -576,12 +577,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 17,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     marginBottom: 6,
   },
   emptySubtitle: {
     fontSize: 13,
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
     textAlign: 'center',
     lineHeight: 18,
     marginBottom: 20,
@@ -601,11 +602,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   ticketCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#6C3BEA',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -629,7 +630,7 @@ const styles = StyleSheet.create({
     color: '#6C3BEA',
   },
   categoryPill: {
-    backgroundColor: '#F4F2FA',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F4F2FA'),
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
@@ -637,7 +638,7 @@ const styles = StyleSheet.create({
   categoryPillText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
   },
   badge: {
     paddingHorizontal: 10,
@@ -649,7 +650,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   badgeOpen: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEF3C7'),
   },
   badgeTextOpen: {
     color: '#D97706',
@@ -657,7 +658,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   badgeInProgress: {
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE'),
   },
   badgeTextInProgress: {
     color: '#6C3BEA',
@@ -665,28 +666,28 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   badgeResolved: {
-    backgroundColor: '#D1FAE5',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#D1FAE5'),
   },
   badgeTextResolved: {
-    color: '#059669',
+    color: (themeColors.isDark ? themeColors.success : '#059669'),
     fontSize: 11,
     fontWeight: '800',
   },
   ticketSubject: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   ticketDescription: {
     fontSize: 13,
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
     lineHeight: 18,
   },
   adminNotesWrap: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 6,
-    backgroundColor: '#F6F3FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F6F3FE'),
     padding: 10,
     borderRadius: 10,
     marginTop: 4,
@@ -702,17 +703,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderTopWidth: 1,
-    borderTopColor: '#F4F2FA',
+    borderTopColor: (themeColors.isDark ? themeColors.border : '#F4F2FA'),
     paddingTop: 8,
     marginTop: 4,
   },
   ticketDate: {
     fontSize: 11,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
   },
   ticketPriority: {
     fontSize: 11,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
   },
   ticketActions: {
     flexDirection: 'row',
@@ -727,35 +728,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   ticketActionPrimary: {
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE'),
   },
   ticketActionSecondary: {
-    backgroundColor: '#F4F2FA',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F4F2FA'),
   },
   ticketActionDanger: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEE2E2'),
   },
   ticketActionText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   formContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 20,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     gap: 14,
   },
   formTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   formSubtitle: {
     fontSize: 12,
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
     lineHeight: 16,
   },
   inputGroup: {
@@ -764,7 +765,7 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#4B485A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#4B485A'),
   },
   categoryRow: {
     flexDirection: 'row',
@@ -780,25 +781,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#6C3BEA',
   },
   catPillUnselected: {
-    backgroundColor: '#F4F2FA',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F4F2FA'),
   },
   catPillText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
   },
   catPillTextSelected: {
     color: '#FFFFFF',
   },
   textInput: {
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FAFAFD'),
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 10,
     fontSize: 14,
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   textArea: {
     minHeight: 85,
@@ -813,17 +814,17 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     alignItems: 'center',
     borderRadius: 10,
-    backgroundColor: '#F4F2FA',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F4F2FA'),
   },
   priorityPillSelected: {
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE'),
     borderWidth: 1.5,
     borderColor: '#6C3BEA',
   },
   priorityPillText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
   },
   priorityPillTextSelected: {
     color: '#6C3BEA',
@@ -842,14 +843,14 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   cancelEditBtn: {
-    backgroundColor: '#F4F2FA',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F4F2FA'),
     borderRadius: 12,
     minHeight: 42,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cancelEditBtnText: {
-    color: '#4B485A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#4B485A'),
     fontSize: 13,
     fontWeight: '700',
   },

@@ -1,6 +1,9 @@
 import { apiRequest } from './api';
 import { authService } from './authService';
 import { ApiError } from './api';
+import languageCatalog from '../../../shared/languages.json';
+import type { Language } from '@/i18n/translations';
+import { reminderDeviceService } from './reminderDeviceService';
 export let settingsDemoMode = false;
 
 export interface NotificationSettings {
@@ -17,7 +20,7 @@ export interface NotificationSettings {
 export interface UserPreferences {
   user_id?: string;
   theme: 'light' | 'dark' | 'system';
-  language: 'en' | 'si' | 'ta';
+  language: Language;
   brightness?: number;
   auto_brightness?: boolean;
 }
@@ -46,7 +49,7 @@ async function token() {
 }
 
 export const settingsService = {
-  async getNotificationSettings(requireBackend = false): Promise<NotificationSettings> {
+  async getNotificationSettings(requireBackend = true): Promise<NotificationSettings> {
     const authToken = await token();
     try {
       const res = await apiRequest<{ settings: NotificationSettings }>(
@@ -64,13 +67,17 @@ export const settingsService = {
     }
   },
 
-  async saveNotificationSettings(settings: NotificationSettings): Promise<NotificationSettings> {
+  async saveNotificationSettings(settings: Partial<NotificationSettings>): Promise<NotificationSettings> {
     const res = await apiRequest<{ settings: NotificationSettings }>(
       '/api/settings/notifications',
-      { method: 'PUT', body: JSON.stringify(settings) },
+      { method: 'PUT', body: JSON.stringify(Object.fromEntries(Object.entries(settings).filter(([key]) => ['chore_reminders','chore_completions','family_updates','announcements','reminder_time','due_date_alerts','weekly_summary'].includes(key)))) },
       await token()
     );
     if (!res.settings) throw new Error('Missing saved notification settings.');
+    if (settings.chore_reminders !== undefined && reminderDeviceService.supported()) {
+      if (!res.settings.chore_reminders) await reminderDeviceService.clear().catch(() => {});
+      reminderDeviceService.preferencesChanged();
+    }
     return res.settings;
   },
 
@@ -101,4 +108,41 @@ export const settingsService = {
     if (!res.preferences) throw new Error('Missing saved preferences.');
     return res.preferences;
   },
+
+  async getSupportedLanguages(): Promise<SupportedLanguageItem[]> {
+    const res = await apiRequest<{ languages: SupportedLanguageItem[] }>('/api/settings/languages');
+    if (!Array.isArray(res.languages)) throw new Error('Missing language configuration.');
+    return res.languages;
+  },
+
+  async addSupportedLanguage(code: string, name: string, native_name: string): Promise<SupportedLanguageItem> {
+    const res = await apiRequest<{ language: SupportedLanguageItem }>('/api/settings/languages',
+      { method: 'POST', body: JSON.stringify({ code, name, native_name }) }, await token());
+    return res.language;
+  },
+
+  async updateSupportedLanguage(code: string, is_enabled: boolean): Promise<SupportedLanguageItem> {
+    const res = await apiRequest<{ language: SupportedLanguageItem }>(
+      '/api/settings/languages',
+      { method: 'PUT', body: JSON.stringify({ code, is_enabled }) },
+      await token()
+    );
+    if (!res.language) throw new Error('Could not update language availability.');
+    return res.language;
+  },
 };
+
+export interface SupportedLanguageItem {
+  code: string;
+  translation_supported: boolean;
+  name: string;
+  native_name: string;
+  flag: string;
+  is_enabled: boolean;
+  sort_order: number;
+}
+
+export const DEFAULT_SUPPORTED_LANGUAGES: SupportedLanguageItem[] = languageCatalog.map(item => ({
+  ...item, is_enabled: item.translation_supported,
+}));
+

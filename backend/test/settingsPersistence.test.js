@@ -10,10 +10,13 @@ const app = require('../src/server');
 
 test('Settings round-trip, member compatibility, and partial preferences', { skip: process.env.RUN_DATABASE_TESTS !== '1' }, async () => {
   const client = await pool.connect();
-  const originalQuery = pool.query;
+  const originalQuery = pool.query, originalConnect = pool.connect;
   let server;
   try {
     await client.query('BEGIN');
+    // Round trips require an available language. Live Admin availability is
+    // deliberately restored by the transaction rollback below.
+    await client.query("UPDATE supported_languages SET is_enabled=TRUE WHERE code IN ('en','si','ta')");
     await client.query(`ALTER TABLE notification_settings
       ADD COLUMN IF NOT EXISTS due_date_alerts BOOLEAN NOT NULL DEFAULT TRUE,
       ADD COLUMN IF NOT EXISTS weekly_summary BOOLEAN NOT NULL DEFAULT TRUE`);
@@ -21,6 +24,11 @@ test('Settings round-trip, member compatibility, and partial preferences', { ski
     assert.ok(rows.length, 'An existing user is required; no accounts are created.');
     const userId = rows[0].id;
     pool.query = client.query.bind(client);
+    // Controller transactions remain inside this test's rollback-only transaction.
+    pool.connect = async () => ({release(){}, query(sql, args){
+      const command = sql === 'BEGIN' ? 'SAVEPOINT preference_write' : sql === 'COMMIT' ? 'RELEASE SAVEPOINT preference_write' : sql === 'ROLLBACK' ? 'ROLLBACK TO SAVEPOINT preference_write' : sql;
+      return client.query(command, args);
+    }});
     server = await new Promise(resolve => { const listening = app.listen(0, '127.0.0.1', () => resolve(listening)); });
     const authToken = jwt.sign({ sub: userId }, process.env.JWT_SECRET, { expiresIn: '5m' });
     const routes = new Map([
@@ -58,7 +66,7 @@ test('Settings round-trip, member compatibility, and partial preferences', { ski
     assert.equal((await call(controller.updatePreferences, { theme: '' })).status, 400);
   } finally {
     if (server) await new Promise(resolve => server.close(resolve));
-    pool.query = originalQuery;
+    pool.query = originalQuery; pool.connect = originalConnect;
     await client.query('ROLLBACK'); client.release(); await pool.end();
   }
 });

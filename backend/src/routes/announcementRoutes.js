@@ -64,6 +64,11 @@ for (const method of ['post', 'patch', 'delete']) router[method](method === 'pos
       ? await db.query(`INSERT INTO household_announcements(family_id,created_by,title,message,status,published_at) VALUES($1,$2,$3,$4,$5,CASE WHEN $5='published' THEN now() END) RETURNING *`, [family, req.userId, title, message, status])
       : await db.query(`UPDATE household_announcements SET title=$2,message=$3,status=$4,published_at=CASE WHEN $4='published' THEN COALESCE(published_at,now()) ELSE NULL END,updated_at=now() WHERE id=$1 RETURNING *`, [existing.id, title, message, status]);
     if (first) await publish(db, result.rows[0]);
+    // Keep the already-delivered household notification in sync without sending duplicates
+    // or changing recipients' read/unread state.
+    if (existing?.published_at) await db.query(
+      'UPDATE notifications SET title=$2, message=$3 WHERE announcement_id=$1',
+      [existing.id, title, message]);
     await db.query('COMMIT'); res.status(method === 'post' ? 201 : 200).json({ announcement: result.rows[0] });
   } catch (e) { if (db) await db.query('ROLLBACK'); next(e); } finally { if (db) db.release(); }
 });

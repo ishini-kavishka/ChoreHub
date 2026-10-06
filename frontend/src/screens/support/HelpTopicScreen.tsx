@@ -1,3 +1,5 @@
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
+import { useLanguage } from '@/context/LanguageContext';
 import React, { useState } from 'react';
 import {
   Pressable,
@@ -16,88 +18,93 @@ interface TopicArticle {
   answer: string;
 }
 
+
+
+export default function HelpTopicScreen() {
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
+  const { t } = useLanguage();
 const DEFAULT_ARTICLES: Record<string, TopicArticle[]> = {
   'chore-management': [
     {
-      question: 'How do I assign a chore ?',
+      question: t('ui_how_do_i_assign_a_chore'),
       answer:
-        'To assign a chore, navigate to the Chores tab or Admin Dashboard. Tap the "+ Add Chore" button, select the family member you wish to assign it to, set the due date and points, and tap Save.',
+        t('ui_to_assign_a_chore_navigate_to_the_chores_tab_or_admin_dashboard_tap_the_add_chore_button_select_the_family_member_you_wish_to_assign_it_to_set_the_due_date_and_points_and_tap_save'),
     },
     {
-      question: "Can I edit a chore after it's assigned ?",
+      question: t('ui_can_i_edit_a_chore_after_it_s_assigned'),
       answer:
-        'Yes, you can edit chore details at any time before it is marked completed. Simply open the chore from your list, tap "Edit", update the necessary details, and save your changes.',
+        t('ui_yes_you_can_edit_chore_details_at_any_time_before_it_is_marked_completed_simply_open_the_chore_from_your_list_tap_edit_update_the_necessary_details_and_save_your_changes'),
     },
     {
-      question: 'Can I set recurring chores ?',
+      question: t('ui_can_i_set_recurring_chores'),
       answer:
-        'Yes! When creating or editing a chore, toggle the "Recurring" option and select your preferred frequency (Daily, Weekly, or Monthly).',
+        t('ui_yes_when_creating_or_editing_a_chore_toggle_the_recurring_option_and_select_your_preferred_frequency_daily_weekly_or_monthly'),
     },
     {
-      question: 'How do I remove a chore ?',
+      question: t('ui_how_do_i_remove_a_chore'),
       answer:
-        'Open the chore details and tap the "Delete" option at the bottom. Note that only household admins or the creator of the chore have permission to remove it.',
+        t('ui_open_the_chore_details_and_tap_the_delete_option_at_the_bottom_note_that_only_household_admins_or_the_creator_of_the_chore_have_permission_to_remove_it'),
     },
   ],
   'getting-started': [
     {
-      question: 'What is ChoreHub ?',
+      question: t('ui_what_is_chorehub'),
       answer:
-        'ChoreHub is a collaborative household management app that helps families organize chores, track daily responsibilities, and celebrate wins together.',
+        t('ui_chorehub_is_a_collaborative_household_management_app_that_helps_families_organize_chores_track_daily_responsibilities_and_celebrate_wins_together'),
     },
     {
-      question: 'How do I invite family members ?',
+      question: t('ui_how_do_i_invite_family_members'),
       answer:
-        'From your Home or Profile screen, go to Household Settings and tap "Invite Member". Share your household code or send an email invitation.',
+        t('ui_from_your_home_or_profile_screen_go_to_household_settings_and_tap_invite_member_share_your_household_code_or_send_an_email_invitation'),
     },
     {
-      question: 'How do points and rewards work ?',
+      question: t('ui_how_do_points_and_rewards_work'),
       answer:
-        'Whenever a member completes an assigned chore, they earn points defined for that task. Points can be redeemed for agreed family rewards!',
+        t('ui_whenever_a_member_completes_an_assigned_chore_they_earn_points_defined_for_that_task_points_can_be_redeemed_for_agreed_family_rewards'),
     },
   ],
   'notifications': [
     {
-      question: 'Why am I not receiving notifications ?',
+      question: t('ui_why_am_i_not_receiving_notifications'),
       answer:
-        'Make sure notifications are enabled for ChoreHub in your phone settings. Also check in-app App Settings to ensure reminders are toggled on.',
+        t('ui_make_sure_notifications_are_enabled_for_chorehub_in_your_phone_settings_also_check_in_app_app_settings_to_ensure_reminders_are_toggled_on'),
     },
     {
-      question: 'Can I customize chore reminder times ?',
+      question: t('ui_can_i_customize_chore_reminder_times'),
       answer:
-        'Yes, you can set reminder alerts for 1 hour before due time or daily morning summaries in App Settings.',
+        t('ui_yes_you_can_set_reminder_alerts_for_1_hour_before_due_time_or_daily_morning_summaries_in_app_settings'),
     },
   ],
   'account-details': [
     {
-      question: 'How do I change my profile picture ?',
+      question: t('ui_how_do_i_change_my_profile_picture'),
       answer:
-        'Go to your Profile tab, tap "Profile picture", and choose an image from your gallery or camera.',
+        t('ui_go_to_your_profile_tab_tap_profile_picture_and_choose_an_image_from_your_gallery_or_camera'),
     },
     {
-      question: 'How can I reset my password ?',
+      question: t('ui_how_can_i_reset_my_password'),
       answer:
-        'Navigate to Profile > Change password to update your password securely, or use the "Forgot Password" link on the login screen.',
+        t('ui_navigate_to_profile_change_password_to_update_your_password_securely_or_use_the_forgot_password_link_on_the_login_screen'),
     },
   ],
   'app-settings': [
     {
-      question: 'Does ChoreHub support dark mode ?',
+      question: t('ui_does_chorehub_support_dark_mode'),
       answer:
-        'Yes, ChoreHub automatically adapts to your system appearance preferences or can be switched manually in Theme settings.',
+        t('ui_yes_chorehub_automatically_adapts_to_your_system_appearance_preferences_or_can_be_switched_manually_in_theme_settings'),
     },
     {
-      question: 'How do I update my language preferences ?',
+      question: t('ui_how_do_i_update_my_language_preferences'),
       answer:
-        'Go to App Settings > Language and select your preferred language.',
+        t('ui_go_to_app_settings_language_and_select_your_preferred_language'),
     },
   ],
 };
 
-export default function HelpTopicScreen() {
   const params = useLocalSearchParams<{ id?: string; title?: string }>();
   const topicId = params.id || 'chore-management';
-  const topicTitle = params.title || 'Chore Management';
+  const topicTitle = t(({ 'getting-started': 'ui_getting_started', 'chore-management': 'ui_chore_management', notifications: 'notifications_title', 'account-details': 'ui_account_details', 'app-settings': 'menu_app_settings' } as Record<string, string>)[topicId] || 'ui_chore_management');
 
   const articles = DEFAULT_ARTICLES[topicId] || DEFAULT_ARTICLES['chore-management'];
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
@@ -114,9 +121,9 @@ export default function HelpTopicScreen() {
           onPress={() => router.canGoBack() ? router.back() : router.replace('/support/help-center' as any)}
           style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t('admin_back')}
         >
-          <Ionicons name="chevron-back" size={24} color="#1E1B2E" />
+          <Ionicons name="chevron-back" size={24} color={themeColors.isDark ? themeColors.textPrimary : "#1E1B2E"} />
         </Pressable>
         <Text style={styles.headerTitle}>{topicTitle}</Text>
         <View style={styles.placeholderBtn} />
@@ -161,10 +168,8 @@ export default function HelpTopicScreen() {
           <View style={styles.helpIconCircle}>
             <Ionicons name="bulb-outline" size={28} color="#6C3BEA" />
           </View>
-          <Text style={styles.helpBoxTitle}>Still need Help ?</Text>
-          <Text style={styles.helpBoxSubtitle}>
-            Contact our support team and we'll be happy to assist you.
-          </Text>
+          <Text style={styles.helpBoxTitle}>{t('ui_still_need_help')}</Text>
+          <Text style={styles.helpBoxSubtitle}>{t('ui_contact_our_support_team_and_we_ll_be_happy_to_assist_you')}</Text>
           <Pressable
             onPress={() => router.push('/support/contact-support' as any)}
             style={({ pressed }) => [
@@ -173,7 +178,7 @@ export default function HelpTopicScreen() {
             ]}
             accessibilityRole="button"
           >
-            <Text style={styles.contactBtnText}>Contact Support</Text>
+            <Text style={styles.contactBtnText}>{t('ui_contact_support')}</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -184,10 +189,10 @@ export default function HelpTopicScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#FAFAFD'),
   },
   header: {
     flexDirection: 'row',
@@ -196,8 +201,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0EEF8',
-    backgroundColor: '#FFFFFF',
+    borderBottomColor: (themeColors.isDark ? themeColors.border : '#F0EEF8'),
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
   },
   backBtn: {
     width: 36,
@@ -212,7 +217,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -224,10 +229,10 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   questionCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     overflow: 'hidden',
     shadowColor: '#6C3BEA',
     shadowOffset: { width: 0, height: 2 },
@@ -245,7 +250,7 @@ const styles = StyleSheet.create({
   questionText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     flex: 1,
     paddingRight: 10,
   },
@@ -253,21 +258,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingBottom: 16,
     borderTopWidth: 1,
-    borderTopColor: '#F4F2FA',
+    borderTopColor: (themeColors.isDark ? themeColors.border : '#F4F2FA'),
     paddingTop: 10,
   },
   answerText: {
     fontSize: 13,
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
     lineHeight: 19,
   },
   helpBox: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 22,
     padding: 22,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#6C3BEA',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
@@ -279,7 +284,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#F3EEFF',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F3EEFF'),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
@@ -287,12 +292,12 @@ const styles = StyleSheet.create({
   helpBoxTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     marginBottom: 4,
   },
   helpBoxSubtitle: {
     fontSize: 12,
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
     textAlign: 'center',
     marginBottom: 16,
     paddingHorizontal: 12,

@@ -1,3 +1,7 @@
+import { translateFeedback } from '@/i18n/translations';
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
+import { notificationDisplay } from '@/i18n/clientTranslations';
+import { useLanguage } from '@/context/LanguageContext';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -23,6 +27,9 @@ export function NotificationPanel({
   onClose,
   onUnreadCountChange,
 }: NotificationPanelProps) {
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
+  const { t } = useLanguage();
   const [items, setItems] = useState<AppNotification[]>([]);
   const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
   const [loading, setLoading] = useState(false);
@@ -37,12 +44,12 @@ export function NotificationPanel({
       const unread = data.filter((n) => !n.is_read).length;
       if (onUnreadCountChange) onUnreadCountChange(unread);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load notifications');
+      setError(t('admin_error'));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [filter, onUnreadCountChange]);
+  }, [filter, onUnreadCountChange, t]);
 
   useEffect(() => {
     if (visible) {
@@ -69,33 +76,23 @@ export function NotificationPanel({
     }
   };
 
-  const handleMarkAllRead = async () => {
-    try {
-      setItems((prev) => prev.map((item) => ({ ...item, is_read: true })));
-      await notificationService.markAllRead();
-      loadNotifications();
-    } catch {
-      loadNotifications();
-    }
-  };
-
   const getNotificationIcon = (type: AppNotification['type']) => {
     switch (type) {
       case 'chore_completed':
-        return { name: 'checkmark-circle' as const, color: '#10B981', bg: '#DCFCE7' };
+        return { name: 'checkmark-circle' as const, color: '#10B981', bg: (themeColors.isDark ? themeColors.surface : '#DCFCE7') };
       case 'chore_assigned':
-        return { name: 'clipboard' as const, color: '#2563EB', bg: '#DBEAFE' };
+        return { name: 'clipboard' as const, color: '#2563EB', bg: (themeColors.isDark ? themeColors.surface : '#DBEAFE') };
       case 'chore_reminder':
-        return { name: 'alarm' as const, color: '#713DE8', bg: '#EDE9FE' };
+        return { name: 'alarm' as const, color: '#713DE8', bg: (themeColors.isDark ? themeColors.surface : '#EDE9FE') };
       case 'weekly_progress':
-        return { name: 'stats-chart' as const, color: '#F59E0B', bg: '#FEF3C7' };
+        return { name: 'stats-chart' as const, color: '#F59E0B', bg: (themeColors.isDark ? themeColors.surface : '#FEF3C7') };
       default:
-        return { name: 'notifications' as const, color: '#713DE8', bg: '#EDE9FE' };
+        return { name: 'notifications' as const, color: '#713DE8', bg: (themeColors.isDark ? themeColors.surface : '#EDE9FE') };
     }
   };
 
   const formatTimeAgo = (dateStr: string) => {
-    if (!dateStr) return 'Just now';
+    if (!dateStr) return t('ui_just_now');
     const date = new Date(dateStr);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
@@ -103,11 +100,11 @@ export function NotificationPanel({
     const diffHours = Math.floor(diffMins / 60);
     const diffDays = Math.floor(diffHours / 24);
 
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays === 1) return 'Yesterday';
-    return `${diffDays}d ago`;
+    if (diffMins < 1) return t('ui_just_now');
+    if (diffMins < 60) return t('ui_count_minutes_ago').replace('{count}', String(diffMins));
+    if (diffHours < 24) return t('ui_count_hours_ago').replace('{count}', String(diffHours));
+    if (diffDays === 1) return t('yesterday');
+    return t('ui_count_days_ago').replace('{count}', String(diffDays));
   };
 
   const unreadCount = items.filter((n) => !n.is_read).length;
@@ -131,20 +128,20 @@ export function NotificationPanel({
           {/* Header */}
           <View style={styles.headerRow}>
             <View style={styles.headerTitleGroup}>
-              <Text style={styles.headerTitle}>Notifications</Text>
+              <Text style={styles.headerTitle}>{t('notifications_title')}</Text>
               {unreadCount > 0 && (
                 <View style={styles.unreadBadge}>
-                  <Text style={styles.unreadBadgeText}>{unreadCount} new</Text>
+                  <Text style={styles.unreadBadgeText}>{unreadCount}{' '}{t('ui_new')}</Text>
                 </View>
               )}
             </View>
 
             <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={10}>
-              <Ionicons name="close" size={22} color="#1E1B2E" />
+              <Ionicons name="close" size={22} color={themeColors.isDark ? themeColors.textPrimary : "#1E1B2E"} />
             </Pressable>
           </View>
 
-          {/* Action Row & Chips */}
+          {/* Filter Chips */}
           <View style={styles.subHeaderRow}>
             {/* Filter Chips */}
             <View style={styles.chipsRow}>
@@ -161,22 +158,14 @@ export function NotificationPanel({
                     ]}
                   >
                     {chip === 'all'
-                      ? 'All'
+                      ? t('filter_all')
                       : chip === 'unread'
-                      ? 'Unread'
-                      : 'Read'}
+                      ? t('filter_unread')
+                      : t('filter_read')}
                   </Text>
                 </Pressable>
               ))}
             </View>
-
-            {/* Mark All Read Button */}
-            {unreadCount > 0 && (
-              <Pressable onPress={handleMarkAllRead} style={styles.markAllBtn}>
-                <Ionicons name="checkmark-done" size={14} color="#713DE8" />
-                <Text style={styles.markAllText}>Mark all read</Text>
-              </Pressable>
-            )}
           </View>
 
           {/* Notifications List */}
@@ -195,12 +184,12 @@ export function NotificationPanel({
             {loading ? (
               <ActivityIndicator size="large" color="#713DE8" style={{ marginTop: 24 }} />
             ) : error ? (
-              <Text style={styles.errorText}>{error}</Text>
+              <Text style={styles.errorText}>{translateFeedback(error, t)}</Text>
             ) : items.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <Text style={{ fontSize: 36, marginBottom: 8 }}>🔔</Text>
-                <Text style={styles.emptyTitle}>No notifications</Text>
-                <Text style={styles.emptySubtitle}>You're all caught up!</Text>
+                <Text style={styles.emptyTitle}>{t('no_notifications')}</Text>
+                <Text style={styles.emptySubtitle}>{t('ui_you_re_all_caught_up')}</Text>
               </View>
             ) : (
               items.map((item) => {
@@ -223,10 +212,10 @@ export function NotificationPanel({
                     {/* Text Body */}
                     <View style={styles.cardTextGroup}>
                       <View style={styles.cardTitleRow}>
-                        <Text style={styles.cardTitle}>{item.title}</Text>
+                        <Text style={styles.cardTitle}>{notificationDisplay(item, t).title}</Text>
                         <Text style={styles.timeAgo}>{formatTimeAgo(item.created_at)}</Text>
                       </View>
-                      <Text style={styles.cardMessage}>{item.message}</Text>
+                      <Text style={styles.cardMessage}>{notificationDisplay(item, t).message}</Text>
                     </View>
 
                     {/* Unread indicator dot */}
@@ -242,7 +231,7 @@ export function NotificationPanel({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(15, 12, 29, 0.45)',
@@ -252,7 +241,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
   },
   panelContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     maxHeight: '80%',
@@ -270,7 +259,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 5,
     borderRadius: 3,
-    backgroundColor: '#EAE7F5',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EAE7F5'),
     alignSelf: 'center',
     marginBottom: 12,
   },
@@ -290,11 +279,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     letterSpacing: -0.3,
   },
   unreadBadge: {
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE'),
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: 12,
@@ -308,11 +297,11 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FAFAFD'),
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
   },
 
   // SubHeader & Chips
@@ -330,9 +319,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 14,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FAFAFD'),
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
   },
   chipPillSelected: {
     backgroundColor: '#713DE8',
@@ -341,22 +330,11 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
   },
   chipTextSelected: {
     color: '#FFFFFF',
   },
-  markAllBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  markAllText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#713DE8',
-  },
-
   // List
   listContent: {
     paddingBottom: 20,
@@ -365,16 +343,16 @@ const styles = StyleSheet.create({
   notificationCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FAFAFD'),
     borderRadius: 18,
     padding: 14,
     gap: 12,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
   },
   unreadCardBg: {
-    backgroundColor: '#F5F3FF',
-    borderColor: '#DDD6FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F5F3FF'),
+    borderColor: (themeColors.isDark ? themeColors.border : '#DDD6FE'),
   },
   iconCircle: {
     width: 40,
@@ -395,17 +373,17 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   timeAgo: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
   },
   cardMessage: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
     lineHeight: 18,
   },
   unreadDot: {
@@ -423,14 +401,14 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   emptySubtitle: {
     fontSize: 13,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
   },
   errorText: {
-    color: '#EF4444',
+    color: (themeColors.isDark ? themeColors.error : '#EF4444'),
     textAlign: 'center',
     marginTop: 16,
   },

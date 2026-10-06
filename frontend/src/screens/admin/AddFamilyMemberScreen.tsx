@@ -1,3 +1,7 @@
+import { formatAdminMessage } from '@/i18n/adminGlobalTranslations';
+import { translateFeedback } from '@/i18n/translations';
+import { useLanguage } from '@/context/LanguageContext';
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -19,6 +23,9 @@ import { Avatar } from '@/components/profile/Avatar';
 const RELATIONSHIPS = ['Mother', 'Father', 'Daughter', 'Son', 'Other'];
 
 export default function AddFamilyMemberScreen() {
+  const { t } = useLanguage();
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
   const [emailInput, setEmailInput] = useState('');
   const [searching, setSearching] = useState(false);
   const [searchedUser, setSearchedUser] = useState<SearchedUser | null>(null);
@@ -26,25 +33,25 @@ export default function AddFamilyMemberScreen() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState<{ name: string; relationship: string } | null>(null);
 
   const handleSearch = async () => {
     if (!emailInput.trim()) {
-      setError('Please enter a registered user email address.');
+      setError(t('ag_email_required'));
       setSearchedUser(null);
       return;
     }
 
     setSearching(true);
     setError('');
-    setSuccessMsg('');
+    setSuccessMsg(null);
     setSearchedUser(null);
 
     try {
       const user = await familyService.searchUserByEmail(emailInput.trim());
       setSearchedUser(user);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'User not found.');
+      setError(t('ag_user_missing'));
     } finally {
       setSearching(false);
     }
@@ -53,24 +60,24 @@ export default function AddFamilyMemberScreen() {
   const handleAddMember = async () => {
     if (!searchedUser) return;
     if (searchedUser.is_already_member) {
-      setError('This user is already a member of your family.');
+      setError(t('ag_already_member'));
       return;
     }
 
     setLoading(true);
     setError('');
-    setSuccessMsg('');
+    setSuccessMsg(null);
 
     try {
       await familyService.addFamilyMember(searchedUser.id, selectedRelationship);
-      setSuccessMsg(`${searchedUser.name} has been added as ${selectedRelationship}! 🎉`);
+      setSuccessMsg({ name: searchedUser.name, relationship: selectedRelationship });
       setSearchedUser(null);
       setEmailInput('');
       setTimeout(() => {
         router.back();
       }, 1500);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not add family member.');
+      setError(t('ag_member_failed'));
     } finally {
       setLoading(false);
     }
@@ -90,42 +97,40 @@ export default function AddFamilyMemberScreen() {
           {/* ── Header ── */}
           <View style={styles.headerRow}>
             <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={10}>
-              <Ionicons name="arrow-back" size={24} color="#1E1B2E" />
+              <Ionicons name="arrow-back" size={24} color={themeColors.isDark ? themeColors.textPrimary : "#1E1B2E"} />
             </Pressable>
-            <Text style={styles.headerTitle}>Add Family Member</Text>
+            <Text style={styles.headerTitle}>{t('ag_add_member')}</Text>
             <View style={{ width: 24 }} />
           </View>
 
-          <Text style={styles.subtitle}>
-            Connect an existing registered ChoreHub user to your household.
-          </Text>
+          <Text style={styles.subtitle}>{t('ag_connect_user')}</Text>
 
           {/* ── Error / Success Banners ── */}
           {error ? (
             <View style={styles.errorCard}>
               <Ionicons name="alert-circle" size={18} color="#DC2626" />
-              <Text style={styles.errorText}>{error}</Text>
+              <Text style={styles.errorText}>{translateFeedback(error, t)}</Text>
             </View>
           ) : null}
 
           {successMsg ? (
             <View style={styles.successCard}>
               <Ionicons name="checkmark-circle" size={18} color="#059669" />
-              <Text style={styles.successText}>{successMsg}</Text>
+              <Text style={styles.successText}>{successMsg && formatAdminMessage(t, 'ag_member_added', {name: successMsg.name, relationship: t('ag_' + successMsg.relationship.toLowerCase())})}</Text>
             </View>
           ) : null}
 
           {/* ── Step 1: Search by Email ── */}
           <View style={styles.cardSection}>
-            <Text style={styles.stepLabel}>STEP 1: FIND USER BY EMAIL</Text>
+            <Text style={styles.stepLabel}>{t('ag_find_email')}</Text>
 
             <View style={styles.searchRow}>
               <View style={styles.inputCard}>
-                <Ionicons name="mail-outline" size={20} color="#8A879A" style={styles.fieldIcon} />
+                <Ionicons name="mail-outline" size={20} color={themeColors.isDark ? themeColors.textSecondary : "#8A879A"} style={styles.fieldIcon} />
                 <TextInput
                   style={styles.textInput}
-                  placeholder="Enter registered email..."
-                  placeholderTextColor="#A09DB1"
+                  placeholder={t('ag_registered_email')}
+                  placeholderTextColor={themeColors.isDark ? themeColors.textSecondary : "#A09DB1"}
                   value={emailInput}
                   onChangeText={(t) => {
                     setEmailInput(t);
@@ -158,7 +163,7 @@ export default function AddFamilyMemberScreen() {
           {/* ── Step 2 & 3: Found User Preview ── */}
           {searchedUser ? (
             <View style={styles.cardSection}>
-              <Text style={styles.stepLabel}>STEP 2: USER FOUND</Text>
+              <Text style={styles.stepLabel}>{t('ag_user_found')}</Text>
 
               <View style={styles.userPreviewCard}>
                 <Avatar
@@ -172,12 +177,12 @@ export default function AddFamilyMemberScreen() {
                   {searchedUser.is_already_member ? (
                     <View style={styles.alreadyBadge}>
                       <Ionicons name="checkmark-circle" size={12} color="#713DE8" />
-                      <Text style={styles.alreadyText}>Already in your family</Text>
+                      <Text style={styles.alreadyText}>{t('ag_already_family')}</Text>
                     </View>
                   ) : (
                     <View style={styles.availableBadge}>
                       <Ionicons name="sparkles" size={12} color="#10B981" />
-                      <Text style={styles.availableText}>Available to add</Text>
+                      <Text style={styles.availableText}>{t('ag_available_add')}</Text>
                     </View>
                   )}
                 </View>
@@ -185,13 +190,13 @@ export default function AddFamilyMemberScreen() {
 
               {/* ── Step 4: Choose Relationship Role ── */}
               <View style={{ marginTop: 14 }}>
-                <Text style={styles.stepLabel}>STEP 3: CHOOSE RELATIONSHIP</Text>
+                <Text style={styles.stepLabel}>{t('ag_relationship')}</Text>
                 <View style={styles.pillsRow}>
                   {RELATIONSHIPS.map((rel) => {
                     const isSelected = selectedRelationship === rel;
                     return (
                       <Pressable
-                        key={rel}
+                        key={t('ag_' + rel.toLowerCase())}
                         onPress={() => setSelectedRelationship(rel)}
                         style={[
                           styles.relPill,
@@ -227,8 +232,8 @@ export default function AddFamilyMemberScreen() {
                 ) : (
                   <Text style={styles.addBtnText}>
                     {searchedUser.is_already_member
-                      ? 'Already in Household'
-                      : `Add to Family as ${selectedRelationship}`}
+                      ? t('ag_already_household')
+                      : formatAdminMessage(t, 'ag_add_as', {relationship: t('ag_' + selectedRelationship.toLowerCase())})}
                   </Text>
                 )}
               </Pressable>
@@ -240,10 +245,10 @@ export default function AddFamilyMemberScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#FAFAFD'),
   },
   container: {
     flex: 1,
@@ -266,18 +271,18 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   subtitle: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     textAlign: 'center',
     marginBottom: 4,
   },
 
   errorCard: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEE2E2'),
     borderRadius: 12,
     padding: 12,
     flexDirection: 'row',
@@ -288,12 +293,12 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 13,
-    color: '#DC2626',
+    color: (themeColors.isDark ? themeColors.error : '#DC2626'),
     fontWeight: '600',
     flex: 1,
   },
   successCard: {
-    backgroundColor: '#D1FAE5',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#D1FAE5'),
     borderRadius: 12,
     padding: 12,
     flexDirection: 'row',
@@ -304,18 +309,18 @@ const styles = StyleSheet.create({
   },
   successText: {
     fontSize: 13,
-    color: '#047857',
+    color: (themeColors.isDark ? themeColors.success : '#047857'),
     fontWeight: '700',
     flex: 1,
   },
 
   cardSection: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 22,
     padding: 20,
     gap: 12,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.04,
@@ -336,13 +341,13 @@ const styles = StyleSheet.create({
   inputCard: {
     flex: 1,
     height: 52,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FAFAFD'),
     borderRadius: 16,
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
   },
   fieldIcon: {
     marginRight: 10,
@@ -351,7 +356,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontWeight: '600',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   searchBtn: {
     width: 52,
@@ -371,11 +376,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FAFAFD'),
     padding: 14,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
   },
   userInfo: {
     flex: 1,
@@ -384,11 +389,11 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 17,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   userEmail: {
     fontSize: 13,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     fontWeight: '500',
   },
   alreadyBadge: {
@@ -424,9 +429,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 14,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FAFAFD'),
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
   },
   relPillSelected: {
     backgroundColor: '#713DE8',
@@ -435,7 +440,7 @@ const styles = StyleSheet.create({
   relPillText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   relPillTextSelected: {
     color: '#FFFFFF',

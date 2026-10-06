@@ -1,3 +1,4 @@
+import { useThemedStyles, type ThemeColors } from '@/context/ThemeContext';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -38,6 +39,7 @@ const TAB_CONFIGS: Record<string, TabConfig> = {
 };
 
 export function MemberTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+  const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const { colors } = useAppTheme();
   const { t } = useLanguage();
@@ -60,16 +62,7 @@ export function MemberTabBar({ state, descriptors, navigation }: BottomTabBarPro
           const { options } = descriptors[route.key];
           const isFocused = state.index === index;
           const tabConfig = TAB_CONFIGS[route.name];
-          const label =
-            route.name === 'index'
-              ? t('home')
-              : route.name === 'chores'
-              ? t('chores')
-              : route.name === 'calendar'
-              ? t('calendar')
-              : route.name === 'profile'
-              ? t('profile')
-              : options.title || route.name;
+          const tabLabel = t(tabConfig.labelKey as any);
 
           const onPress = () => {
             const event = navigation.emit({
@@ -86,7 +79,7 @@ export function MemberTabBar({ state, descriptors, navigation }: BottomTabBarPro
           const activeColor = colors.primary;
           const inactiveColor = colors.textSecondary;
           const currentColor = isFocused ? activeColor : inactiveColor;
-          const iconName = isFocused ? tabConfig.activeIcon : tabConfig.inactiveIcon;
+          const iconName = tabConfig.inactiveIcon;
 
           return (
             <Pressable
@@ -95,7 +88,7 @@ export function MemberTabBar({ state, descriptors, navigation }: BottomTabBarPro
               style={({ pressed }) => [styles.tabItem, pressed && styles.tabPressed]}
               accessibilityRole="button"
               accessibilityState={isFocused ? { selected: true } : {}}
-              accessibilityLabel={label}
+              accessibilityLabel={tabLabel}
             >
               <Ionicons name={iconName} size={22} color={currentColor} style={styles.icon} />
               <Text
@@ -105,7 +98,7 @@ export function MemberTabBar({ state, descriptors, navigation }: BottomTabBarPro
                   isFocused && styles.activeLabel,
                 ]}
               >
-                {label}
+                {tabLabel}
               </Text>
             </Pressable>
           );
@@ -114,17 +107,17 @@ export function MemberTabBar({ state, descriptors, navigation }: BottomTabBarPro
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderTopWidth: 1,
-    borderTopColor: '#EAE7F5',
+    borderTopColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     paddingTop: 8,
-    elevation: 8,
+    elevation: 2,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.02,
     shadowRadius: 6,
   },
   tabItem: {
@@ -132,7 +125,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    paddingVertical: 2,
+    paddingVertical: 4,
+    minHeight: 44,
   },
   tabPressed: {
     opacity: 0.7,

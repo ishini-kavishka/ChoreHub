@@ -1,34 +1,39 @@
+import { useThemedStyles, useAppTheme, type ThemeColors } from '@/context/ThemeContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { ScrollView, StyleSheet, Text, View, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function PrivacyPolicyScreen() {
+  const styles = useThemedStyles(createStyles);
+  const themeColors = useAppTheme().colors;
+  const { t } = useLanguage();
   const privacySections = [
     {
       icon: 'list-outline' as const,
-      title: 'Information we collect',
-      text: 'We collect your name, email address, password hash, phone number if provided, profile image, family membership details, chore assignments, due dates, task status, and account activity needed to operate the app.',
+      title: t('ui_information_we_collect'),
+      text: t('ui_we_collect_your_name_email_address_password_hash_phone_number_if_provided_profile_image_family_membership_details_chore_assignments_due_dates_task_status_and_account_activity_needed_to_operate_the_app'),
     },
     {
       icon: 'settings-outline' as const,
-      title: 'How we use it',
-      text: 'We use this information to create and maintain your account, display household tasks, assign chores, send relevant notifications, help family members coordinate work, and support account recovery and security.',
+      title: t('ui_how_we_use_it'),
+      text: t('ui_we_use_this_information_to_create_and_maintain_your_account_display_household_tasks_assign_chores_send_relevant_notifications_help_family_members_coordinate_work_and_support_account_recovery_and_security'),
     },
     {
       icon: 'people-outline' as const,
-      title: 'Sharing within the app',
-      text: 'Household members may see shared chore information within their family group. This includes assignment details, due dates, progress updates, and basic profile information necessary to coordinate tasks.',
+      title: t('ui_sharing_within_the_app'),
+      text: t('ui_household_members_may_see_shared_chore_information_within_their_family_group_this_includes_assignment_details_due_dates_progress_updates_and_basic_profile_information_necessary_to_coordinate_tasks'),
     },
     {
       icon: 'shield-checkmark-outline' as const,
-      title: 'Security',
-      text: 'Passwords are hashed before storage, and session access is protected using secure tokens. We apply reasonable safeguards to protect account data and limit unauthorized access.',
+      title: t('ui_security'),
+      text: t('ui_passwords_are_hashed_before_storage_and_session_access_is_protected_using_secure_tokens_we_apply_reasonable_safeguards_to_protect_account_data_and_limit_unauthorized_access'),
     },
     {
       icon: 'options-outline' as const,
-      title: 'Your choices',
-      text: 'You can update your profile details, change your password, and manage household access through the ChoreHub app. If you no longer use the service, you may stop using it and request account support through the app.',
+      title: t('ui_your_choices'),
+      text: t('ui_you_can_update_your_profile_details_change_your_password_and_manage_household_access_through_the_chorehub_app_if_you_no_longer_use_the_service_you_may_stop_using_it_and_request_account_support_through_the_app'),
     },
   ];
 
@@ -40,9 +45,9 @@ export default function PrivacyPolicyScreen() {
             onPress={() => router.back()}
             style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
             accessibilityRole="button"
-            accessibilityLabel="Go back"
+            accessibilityLabel={t('admin_back')}
           >
-            <Ionicons name="chevron-back" size={23} color="#1E1B2E" />
+            <Ionicons name="chevron-back" size={23} color={themeColors.textPrimary} />
           </Pressable>
           <View style={styles.brandName}>
             <Text style={styles.brandChore}>Chore</Text>
@@ -54,13 +59,11 @@ export default function PrivacyPolicyScreen() {
         <View style={styles.titleCard}>
           <View style={styles.eyebrow}>
             <Ionicons name="shield-checkmark-outline" size={15} color="#713DE8" />
-            <Text style={styles.eyebrowText}>YOUR PRIVACY</Text>
+            <Text style={styles.eyebrowText}>{t('privacy_policy')}</Text>
           </View>
-          <Text style={styles.title}>Privacy Policy</Text>
+          <Text style={styles.title}>{t('privacy_policy')}</Text>
           <Text style={styles.subtitle}>
-            ChoreHub respects your privacy and only uses personal data needed to support household chore
-            coordination and account access.
-          </Text>
+            {t('ui_chorehub_respects_your_privacy_and_only_uses_personal_data_needed_to_support_household_chore_coordination_and_account_access')}</Text>
         </View>
 
         {privacySections.map((section) => (
@@ -79,7 +82,7 @@ export default function PrivacyPolicyScreen() {
           onPress={() => router.back()}
           style={({ pressed }) => [styles.button, pressed && styles.pressed]}
         >
-          <Text style={styles.buttonText}>Back to sign up</Text>
+          <Text style={styles.buttonText}>{t('ui_back_to_sign_up')}</Text>
           <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
         </Pressable>
       </ScrollView>
@@ -87,10 +90,10 @@ export default function PrivacyPolicyScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#FAFAFD'),
   },
   container: {
     paddingHorizontal: 20,
@@ -132,11 +135,11 @@ const styles = StyleSheet.create({
     width: 38,
   },
   titleCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 22,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.04,
@@ -149,7 +152,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#F3EEFF',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F3EEFF'),
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -164,21 +167,21 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 27,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     marginBottom: 8,
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 14,
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
     lineHeight: 21,
   },
   section: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 18,
     padding: 17,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.03,
@@ -195,7 +198,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 10,
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE'),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -203,10 +206,10 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   bodyText: {
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
     fontSize: 14,
     lineHeight: 21,
   },

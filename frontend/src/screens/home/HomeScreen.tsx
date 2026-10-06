@@ -1,3 +1,6 @@
+import { useAppAlert } from '@/components/ui/AppDialog';
+import { useThemedStyles, type ThemeColors } from '@/context/ThemeContext';
+import { useLanguage } from '@/context/LanguageContext';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -19,6 +22,9 @@ import { ChoreItemCard } from '@/components/chores/ChoreItemCard';
 import { AddChoreModal } from '@/components/chores/AddChoreModal';
 
 export default function HomeScreen() {
+  const alert = useAppAlert();
+  const styles = useThemedStyles(createStyles);
+  const { t } = useLanguage();
   const [profile, setProfile] = useState<Member | null>(null);
   const [stats, setStats] = useState<ChoreStats>({
     completed: 0,
@@ -93,16 +99,16 @@ export default function HomeScreen() {
       if (refreshedStats?.stats) setStats(refreshedStats.stats);
       if (refreshedStats?.todaysChores) setChores(refreshedStats.todaysChores);
     } catch (err) {
-      Alert.alert('Error', 'Could not update chore status. Please try again.');
+      alert(t('error'), t('admin_error'));
       loadData();
     }
   };
 
   const handleDeleteChore = (id: string) => {
-    Alert.alert('Delete Chore', 'Are you sure you want to delete this chore?', [
-      { text: 'Cancel', style: 'cancel' },
+    alert(t('ui_delete_chore'), t('ui_are_you_sure_you_want_to_delete_this_chore'), [
+      { text: t('cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('delete'),
         style: 'destructive',
         onPress: async () => {
           try {
@@ -112,7 +118,7 @@ export default function HomeScreen() {
             if (refreshedStats?.stats) setStats(refreshedStats.stats);
             if (refreshedStats?.todaysChores) setChores(refreshedStats.todaysChores);
           } catch {
-            Alert.alert('Error', 'Could not delete chore.');
+            alert(t('error'), t('admin_error'));
             loadData();
           }
         },
@@ -124,7 +130,7 @@ export default function HomeScreen() {
     router.push('/profile');
   };
 
-  const greetingName = profile?.name ? profile.name.split(' ')[0] : 'Housemate';
+  const greetingName = profile?.name ? profile.name.split(' ')[0] : t('ui_housemate');
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -143,8 +149,8 @@ export default function HomeScreen() {
         {/* Header Section */}
         <View style={styles.header}>
           <View style={styles.headerTextContainer}>
-            <Text style={styles.welcomeTag}>Welcome to ChoreHub</Text>
-            <Text style={styles.greetingText}>Hello, {greetingName} 👋</Text>
+            <Text style={styles.welcomeTag}>{t('ui_welcome_to_chorehub')}</Text>
+            <Text style={styles.greetingText}>{t('ui_hello')}{' '}{greetingName}{t('greeting_suffix')}</Text>
           </View>
           <Pressable
             onPress={handleProfilePress}
@@ -152,9 +158,9 @@ export default function HomeScreen() {
               styles.avatarButton,
               pressed && styles.pressed,
             ]}
-            accessibilityLabel="Open profile"
+            accessibilityLabel={t('ui_open_profile')}
           >
-            <Avatar name={profile?.name || 'User'} uri={profile?.avatarUri} size={48} />
+            <Avatar name={profile?.name || t('ui_user')} uri={profile?.avatarUri} size={48} />
           </Pressable>
         </View>
 
@@ -162,10 +168,8 @@ export default function HomeScreen() {
         <View style={styles.progressCard}>
           <View style={styles.progressHeader}>
             <View>
-              <Text style={styles.progressCardTitle}>Today's Progress</Text>
-              <Text style={styles.progressCardSubtitle}>
-                Keep up the good work!
-              </Text>
+              <Text style={styles.progressCardTitle}>{t('ui_today_s_progress')}</Text>
+              <Text style={styles.progressCardSubtitle}>{t('ui_keep_up_the_good_work')}</Text>
             </View>
             <View style={styles.percentageBadge}>
               <Text style={styles.percentageText}>
@@ -191,7 +195,7 @@ export default function HomeScreen() {
                 <Text style={styles.statIconText}>⏳</Text>
               </View>
               <Text style={styles.statNumber}>{stats.pending}</Text>
-              <Text style={styles.statLabel}>Pending</Text>
+              <Text style={styles.statLabel}>{t('filter_pending')}</Text>
             </View>
 
             <View style={styles.statDivider} />
@@ -201,7 +205,7 @@ export default function HomeScreen() {
                 <Text style={styles.statIconText}>✓</Text>
               </View>
               <Text style={styles.statNumber}>{stats.completed}</Text>
-              <Text style={styles.statLabel}>Completed</Text>
+              <Text style={styles.statLabel}>{t('filter_completed')}</Text>
             </View>
 
             <View style={styles.statDivider} />
@@ -211,7 +215,7 @@ export default function HomeScreen() {
                 <Text style={styles.statIconText}>!</Text>
               </View>
               <Text style={styles.statNumber}>{stats.overdue}</Text>
-              <Text style={styles.statLabel}>Overdue</Text>
+              <Text style={styles.statLabel}>{t('status_overdue')}</Text>
             </View>
           </View>
         </View>
@@ -219,7 +223,7 @@ export default function HomeScreen() {
         {/* Today's Chores Section */}
         <View style={styles.choresSection}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Today's Chores</Text>
+            <Text style={styles.sectionTitle}>{t('todays_chores')}</Text>
             <View style={styles.countBadge}>
               <Text style={styles.countBadgeText}>{chores.length}</Text>
             </View>
@@ -231,10 +235,8 @@ export default function HomeScreen() {
               <View style={styles.emptyIconContainer}>
                 <Text style={styles.emptyIcon}>✨</Text>
               </View>
-              <Text style={styles.emptyStateTitle}>No chores scheduled for today</Text>
-              <Text style={styles.emptyStateSubtitle}>
-                You're all caught up! Enjoy your free time or add a new chore below to keep your household organized.
-              </Text>
+              <Text style={styles.emptyStateTitle}>{t('ui_no_chores_scheduled_for_today')}</Text>
+              <Text style={styles.emptyStateSubtitle}>{t('ui_you_re_all_caught_up_enjoy_your_free_time_or_add_a_new_chore_below_to_keep_your_household_organized')}</Text>
             </View>
           ) : (
             <View style={styles.choresList}>
@@ -258,7 +260,7 @@ export default function HomeScreen() {
             ]}
           >
             <Text style={styles.addChoreButtonIcon}>+</Text>
-            <Text style={styles.addChoreButtonText}>Add New Chore</Text>
+            <Text style={styles.addChoreButtonText}>{t('ui_add_new_chore')}</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -273,10 +275,10 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F8F7FC',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#F8F7FC'),
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -312,12 +314,12 @@ const styles = StyleSheet.create({
   greetingText: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   avatarButton: {
     borderRadius: 24,
     padding: 2,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
@@ -327,12 +329,12 @@ const styles = StyleSheet.create({
 
   // Progress Card
   progressCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 24,
     padding: 20,
     gap: 16,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.06,
@@ -347,15 +349,15 @@ const styles = StyleSheet.create({
   progressCardTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   progressCardSubtitle: {
     fontSize: 13,
-    color: '#757288',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#757288'),
     marginTop: 2,
   },
   percentageBadge: {
-    backgroundColor: '#F0EAFF',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F0EAFF'),
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
@@ -367,7 +369,7 @@ const styles = StyleSheet.create({
   },
   progressBarTrack: {
     height: 10,
-    backgroundColor: '#F0EAFF',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F0EAFF'),
     borderRadius: 5,
     overflow: 'hidden',
   },
@@ -382,7 +384,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#F4F2FA',
+    borderTopColor: (themeColors.isDark ? themeColors.border : '#F4F2FA'),
   },
   statItem: {
     alignItems: 'center',
@@ -398,13 +400,13 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   pendingBadge: {
-    backgroundColor: '#FFF8E6',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#FFF8E6'),
   },
   completedBadge: {
-    backgroundColor: '#ECFDF5',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#ECFDF5'),
   },
   overdueBadge: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEF2F2'),
   },
   statIconText: {
     fontSize: 14,
@@ -413,17 +415,17 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   statLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#757288',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#757288'),
   },
   statDivider: {
     width: 1,
     height: 36,
-    backgroundColor: '#EAE7F5',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EAE7F5'),
   },
 
   // Chores Section
@@ -438,7 +440,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   countBadge: {
     backgroundColor: '#713DE8',
@@ -452,19 +454,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   emptyStateCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 24,
     padding: 28,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     gap: 10,
   },
   emptyIconContainer: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#F0EAFF',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#F0EAFF'),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
@@ -475,12 +477,12 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     textAlign: 'center',
   },
   emptyStateSubtitle: {
     fontSize: 13,
-    color: '#757288',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#757288'),
     textAlign: 'center',
     lineHeight: 19,
   },

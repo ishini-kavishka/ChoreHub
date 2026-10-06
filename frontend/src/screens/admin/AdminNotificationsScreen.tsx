@@ -1,9 +1,11 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { translateFeedback } from '@/i18n/translations';
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Switch,
@@ -11,17 +13,20 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useLanguage } from '@/context/LanguageContext';
 import { notificationService, AppNotification } from '@/services/notificationService';
 import { Household, adminComponent04Service } from '@/services/adminComponent04Service';
 import { familyService } from '@/services/familyService';
 import { useAdminColors } from './AdminComponent04Shared';
+import { ApiError } from '@/services/api';
+import { notificationDisplay } from '@/i18n/clientTranslations';
 
 // ─── Category predicates ────────────────────────────────────────────────────
 
-const isReminder = (n: AppNotification) =>
-  n.type === 'chore_reminder' || n.type === 'reminder_due';
+export const isReminder = (n: AppNotification) =>
+  n.type === 'chore_reminder' || n.type === 'reminder_due' || n.type === 'personal_reminder';
 
 const isUpdate = (n: AppNotification) =>
   !isReminder(n) && n.type !== 'info';
@@ -39,9 +44,12 @@ function getIconConfig(type: AppNotification['type'], dark: boolean): IconConfig
   switch (type) {
     case 'chore_reminder':
     case 'reminder_due':
+    case 'personal_reminder':
       return { name: 'alarm', iconColor: '#FFFFFF', bgColor: '#F59E0B', bgColorDark: '#B45309' };
     case 'chore_completed':
       return { name: 'checkmark-circle', iconColor: '#FFFFFF', bgColor: '#22C55E', bgColorDark: '#166534' };
+    case 'client_chore_message':
+      return { name:'chatbubble',iconColor:'#FFFFFF',bgColor:'#8B5CF6',bgColorDark:'#6D28D9' };
     case 'chore_assigned':
       return { name: 'clipboard', iconColor: '#FFFFFF', bgColor: '#8B5CF6', bgColorDark: '#6D28D9' };
     case 'family_update':
@@ -63,12 +71,13 @@ function relativeTime(iso: string, language: string): string {
   const hours = Math.floor(diff / 3_600_000);
   const days = Math.floor(diff / 86_400_000);
 
-  // Use English for simplicity; Sinhala/Tamil could be extended here
-  if (minutes < 2) return 'Just now';
-  if (minutes < 60) return `${minutes} min ago`;
-  if (hours < 24) return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
-  if (days === 1) return '1 day ago';
-  if (days < 7) return `${days} days ago`;
+  if (typeof Intl.RelativeTimeFormat === 'function') {
+    const format = new Intl.RelativeTimeFormat(language, { numeric: 'auto' });
+    if (minutes < 2) return format.format(0, 'minute');
+    if (minutes < 60) return format.format(-minutes, 'minute');
+    if (hours < 24) return format.format(-hours, 'hour');
+    if (days < 7) return format.format(-days, 'day');
+  }
   return new Date(iso).toLocaleDateString(language, { month: 'short', day: 'numeric' });
 }
 
@@ -76,12 +85,13 @@ function relativeTime(iso: string, language: string): string {
 
 export default function AdminNotificationsScreen() {
   const [household, setHousehold] = useState<Household | null>(null);
+  const params = useLocalSearchParams<{ family_id?: string }>();
 
   useEffect(() => {
     adminComponent04Service
       .context()
       .then((res) => {
-        if (res.households?.length) setHousehold(res.households[0]);
+        if (res.households?.length) setHousehold(res.households.find(h => h.id === params.family_id) || res.households[0]);
       })
       .catch(() => {
         familyService
@@ -91,7 +101,7 @@ export default function AdminNotificationsScreen() {
           })
           .catch(() => {});
       });
-  }, []);
+  }, [params.family_id]);
 
   return <Notifications household={household} />;
 }
@@ -99,6 +109,11 @@ export default function AdminNotificationsScreen() {
 // ─── Main notifications component ────────────────────────────────────────────
 
 function Notifications({ household }: { household: Household | null }) {
+  const themeColors = useClientTheme().colors;
+  const [deleteTarget,setDeleteTarget]=useState<AppNotification|null>(null);
+  const [deleting,setDeleting]=useState(false),[deleteError,setDeleteError]=useState('');
+  const deleteLock=useRef(false),generation=useRef(0);
+
   const { t, language } = useLanguage();
   const c = useAdminColors();
   const dark = c.bg === '#14121F';
@@ -110,30 +125,40 @@ function Notifications({ household }: { household: Household | null }) {
   const [notice, setNotice] = useState('');
   const [category, setCategory] = useState<'all' | 'reminders' | 'updates'>('all');
   const [unreadOnly, setUnreadOnly] = useState(false);
-
-  // ── Load notifications ──────────────────────────────────────────────────
-  const load = useCallback(async () => {
-    setBusy(true);
-    setError('');
-    try {
-      setItems(await notificationService.getNotifications('all', true));
-    } catch {
-      setItems([]);
-      setError(t('admin_error'));
-    } finally {
-      setBusy(false);
-    }
+  const loaded = useRef(false);
+  const loading = useRef(false);
+  const active = useRef(false);
+  const showError = useCallback((e: unknown, saving = false) => {
+    console.warn('Admin notification request failed', e);
+    setError(e instanceof ApiError && [401, 403].includes(e.status || 0) ? t('admin_denied') : t(saving ? 'admin_save_error' : 'admin_error'));
   }, [t]);
 
-  useEffect(() => {
-    void load();
-    const timer = setInterval(() => void load(), 30_000);
-    return () => clearInterval(timer);
-  }, [load]);
+  // ── Load notifications ──────────────────────────────────────────────────
+  const load = useCallback(async (background = false) => {
+    if (loading.current) return;
+    loading.current = true;
+    const version=++generation.current;
+    if (!background) setBusy(true);
+    try {
+      const result = await notificationService.getNotifications('all', true);
+      if (active.current && version===generation.current) { setItems(result); setError(''); loaded.current = true; }
+    } catch (e) {
+      if (active.current) showError(e);
+    } finally {
+      loading.current = false;
+      if (active.current) setBusy(false);
+    }
+  }, [showError]);
+
+  useFocusEffect(useCallback(() => {
+    active.current = true;
+    void load(!loaded.current ? false : true);
+    const timer = setInterval(() => void load(true), 30_000);
+    return () => { active.current = false; clearInterval(timer); };
+  }, [load]));
 
   // ── Derived counts ──────────────────────────────────────────────────────
   const allCount = items.filter((n) => !unreadOnly || !n.is_read).length;
-  const reminderCount = items.filter((n) => isReminder(n) && (!unreadOnly || !n.is_read)).length;
   const updateCount = items.filter((n) => isUpdate(n) && (!unreadOnly || !n.is_read)).length;
 
   const filtered = items.filter(
@@ -149,18 +174,20 @@ function Notifications({ household }: { household: Household | null }) {
     setNotice('');
     try {
       if (!n.is_read) {
-        await notificationService.markRead(n.id);
+        await notificationService.markRead(n.id, true);
+        generation.current++;
         setItems((old) => old.map((x) => (x.id === n.id ? { ...x, is_read: true } : x)));
       }
-      if (n.type === 'weekly_progress')
+      if (n.type === 'client_chore_message') return;
+      else if (n.type === 'weekly_progress')
         router.push({ pathname: '/admin/progress', params: household ? { family_id: household.id } : undefined });
       else if (n.type === 'family_update') router.push('/admin/members');
       else if (n.type === 'announcement')
         router.push({ pathname: '/admin/announcements', params: household ? { family_id: household.id } : undefined });
       else if (isReminder(n)) router.push('/admin/reminders');
       else setNotice(t('admin_no_link'));
-    } catch {
-      setError(t('admin_save_error'));
+    } catch (e) {
+      showError(e, true);
     } finally {
       setSaving(false);
     }
@@ -171,16 +198,26 @@ function Notifications({ household }: { household: Household | null }) {
     setSaving(true);
     setError('');
     void notificationService
-      .markAllRead()
-      .then(() => setItems((old) => old.map((x) => ({ ...x, is_read: true }))))
-      .catch(() => setError(t('admin_save_error')))
+      .markAllRead(true)
+      .then(() => { generation.current++; setItems((old) => old.map((x) => ({ ...x, is_read: true }))); })
+      .catch(e => showError(e, true))
       .finally(() => setSaving(false));
   };
 
+  const removeMessage = async () => {
+    if (!deleteTarget || deleteLock.current) return;
+    deleteLock.current=true; setDeleting(true); setDeleteError('');
+    try {
+      await notificationService.deleteNotification(deleteTarget.id,true);
+      generation.current++;
+      setItems(old=>old.filter(n=>n.id!==deleteTarget.id)); setDeleteTarget(null);
+    } catch { setDeleteError(t('pm_delete_error')); }
+    finally { deleteLock.current=false; setDeleting(false); }
+  };
   const hasUnread = items.some((n) => !n.is_read);
 
   return (
-    <SafeAreaView style={[styles.root, { backgroundColor: c.bg }]}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={[styles.root, { backgroundColor: c.bg }]}>
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <View style={[styles.header, { borderBottomColor: c.border }]}>
         <Pressable
@@ -194,8 +231,9 @@ function Notifications({ household }: { household: Household | null }) {
 
         <Text style={[styles.headerTitle, { color: c.text }]}>{t('notifications')}</Text>
 
-        {/* Notification bell (self-link; shows badge from subscribeUnreadCount in AdminPage) */}
-        <View style={styles.backBtn} />
+        <Pressable style={styles.backBtn} accessibilityRole="button" accessibilityLabel={t('crud_retry')} disabled={busy || saving} onPress={() => void load()}>
+          <Ionicons name="refresh-outline" size={21} color={c.accent} />
+        </Pressable>
       </View>
 
       <ScrollView
@@ -206,39 +244,13 @@ function Notifications({ household }: { household: Household | null }) {
         keyboardShouldPersistTaps="handled"
       >
         {/* ── Quick actions row ───────────────────────────────────────── */}
-        <View style={styles.quickRow}>
-          <Pressable
-            style={[styles.quickPill, { backgroundColor: c.soft, borderColor: c.border }]}
-            onPress={() =>
-              router.push({
-                pathname: '/admin/announcements',
-                params: household ? { family_id: household.id } : undefined,
-              })
-            }
-            accessibilityRole="button"
-            accessibilityLabel={t('manage_announcements')}
-          >
-            <Ionicons name="megaphone" size={16} color={c.accent} />
-            <Text style={[styles.quickPillText, { color: c.accent }]}>{t('manage_announcements')}</Text>
-          </Pressable>
-
-          <Pressable
-            style={[styles.quickPill, { backgroundColor: c.soft, borderColor: c.border }]}
-            onPress={() => router.push('/admin/reminders')}
-            accessibilityRole="button"
-            accessibilityLabel={t('my_reminders')}
-          >
-            <Ionicons name="alarm" size={16} color={c.accent} />
-            <Text style={[styles.quickPillText, { color: c.accent }]}>{t('my_reminders')}</Text>
-          </Pressable>
-        </View>
+        <Text style={[styles.subtitle, { color: c.muted }]}>{t('notifications_subtitle')}</Text>
 
         {/* ── Filter chips ────────────────────────────────────────────── */}
         <View style={styles.chipRow}>
           {(
             [
               { key: 'all', label: t('filter_all'), count: allCount },
-              { key: 'reminders', label: t('admin_reminders'), count: reminderCount },
               { key: 'updates', label: t('admin_updates'), count: updateCount },
             ] as const
           ).map(({ key, label, count }) => {
@@ -261,10 +273,10 @@ function Notifications({ household }: { household: Household | null }) {
                 <Text
                   style={[
                     styles.chipText,
-                    { color: active ? (dark ? '#211C35' : '#FFFFFF') : c.accent },
+                    { color: active ? (dark ? (themeColors.isDark ? themeColors.textPrimary : '#211C35') : '#FFFFFF') : c.accent },
                   ]}
                 >
-                  {label}{count > 0 ? ` (${count})` : ''}
+                  {label} ({count})
                 </Text>
               </Pressable>
             );
@@ -305,15 +317,15 @@ function Notifications({ household }: { household: Household | null }) {
 
         {/* ── Notice / error banners ──────────────────────────────────── */}
         {!!notice && (
-          <View style={[styles.banner, { backgroundColor: dark ? '#1A3A1A' : '#ECFDF5', borderColor: '#22C55E' }]}>
+          <View style={[styles.banner, { backgroundColor: dark ? (themeColors.isDark ? themeColors.background : '#1A3A1A') : (themeColors.isDark ? themeColors.surface : '#ECFDF5'), borderColor: '#22C55E' }]}>
             <Ionicons name="checkmark-circle" size={16} color="#22C55E" />
-            <Text style={[styles.bannerText, { color: dark ? '#76DEBB' : '#15803D' }]}>{notice}</Text>
+            <Text style={[styles.bannerText, { color: dark ? '#76DEBB' : '#15803D' }]}>{translateFeedback(notice, t)}</Text>
           </View>
         )}
         {!!error && (
-          <View style={[styles.banner, { backgroundColor: dark ? '#3A1A1A' : '#FEF2F2', borderColor: '#EF4444' }]}>
+          <View style={[styles.banner, { backgroundColor: dark ? (themeColors.isDark ? themeColors.background : '#3A1A1A') : (themeColors.isDark ? themeColors.surface : '#FEF2F2'), borderColor: '#EF4444' }]}>
             <Ionicons name="alert-circle" size={16} color="#EF4444" />
-            <Text style={[styles.bannerText, { color: dark ? '#FFAAA8' : '#DC2626' }]}>{error}</Text>
+            <Text style={[styles.bannerText, { color: dark ? '#FFAAA8' : '#DC2626' }]}>{translateFeedback(error, t)}</Text>
             <Pressable onPress={() => void load()} style={styles.retryBtn}>
               <Text style={{ color: c.accent, fontWeight: '700', fontSize: 13 }}>{t('admin_retry')}</Text>
             </Pressable>
@@ -321,7 +333,7 @@ function Notifications({ household }: { household: Household | null }) {
         )}
 
         {/* ── Loading ─────────────────────────────────────────────────── */}
-        {busy && <ActivityIndicator color={c.accent} style={{ marginVertical: 24 }} />}
+        {busy && !loaded.current && <ActivityIndicator accessibilityLabel={t('loading')} color={c.accent} style={{ marginVertical: 24 }} />}
 
         {/* ── Empty state ─────────────────────────────────────────────── */}
         {!busy && !error && filtered.length === 0 && (
@@ -329,13 +341,13 @@ function Notifications({ household }: { household: Household | null }) {
             <Ionicons name="notifications-off-outline" size={40} color={c.muted} />
             <Text style={[styles.emptyTitle, { color: c.text }]}>{t('no_notifications')}</Text>
             <Text style={[styles.emptySubtitle, { color: c.muted }]}>
-              {unreadOnly ? 'All notifications have been read.' : 'Nothing here yet.'}
+              {t('crud_empty')}
             </Text>
           </View>
         )}
 
         {/* ── Notification list ────────────────────────────────────────── */}
-        {!busy && (
+        {filtered.length > 0 && (
           <View style={[styles.listCard, { backgroundColor: c.card, borderColor: c.border }]}>
             {filtered.map((n, i) => {
               const cfg = getIconConfig(n.type, dark);
@@ -346,11 +358,11 @@ function Notifications({ household }: { household: Household | null }) {
                   onPress={() => void open(n)}
                   disabled={saving}
                   accessibilityRole="button"
-                  accessibilityLabel={`${n.title}. ${n.is_read ? t('admin_read') : t('filter_unread')}.`}
+                  accessibilityLabel={`${notificationDisplay(n, t).title}. ${n.is_read ? t('admin_read') : t('filter_unread')}.`}
                   style={({ pressed }) => [
                     styles.notifRow,
                     !isLast && { borderBottomWidth: 1, borderBottomColor: c.border },
-                    !n.is_read && { backgroundColor: dark ? '#1E1A30' : '#F5F2FF' },
+                    !n.is_read && { backgroundColor: dark ? (themeColors.isDark ? themeColors.background : '#1E1A30') : (themeColors.isDark ? themeColors.surface : '#F5F2FF') },
                     pressed && { opacity: 0.75 },
                   ]}
                 >
@@ -371,20 +383,23 @@ function Notifications({ household }: { household: Household | null }) {
                         styles.notifTitle,
                         { color: c.text, fontWeight: n.is_read ? '500' : '700' },
                       ]}
-                      numberOfLines={1}
                     >
-                      {n.title}
+                      {notificationDisplay(n, t).title}
                     </Text>
-                    <Text style={[styles.notifMessage, { color: c.muted }]} numberOfLines={2}>
-                      {n.message}
+                    {n.type==='client_chore_message' && <View style={{gap:4,marginTop:6}}>
+                      <Text style={{color:c.muted}}>{t('pm_from')}: {n.sender_name || t('role_member')}</Text>
+                      <Text style={{color:c.muted}}>{t('pm_chore')}: {n.chore_title || t('not_set')}</Text>
+                      {n.chore_due_date && <Text style={{color:c.muted}}>{t('pm_assigned_time')}: {new Date(n.chore_due_date).toLocaleString(language)}</Text>}
+                    </View>}
+                    <Text style={[styles.notifMessage, { color: c.muted }]}>
+                      {notificationDisplay(n, t).message}
                     </Text>
+                    <Text style={[styles.notifTime, { color: c.muted }]}>{n.type==='client_chore_message' ? t('pm_sent_at')+': '+new Date(n.created_at).toLocaleString(language) : relativeTime(n.created_at, language)}</Text>
                   </View>
 
                   {/* Right side: relative time + unread dot */}
                   <View style={styles.notifRight}>
-                    <Text style={[styles.notifTime, { color: c.muted }]}>
-                      {relativeTime(n.created_at, language)}
-                    </Text>
+                    {n.type==='client_chore_message' && <Pressable accessibilityRole="button" accessibilityLabel={t('delete')+': '+(n.sender_name || n.title)} disabled={deleting} onPress={e=>{e.stopPropagation();setDeleteError('');setDeleteTarget(n);}} style={{padding:10}}><Ionicons name="trash-outline" size={20} color={c.accent}/></Pressable>}
                     {!n.is_read && (
                       <View style={[styles.unreadDot, { backgroundColor: c.accent }]} />
                     )}
@@ -402,6 +417,19 @@ function Notifications({ household }: { household: Household | null }) {
           </Text>
         )}
       </ScrollView>
+      <Modal visible={!!deleteTarget} transparent animationType="fade" onRequestClose={()=>{if(!deleteLock.current)setDeleteTarget(null);}}>
+        <View style={{flex:1,justifyContent:'center',padding:24,backgroundColor:'rgba(0,0,0,.4)'}}>
+          <View style={{maxWidth:440,width:'100%',alignSelf:'center',padding:24,gap:16,borderRadius:24,backgroundColor:c.card}}>
+            <Text style={{fontSize:20,fontWeight:'700',color:c.text}}>{t('pm_delete_title')}</Text>
+            <Text style={{color:c.muted}}>{t('pm_delete_body')}</Text>
+            {!!deleteError && <Text accessibilityRole="alert" style={{color:c.error}}>{translateFeedback(deleteError, t)}</Text>}
+            <View style={{flexDirection:'row',justifyContent:'flex-end',gap:12}}>
+              <Pressable accessibilityRole="button" accessibilityLabel={t('cancel')} disabled={deleting} onPress={()=>setDeleteTarget(null)} style={[styles.chip,{backgroundColor:c.soft,borderColor:c.border}]}><Text style={{color:c.accent}}>{t('cancel')}</Text></Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel={t('delete')} disabled={deleting} onPress={()=>void removeMessage()} style={[styles.chip,{backgroundColor:c.accent,borderColor:c.accent}]}>{deleting?<ActivityIndicator color="#fff"/>:<Text style={{color:dark?(themeColors.isDark ? themeColors.textPrimary : '#211C35'):'#fff'}}>{t('delete')}</Text>}</Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -439,6 +467,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     gap: 14,
   },
+  subtitle: { fontSize: 14, lineHeight: 21 },
   // Quick action pills
   quickRow: {
     flexDirection: 'row',
@@ -446,15 +475,19 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   quickPill: {
+    flexGrow: 1,
+    flexBasis: 210,
+    minHeight: 52,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingVertical: 9,
     paddingHorizontal: 14,
-    borderRadius: 20,
+    borderRadius: 14,
     borderWidth: 1,
   },
   quickPillText: {
+    flexShrink: 1,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -564,6 +597,7 @@ const styles = StyleSheet.create({
   },
   notifContent: {
     flex: 1,
+    minWidth: 0,
     gap: 3,
   },
   notifTitle: {
@@ -583,7 +617,7 @@ const styles = StyleSheet.create({
   notifTime: {
     fontSize: 12,
     fontWeight: '500',
-    textAlign: 'right',
+    marginTop: 5,
   },
   unreadDot: {
     width: 8,

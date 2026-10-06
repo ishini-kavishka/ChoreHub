@@ -1,3 +1,5 @@
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
+import { useLanguage } from '@/context/LanguageContext';
 import React, { useState } from 'react';
 import {
   Pressable,
@@ -18,75 +20,81 @@ interface FaqItem {
   answer: string;
 }
 
+
+
+type CategoryFilter = 'all' | 'account' | 'chores' | 'notifications';
+
+
+
+export default function FaqScreen() {
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
+  const { t } = useLanguage();
 const FAQS: FaqItem[] = [
   {
     id: '1',
     category: 'account',
-    question: 'How do I create an account ?',
+    question: t('ui_how_do_i_create_an_account'),
     answer:
-      'You can create a ChoreHub account on the Sign Up screen by providing your full name, email address, and setting a password. You can also join an existing family household using an invite code.',
+      t('ui_you_can_create_a_chorehub_account_on_the_sign_up_screen_by_providing_your_full_name_email_address_and_setting_a_password_you_can_also_join_an_existing_family_household_using_an_invite_code'),
   },
   {
     id: '2',
     category: 'account',
-    question: 'How can I reset my password ?',
+    question: t('ui_how_can_i_reset_my_password'),
     answer:
-      'To reset your password, go to Profile > Change password if you are logged in. If you are signed out, tap "Forgot Password?" on the login screen to receive a secure password reset link.',
+      t('ui_to_reset_your_password_go_to_profile_change_password_if_you_are_logged_in_if_you_are_signed_out_tap_forgot_password_on_the_login_screen_to_receive_a_secure_password_reset_link'),
   },
   {
     id: '3',
     category: 'notifications',
-    question: 'Why am I not receiving notifications ?',
+    question: t('ui_why_am_i_not_receiving_notifications'),
     answer:
-      'Ensure that notifications are enabled in your device settings for ChoreHub. In addition, verify that notification alerts are enabled within your in-app profile settings.',
+      t('ui_ensure_that_notifications_are_enabled_in_your_device_settings_for_chorehub_in_addition_verify_that_notification_alerts_are_enabled_within_your_in_app_profile_settings'),
   },
   {
     id: '4',
     category: 'account',
-    question: 'How do I change my profile picture ?',
+    question: t('ui_how_do_i_change_my_profile_picture'),
     answer:
-      'Navigate to your Profile screen, tap "Profile picture", and select an image from your device photo gallery or take a new photo with your camera.',
+      t('ui_navigate_to_your_profile_screen_tap_profile_picture_and_select_an_image_from_your_device_photo_gallery_or_take_a_new_photo_with_your_camera'),
   },
   {
     id: '5',
     category: 'account',
-    question: 'Can I use the app on multiple devices ?',
+    question: t('ui_can_i_use_the_app_on_multiple_devices'),
     answer:
-      'Yes, you can log in to your ChoreHub account on any supported device. All your family chores, tasks, points, and history will stay automatically synchronized in real-time.',
+      t('ui_yes_you_can_log_in_to_your_chorehub_account_on_any_supported_device_all_your_family_chores_tasks_points_and_history_will_stay_automatically_synchronized_in_real_time'),
   },
   {
     id: '6',
     category: 'account',
-    question: 'How do I delete my account ?',
+    question: t('ui_how_do_i_delete_my_account'),
     answer:
-      'To delete your account and personal data permanently, please visit Profile > Account details or reach out directly to our support team via Contact Support.',
+      t('ui_to_delete_your_account_and_personal_data_permanently_please_visit_profile_account_details_or_reach_out_directly_to_our_support_team_via_contact_support'),
   },
   {
     id: '7',
     category: 'chores',
-    question: 'How do I mark a chore as complete ?',
+    question: t('ui_how_do_i_mark_a_chore_as_complete'),
     answer:
-      'Simply tap the checkmark icon next to the chore card on your Home or Chores screen. Your completed chores will be recorded and points awarded immediately.',
+      t('ui_simply_tap_the_checkmark_icon_next_to_the_chore_card_on_your_home_or_chores_screen_your_completed_chores_will_be_recorded_and_points_awarded_immediately'),
   },
   {
     id: '8',
     category: 'chores',
-    question: 'Can household members trade chores ?',
+    question: t('ui_can_household_members_trade_chores'),
     answer:
-      'Yes! Open the chore details, select "Reassign", and choose another household member who agreed to take over the task.',
+      t('ui_yes_open_the_chore_details_select_reassign_and_choose_another_household_member_who_agreed_to_take_over_the_task'),
   },
 ];
-
-type CategoryFilter = 'all' | 'account' | 'chores' | 'notifications';
-
 const CATEGORIES: { id: CategoryFilter; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'account', label: 'Account' },
-  { id: 'chores', label: 'Chores' },
-  { id: 'notifications', label: 'Notifications' },
+  { id: 'all', label: t('filter_all') },
+  { id: 'account', label: t('ui_account') },
+  { id: 'chores', label: t('chores') },
+  { id: 'notifications', label: t('notifications_title') },
 ];
 
-export default function FaqScreen() {
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -107,11 +115,11 @@ export default function FaqScreen() {
           onPress={() => router.canGoBack() ? router.back() : router.replace('/support' as any)}
           style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t('admin_back')}
         >
-          <Ionicons name="chevron-back" size={24} color="#1E1B2E" />
+          <Ionicons name="chevron-back" size={24} color={themeColors.isDark ? themeColors.textPrimary : "#1E1B2E"} />
         </Pressable>
-        <Text style={styles.headerTitle}>FAQs</Text>
+        <Text style={styles.headerTitle}>{t('ui_faqs')}</Text>
         <View style={styles.placeholderBtn} />
       </View>
 
@@ -180,12 +188,12 @@ export default function FaqScreen() {
 
         {/* Help Banner at Bottom */}
         <View style={styles.bottomHelpBanner}>
-          <Text style={styles.bottomHelpText}>Didn't find your answer?</Text>
+          <Text style={styles.bottomHelpText}>{t('ui_didn_t_find_your_answer')}</Text>
           <Pressable
             onPress={() => router.push('/support/contact-support' as any)}
             style={({ pressed }) => [styles.contactLink, pressed && { opacity: 0.7 }]}
           >
-            <Text style={styles.contactLinkText}>Contact Support Team ›</Text>
+            <Text style={styles.contactLinkText}>{t('ui_contact_support_team')}</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -196,10 +204,10 @@ export default function FaqScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#FAFAFD'),
   },
   header: {
     flexDirection: 'row',
@@ -208,8 +216,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0EEF8',
-    backgroundColor: '#FFFFFF',
+    borderBottomColor: (themeColors.isDark ? themeColors.border : '#F0EEF8'),
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
   },
   backBtn: {
     width: 36,
@@ -224,7 +232,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -253,9 +261,9 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   inactivePill: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
   },
   pillText: {
     fontSize: 13,
@@ -265,16 +273,16 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   inactivePillText: {
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
   },
   faqList: {
     gap: 12,
   },
   faqCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     overflow: 'hidden',
     shadowColor: '#6C3BEA',
     shadowOffset: { width: 0, height: 2 },
@@ -292,7 +300,7 @@ const styles = StyleSheet.create({
   questionText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     flex: 1,
     paddingRight: 10,
   },
@@ -300,12 +308,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingBottom: 16,
     borderTopWidth: 1,
-    borderTopColor: '#F4F2FA',
+    borderTopColor: (themeColors.isDark ? themeColors.border : '#F4F2FA'),
     paddingTop: 10,
   },
   answerText: {
     fontSize: 13,
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
     lineHeight: 19,
   },
   bottomHelpBanner: {
@@ -316,7 +324,7 @@ const styles = StyleSheet.create({
   },
   bottomHelpText: {
     fontSize: 13,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
   },
   contactLink: {
     paddingVertical: 4,

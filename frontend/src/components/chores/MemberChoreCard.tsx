@@ -1,3 +1,5 @@
+import { useThemedStyles, type ThemeColors } from '@/context/ThemeContext';
+import { useLanguage } from '@/context/LanguageContext';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ChoreItem } from '@/services/choreService';
@@ -13,23 +15,25 @@ export function MemberChoreCard({
   onToggleComplete,
   onViewDetails,
 }: MemberChoreCardProps) {
+  const styles = useThemedStyles(createStyles);
+  const { t, language } = useLanguage();
   const isCompleted = chore.status === 'completed';
 
   const getPriorityStyle = () => {
     switch (chore.priority) {
       case 'high':
-        return { badge: styles.highPriorityBadge, text: styles.highPriorityText, label: 'High' };
+        return { badge: styles.highPriorityBadge, text: styles.highPriorityText, label: t('priority_high') };
       case 'low':
-        return { badge: styles.lowPriorityBadge, text: styles.lowPriorityText, label: 'Low' };
+        return { badge: styles.lowPriorityBadge, text: styles.lowPriorityText, label: t('priority_low') };
       default:
-        return { badge: styles.mediumPriorityBadge, text: styles.mediumPriorityText, label: 'Medium' };
+        return { badge: styles.mediumPriorityBadge, text: styles.mediumPriorityText, label: t('priority_medium') };
     }
   };
 
   const priorityStyle = getPriorityStyle();
 
   const formattedDate = chore.due_date
-    ? new Date(chore.due_date).toLocaleDateString('en-US', {
+    ? new Date(chore.due_date).toLocaleDateString(language, {
         month: 'short',
         day: 'numeric',
       })
@@ -47,7 +51,7 @@ export function MemberChoreCard({
             {chore.title}
           </Text>
           {chore.category ? (
-            <Text style={styles.categoryTag}>• {chore.category}</Text>
+            <Text style={styles.categoryTag}>• {['General', 'Cleaning', 'Kitchen', 'Laundry', 'Yard', 'Pets'].includes(chore.category) ? t('ui_' + chore.category.toLowerCase()) : chore.category}</Text>
           ) : null}
         </View>
         <View style={[styles.priorityBadge, priorityStyle.badge]}>
@@ -77,7 +81,7 @@ export function MemberChoreCard({
           <View style={styles.tag}>
             <Text style={styles.tagIcon}>🔄</Text>
             <Text style={styles.tagText}>
-              {chore.recurrence.charAt(0).toUpperCase() + chore.recurrence.slice(1)}
+              {t('repeat_' + chore.recurrence)}
             </Text>
           </View>
         ) : null}
@@ -85,7 +89,7 @@ export function MemberChoreCard({
         {chore.creator_name ? (
           <View style={styles.tag}>
             <Text style={styles.tagIcon}>👤</Text>
-            <Text style={styles.tagText}>By {chore.creator_name}</Text>
+            <Text style={styles.tagText}>{t('by')}{' '}{chore.creator_name}</Text>
           </View>
         ) : null}
       </View>
@@ -94,7 +98,7 @@ export function MemberChoreCard({
       <View style={styles.footerRow}>
         {onViewDetails ? (
           <Pressable onPress={() => onViewDetails(chore)} style={styles.detailsButton}>
-            <Text style={styles.detailsText}>View Details</Text>
+            <Text style={styles.detailsText}>{t('ui_view_details')}</Text>
           </Pressable>
         ) : (
           <View />
@@ -115,7 +119,7 @@ export function MemberChoreCard({
               isCompleted ? styles.completedBtnTextColor : styles.pendingBtnTextColor,
             ]}
           >
-            {isCompleted ? 'Completed' : 'Mark Completed'}
+            {isCompleted ? t('filter_completed') : t('ui_mark_completed')}
           </Text>
         </Pressable>
       </View>
@@ -123,14 +127,14 @@ export function MemberChoreCard({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 20,
     padding: 16,
     gap: 10,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
@@ -138,8 +142,8 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   completedCard: {
-    backgroundColor: '#FAFAFD',
-    borderColor: '#F0EDF9',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FAFAFD'),
+    borderColor: (themeColors.isDark ? themeColors.border : '#F0EDF9'),
   },
   cardHeader: {
     flexDirection: 'row',
@@ -156,15 +160,15 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   completedTitle: {
     textDecorationLine: 'line-through',
-    color: '#9592A6',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#9592A6'),
   },
   categoryTag: {
     fontSize: 12,
-    color: '#757288',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#757288'),
     fontWeight: '600',
   },
   priorityBadge: {
@@ -172,16 +176,16 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 8,
   },
-  highPriorityBadge: { backgroundColor: '#FEE2E2' },
+  highPriorityBadge: { backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEE2E2') },
   highPriorityText: { color: '#EF4444' },
-  mediumPriorityBadge: { backgroundColor: '#FEF3C7' },
+  mediumPriorityBadge: { backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEF3C7') },
   mediumPriorityText: { color: '#D97706' },
-  lowPriorityBadge: { backgroundColor: '#E0E7FF' },
+  lowPriorityBadge: { backgroundColor: (themeColors.isDark ? themeColors.surface : '#E0E7FF') },
   lowPriorityText: { color: '#4F46E5' },
   priorityText: { fontSize: 11, fontWeight: '800' },
   description: {
     fontSize: 13,
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
     lineHeight: 18,
   },
   tagsRow: {
@@ -193,21 +197,21 @@ const styles = StyleSheet.create({
   tag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F4F2FA',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F4F2FA'),
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
     gap: 4,
   },
   tagIcon: { fontSize: 11 },
-  tagText: { fontSize: 11, color: '#656276', fontWeight: '600' },
+  tagText: { fontSize: 11, color: (themeColors.isDark ? themeColors.textSecondary : '#656276'), fontWeight: '600' },
   footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#F4F2FA',
+    borderTopColor: (themeColors.isDark ? themeColors.border : '#F4F2FA'),
     marginTop: 2,
   },
   detailsButton: {
@@ -230,14 +234,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#713DE8',
   },
   completedButtonBg: {
-    backgroundColor: '#ECFDF5',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#ECFDF5'),
     borderWidth: 1,
     borderColor: '#A7F3D0',
   },
   completeIcon: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#FFFFFF'),
   },
   completeBtnText: {
     fontSize: 13,

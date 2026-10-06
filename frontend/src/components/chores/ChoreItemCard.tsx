@@ -1,3 +1,5 @@
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
+import { useLanguage } from '@/context/LanguageContext';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ChoreItem } from '@/services/choreService';
@@ -18,16 +20,19 @@ export function ChoreItemCard({
   onEdit,
   onPress,
 }: ChoreItemCardProps) {
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
+  const { t, language } = useLanguage();
   const isCompleted = chore.status === 'completed';
 
   const getPriorityStyle = (priority: string) => {
     switch (priority) {
       case 'high':
-        return { bg: '#FEF2F2', text: '#DC2626', border: '#FCA5A5' };
+        return { bg: (themeColors.isDark ? themeColors.surface : '#FEF2F2'), text: '#DC2626', border: '#FCA5A5' };
       case 'low':
-        return { bg: '#EFF6FF', text: '#2563EB', border: '#BFDBFE' };
+        return { bg: (themeColors.isDark ? themeColors.surface : '#EFF6FF'), text: '#2563EB', border: '#BFDBFE' };
       default:
-        return { bg: '#F0EAFF', text: '#713DE8', border: '#D8B4FE' };
+        return { bg: (themeColors.isDark ? themeColors.surface : '#F0EAFF'), text: '#713DE8', border: '#D8B4FE' };
     }
   };
 
@@ -42,8 +47,8 @@ export function ChoreItemCard({
       date.getMonth() === today.getMonth() &&
       date.getFullYear() === today.getFullYear();
 
-    if (isToday) return 'Today';
-    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    if (isToday) return t('today');
+    return date.toLocaleDateString(language, { month: 'short', day: 'numeric' });
   };
 
   const formattedDate = formatDate(chore.due_date);
@@ -65,7 +70,7 @@ export function ChoreItemCard({
           isCompleted && styles.checkboxCompleted,
           pressed && { opacity: 0.7 },
         ]}
-        accessibilityLabel={isCompleted ? 'Mark pending' : 'Mark completed'}
+        accessibilityLabel={isCompleted ? t('ui_mark_pending') : t('ui_mark_completed')}
       >
         {isCompleted && <Text style={styles.checkmark}>✓</Text>}
       </Pressable>
@@ -96,7 +101,7 @@ export function ChoreItemCard({
             ]}
           >
             <Text style={[styles.priorityText, { color: priorityStyle.text }]}>
-              {chore.priority.toUpperCase()}
+              {t('priority_' + chore.priority)}
             </Text>
           </View>
 
@@ -108,7 +113,7 @@ export function ChoreItemCard({
 
           {chore.category ? (
             <View style={styles.categoryBadge}>
-              <Text style={styles.categoryText}>{chore.category}</Text>
+              <Text style={styles.categoryText}>{['General', 'Cleaning', 'Kitchen', 'Laundry', 'Yard', 'Pets'].includes(chore.category) ? t('ui_' + chore.category.toLowerCase()) : chore.category}</Text>
             </View>
           ) : null}
 
@@ -121,7 +126,7 @@ export function ChoreItemCard({
 
           {chore.recurrence && chore.recurrence !== 'none' ? (
             <View style={styles.repeatBadge}>
-              <Text style={styles.repeatText}>🔁 {chore.recurrence}</Text>
+              <Text style={styles.repeatText}>🔁 {t('repeat_' + chore.recurrence)}</Text>
             </View>
           ) : null}
         </View>
@@ -142,7 +147,7 @@ export function ChoreItemCard({
             <Pressable
               onPress={() => onEdit(chore)}
               style={({ pressed }) => [styles.actionBtn, pressed && { opacity: 0.6 }]}
-              accessibilityLabel="Edit chore"
+              accessibilityLabel={t('ui_edit_chore')}
             >
               <Text style={styles.actionIcon}>✏️</Text>
             </Pressable>
@@ -151,7 +156,7 @@ export function ChoreItemCard({
           <Pressable
             onPress={() => onDelete(chore.id)}
             style={({ pressed }) => [styles.actionBtn, pressed && { opacity: 0.6 }]}
-            accessibilityLabel="Delete chore"
+            accessibilityLabel={t('ui_delete_chore')}
           >
             <Text style={styles.actionIcon}>🗑️</Text>
           </Pressable>
@@ -161,16 +166,16 @@ export function ChoreItemCard({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 18,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.05,
@@ -178,8 +183,8 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   completedCard: {
-    backgroundColor: '#FAFAFD',
-    borderColor: '#EFEFF5',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FAFAFD'),
+    borderColor: (themeColors.isDark ? themeColors.border : '#EFEFF5'),
     opacity: 0.75,
   },
   pressed: {
@@ -193,7 +198,7 @@ const styles = StyleSheet.create({
     borderColor: '#713DE8',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
   },
   checkboxCompleted: {
     backgroundColor: '#713DE8',
@@ -215,15 +220,15 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   completedTitle: {
     textDecorationLine: 'line-through',
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
   },
   description: {
     fontSize: 13,
-    color: '#757288',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#757288'),
   },
   badgesRow: {
     flexDirection: 'row',
@@ -243,21 +248,21 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   categoryBadge: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F3F4F6'),
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,
   },
   categoryText: {
     fontSize: 11,
-    color: '#4B5563',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#4B5563'),
     fontWeight: '600',
   },
   dateBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#F9FAFB'),
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
@@ -267,11 +272,11 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: 11,
-    color: '#6B7280',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#6B7280'),
     fontWeight: '600',
   },
   repeatBadge: {
-    backgroundColor: '#F3E8FF',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F3E8FF'),
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
@@ -282,7 +287,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   assigneeBadge: {
-    backgroundColor: '#E0F2FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#E0F2FE'),
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,

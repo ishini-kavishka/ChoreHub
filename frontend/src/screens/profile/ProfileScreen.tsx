@@ -1,3 +1,4 @@
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -13,11 +14,15 @@ import { router, useFocusEffect, useSegments } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '@/components/profile/Avatar';
 import { useAppTheme } from '@/context/ThemeContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { authService, Member } from '@/services/authService';
 import { profileService } from '@/services/profileService';
 
 export default function ProfileScreen() {
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
+  const { t } = useLanguage();
   const segments = useSegments();
   const [profile, setProfile] = useState<Member | null>(null);
   const [error, setError] = useState('');
@@ -31,7 +36,7 @@ export default function ProfileScreen() {
     try {
       setProfile(await profileService.getProfile());
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to load your profile.');
+      setError(t('admin_error'));
     } finally {
       setLoading(false);
     }
@@ -48,7 +53,9 @@ export default function ProfileScreen() {
     try {
       await authService.signOut();
       setShowLogoutModal(false);
-      router.dismissAll();
+      // Deep-linked tab routes may have no dismissible Stack. Only emit
+      // POP_TO_TOP when the existing router has a stack it can actually pop.
+      if (router.canDismiss()) router.dismissAll();
       router.replace('/auth/welcome');
     } finally {
       setLoggingOut(false);
@@ -73,12 +80,12 @@ export default function ProfileScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
-          <Text style={styles.error}>{error || 'Your session has ended.'}</Text>
+          <Text style={styles.error}>{error || t('session_ended')}</Text>
           <Pressable
             onPress={() => router.replace('/auth/welcome')}
             style={styles.retryBtn}
           >
-            <Text style={styles.retryBtnText}>Back to Welcome</Text>
+            <Text style={styles.retryBtnText}>{t('back_to_welcome')}</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -88,7 +95,7 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, segments[0] !== 'admin' && { width: '100%', maxWidth: 560, alignSelf: 'center', paddingHorizontal: 16, gap: 16 }]}
         showsVerticalScrollIndicator={false}
       >
         {/* ── Header Bar ── */}
@@ -107,12 +114,13 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
           </Pressable>
 
-          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Profile</Text>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>{t('profile_title')}</Text>
 
           <Pressable
             onPress={() => router.push('/profile/edit')}
             style={styles.headerIconButton}
             hitSlop={10}
+            accessibilityLabel={t('edit_profile_title')}
           >
             <Ionicons name="settings-outline" size={22} color={colors.textPrimary} />
           </Pressable>
@@ -141,8 +149,8 @@ export default function ProfileScreen() {
           <MenuItem
             iconName="person-outline"
             iconColor="#10B981"
-            iconBg="#E6F9F0"
-            title="Personal Information"
+            iconBg={themeColors.isDark ? themeColors.surface : "#E6F9F0"}
+            title={t('menu_personal_info')}
             onPress={() => router.push('/profile/edit')}
           />
           <View style={[styles.menuDivider, { backgroundColor: colors.border }]} />
@@ -151,8 +159,8 @@ export default function ProfileScreen() {
           <MenuItem
             iconName="home-outline"
             iconColor="#713DE8"
-            iconBg="#EDE9FE"
-            title="Household Settings"
+            iconBg={themeColors.isDark ? themeColors.surface : "#EDE9FE"}
+            title={t('menu_household_settings')}
             onPress={() => router.push('/home' as any)}
           />
           <View style={[styles.menuDivider, { backgroundColor: colors.border }]} />
@@ -161,8 +169,8 @@ export default function ProfileScreen() {
           <MenuItem
             iconName="settings-outline"
             iconColor="#713DE8"
-            iconBg="#EDE9FE"
-            title="App Settings"
+            iconBg={themeColors.isDark ? themeColors.surface : "#EDE9FE"}
+            title={t('menu_app_settings')}
             onPress={() => router.push(segments[0] === 'admin' ? '/admin/settings' : '/home/settings')}
           />
           <View style={[styles.menuDivider, { backgroundColor: colors.border }]} />
@@ -171,28 +179,18 @@ export default function ProfileScreen() {
           <MenuItem
             iconName="lock-closed-outline"
             iconColor="#8B5CF6"
-            iconBg="#F3E8FF"
-            title="Change Password"
+            iconBg={themeColors.isDark ? themeColors.surface : "#F3E8FF"}
+            title={t('menu_change_password')}
             onPress={() => router.push('/profile/change-password')}
           />
           <View style={[styles.menuDivider, { backgroundColor: colors.border }]} />
 
-          {/* 5. App Preferences */}
-          <MenuItem
-            iconName="settings-outline"
-            iconColor="#0EA5E9"
-            iconBg="#E0F2FE"
-            title="App Preferences"
-            onPress={() => router.push('/home/preferences' as any)}
-          />
-          <View style={[styles.menuDivider, { backgroundColor: colors.border }]} />
-
-          {/* 6. Support & Help */}
+          {/* 5. Support & Help */}
           <MenuItem
             iconName="help-buoy-outline"
             iconColor="#F59E0B"
-            iconBg="#FEF3C7"
-            title="Support & Help"
+            iconBg={themeColors.isDark ? themeColors.surface : "#FEF3C7"}
+            title={t('menu_support_help')}
             onPress={() => router.push('/support' as any)}
           />
         </View>
@@ -207,7 +205,7 @@ export default function ProfileScreen() {
             ]}
           >
             <Ionicons name="log-out-outline" size={22} color="#EF4444" />
-            <Text style={styles.logoutButtonText}>Logout</Text>
+            <Text style={styles.logoutButtonText}>{t('btn_logout')}</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -234,9 +232,9 @@ export default function ProfileScreen() {
               <Ionicons name="log-out-outline" size={30} color="#713DE8" />
             </View>
 
-            <Text style={styles.modalTitle}>Log Out?</Text>
+            <Text style={styles.modalTitle}>{t('logout_confirm_title')}</Text>
             <Text style={styles.modalMessage}>
-              Are you sure you want to log out from your ChoreHub account?
+              {t('logout_confirm_message')}
             </Text>
 
             <View style={styles.modalActions}>
@@ -252,7 +250,7 @@ export default function ProfileScreen() {
                 {loggingOut ? (
                   <ActivityIndicator color="#FFFFFF" size="small" />
                 ) : (
-                  <Text style={styles.modalPrimaryBtnText}>Log out</Text>
+                  <Text style={styles.modalPrimaryBtnText}>{t('btn_logout')}</Text>
                 )}
               </Pressable>
 
@@ -264,7 +262,7 @@ export default function ProfileScreen() {
                   pressed && styles.modalBtnPressed,
                 ]}
               >
-                <Text style={styles.modalSecondaryBtnText}>Cancel</Text>
+                <Text style={styles.modalSecondaryBtnText}>{t('cancel')}</Text>
               </Pressable>
             </View>
           </View>
@@ -287,6 +285,7 @@ function MenuItem({
   title: string;
   onPress: () => void;
 }) {
+  const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
   return (
     <Pressable
@@ -304,10 +303,10 @@ function MenuItem({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#FAFAFD'),
   },
   center: {
     flex: 1,
@@ -317,7 +316,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   error: {
-    color: '#DC2626',
+    color: (themeColors.isDark ? themeColors.error : '#DC2626'),
     textAlign: 'center',
     fontSize: 15,
     fontWeight: '600',
@@ -357,7 +356,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     letterSpacing: -0.3,
   },
 
@@ -381,7 +380,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2.5,
-    borderColor: '#FFFFFF',
+    borderColor: (themeColors.isDark ? themeColors.border : '#FFFFFF'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
@@ -391,24 +390,24 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 22,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     letterSpacing: -0.4,
     marginBottom: 4,
   },
   userEmail: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
   },
 
   // ── Unified Menu Card ──
   menuCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 22,
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.04,
@@ -432,11 +431,11 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: '700',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   menuDivider: {
     height: 1,
-    backgroundColor: '#F5F3FF',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F5F3FF'),
     marginHorizontal: 4,
   },
 
@@ -447,7 +446,7 @@ const styles = StyleSheet.create({
   logoutButtonCard: {
     width: '100%',
     height: 54,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEF2F2'),
     borderRadius: 18,
     borderWidth: 1.5,
     borderColor: '#FCA5A5',
@@ -476,7 +475,7 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     maxWidth: 340,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 24,
     paddingHorizontal: 24,
     paddingVertical: 28,
@@ -491,7 +490,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#EDE9FE'),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -499,13 +498,13 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     marginBottom: 8,
     textAlign: 'center',
   },
   modalMessage: {
     fontSize: 14,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     textAlign: 'center',
     lineHeight: 21,
     marginBottom: 24,
@@ -536,7 +535,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 48,
     borderRadius: 14,
-    backgroundColor: '#F0EFF8',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F0EFF8'),
     alignItems: 'center',
     justifyContent: 'center',
   },

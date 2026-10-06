@@ -1,6 +1,9 @@
+import { useAppAlert } from '@/components/ui/AppDialog';
+import { useLanguage } from '@/context/LanguageContext';
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
 import React, { useCallback, useState } from 'react';
 import {
-  Alert,
+
   Pressable,
   RefreshControl,
   ScrollView,
@@ -17,6 +20,10 @@ import { AdminChoreCard } from '@/components/chores/AdminChoreCard';
 import { EditChoreModal } from '@/components/chores/EditChoreModal';
 
 export default function AdminChoresScreen() {
+  const alert = useAppAlert();
+  const { t } = useLanguage();
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
   const [chores, setChores] = useState<ChoreItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed' | 'overdue'>('all');
@@ -65,7 +72,7 @@ export default function AdminChoresScreen() {
       await choreService.toggleChoreComplete(id);
       loadData();
     } catch {
-      Alert.alert('Error', 'Could not update chore status.');
+      alert(t('error'), t('ag_status_failed'));
       loadData();
     }
   };
@@ -124,7 +131,7 @@ export default function AdminChoresScreen() {
             <Text style={styles.brandTitle}>
               Chore<Text style={styles.brandAccent}>Hub</Text>
             </Text>
-            <Text style={styles.headerSubtitle}>Manage all household chores</Text>
+            <Text style={styles.headerSubtitle}>{t('ag_manage_household')}</Text>
           </View>
 
           {/* Add Chore Button */}
@@ -136,7 +143,7 @@ export default function AdminChoresScreen() {
             ]}
           >
             <Text style={styles.addChoreBtnIcon}>+</Text>
-            <Text style={styles.addChoreBtnText}>Add Chore</Text>
+            <Text style={styles.addChoreBtnText}>{t('ag_add_chore')}</Text>
           </Pressable>
         </View>
 
@@ -147,10 +154,10 @@ export default function AdminChoresScreen() {
           contentContainerStyle={styles.filterTabsContainer}
         >
           {[
-            { id: 'all', label: `All (${allCount})` },
-            { id: 'pending', label: `Pending (${pendingCount})` },
-            { id: 'completed', label: `Completed (${completedCount})` },
-            { id: 'overdue', label: `Overdue (${overdueCount})` },
+            { id: 'all', label: `${t('filter_all')} (${allCount})` },
+            { id: 'pending', label: `${t('filter_pending')} (${pendingCount})` },
+            { id: 'completed', label: `${t('filter_completed')} (${completedCount})` },
+            { id: 'overdue', label: `${t('status_overdue')} (${overdueCount})` },
           ].map((tab) => {
             const isActive = statusFilter === tab.id;
             return (
@@ -178,17 +185,17 @@ export default function AdminChoresScreen() {
         {/* Search & Filter Funnel Row */}
         <View style={styles.searchRow}>
           <View style={styles.searchContainer}>
-            <Ionicons name="search-outline" size={18} color="#8A879A" />
+            <Ionicons name="search-outline" size={18} color={themeColors.isDark ? themeColors.textSecondary : "#8A879A"} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search chores..."
-              placeholderTextColor="#8A879A"
+              placeholder={t('ag_search_chores')}
+              placeholderTextColor={themeColors.isDark ? themeColors.textSecondary : "#8A879A"}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
             {searchQuery ? (
               <Pressable onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={18} color="#8A879A" />
+                <Ionicons name="close-circle" size={18} color={themeColors.isDark ? themeColors.textSecondary : "#8A879A"} />
               </Pressable>
             ) : null}
           </View>
@@ -207,7 +214,7 @@ export default function AdminChoresScreen() {
               pressed && { opacity: 0.7 },
             ]}
           >
-            <Ionicons name="options-outline" size={20} color="#757288" />
+            <Ionicons name="options-outline" size={20} color={themeColors.isDark ? themeColors.textSecondary : "#757288"} />
           </Pressable>
         </View>
 
@@ -215,10 +222,8 @@ export default function AdminChoresScreen() {
         {filteredChores.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyIcon}>✨</Text>
-            <Text style={styles.emptyTitle}>No chores found</Text>
-            <Text style={styles.emptySubtitle}>
-              There are no chores matching the current filter or search criteria.
-            </Text>
+            <Text style={styles.emptyTitle}>{t('no_chores_found')}</Text>
+            <Text style={styles.emptySubtitle}>{t('ag_no_matching_chores')}</Text>
           </View>
         ) : (
           <View style={styles.choresList}>
@@ -246,10 +251,10 @@ export default function AdminChoresScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#FAFAFD'),
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -269,7 +274,7 @@ const styles = StyleSheet.create({
   brandTitle: {
     fontSize: 26,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     letterSpacing: -0.5,
   },
   brandAccent: {
@@ -278,7 +283,7 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
   },
   addChoreBtn: {
     backgroundColor: '#713DE8',
@@ -321,7 +326,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#713DE8',
   },
   filterPillInactive: {
-    backgroundColor: '#F4F3FA',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F4F3FA'),
   },
   filterPillText: {
     fontSize: 13,
@@ -331,7 +336,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   filterPillTextInactive: {
-    color: '#757288',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#757288'),
   },
   searchRow: {
     flexDirection: 'row',
@@ -342,7 +347,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F4F3FA',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#F4F3FA'),
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 11,
@@ -351,15 +356,15 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   filterFunnelBtn: {
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -367,12 +372,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   emptyCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 20,
     padding: 28,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     gap: 8,
     marginTop: 8,
   },
@@ -382,11 +387,11 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   emptySubtitle: {
     fontSize: 13,
-    color: '#757288',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#757288'),
     textAlign: 'center',
     lineHeight: 18,
   },
