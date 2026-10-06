@@ -26,7 +26,6 @@ const CUSTOMER_TABS: TabItem[] = [
 const ADMIN_TABS: TabItem[] = [
   { id: 'home', label: 'Dashboard', icon: 'grid-outline', activeIcon: 'grid', route: '/admin/dashboard' },
   { id: 'chores', label: 'Chores', icon: 'clipboard-outline', activeIcon: 'clipboard', route: '/admin/chores' },
-  { id: 'members', label: 'Members', icon: 'people-outline', activeIcon: 'people', route: '/admin/members' },
   { id: 'profile', label: 'Profile', icon: 'person-outline', activeIcon: 'person', route: '/admin/profile' },
 ];
 
