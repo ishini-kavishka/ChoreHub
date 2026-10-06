@@ -1,6 +1,6 @@
 import * as WebBrowser from 'expo-web-browser';
 import { apiRequest } from './api';
-import { clearSession, getToken, getUser, saveToken, saveUser } from './authStorage';
+import { clearSession, getToken, getUser, saveToken, saveUser, notifySessionChanged } from './authStorage';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -9,7 +9,7 @@ type ApiUser = { id: string; full_name: string; email: string; phone?: string | 
 type AuthResponse = { user: ApiUser; token: string };
 
 export function toMember(user: ApiUser): Member { return { id: user.id, name: user.full_name, email: user.email, phone: user.phone ?? '', avatarUri: user.profile_image_url ?? undefined, role: user.role }; }
-async function saveAuth(response: AuthResponse) { const member = toMember(response.user); await Promise.all([saveToken(response.token), saveUser(member)]); return member; }
+async function saveAuth(response: AuthResponse) { const member = toMember(response.user); await Promise.all([saveToken(response.token), saveUser(member)]); notifySessionChanged(); return member; }
 
 export const authService = {
   async signIn(email: string, password: string) { return saveAuth(await apiRequest<AuthResponse>('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) })); },

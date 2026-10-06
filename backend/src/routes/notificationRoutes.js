@@ -2,6 +2,7 @@ const express = require('express');
 const { requireAuth } = require('../middleware/authMiddleware');
 const {
   getNotifications,
+  createChoreMessage,
   markNotificationRead,
   markAllRead,
   getUnreadCount,
@@ -18,6 +19,7 @@ router.use(requireAuth);
 router.get('/unread-count', getUnreadCount);
 router.patch('/read-all', markAllRead);
 router.post('/reminders', createReminder);
+router.post('/chore-messages', createChoreMessage);
 router.put('/reminders/:id', updateReminder);
 
 // ── General list & per-id operations ──

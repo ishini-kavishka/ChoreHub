@@ -1,3 +1,6 @@
+import { formatAdminMessage } from '@/i18n/adminGlobalTranslations';
+import { useLanguage } from '@/context/LanguageContext';
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -17,6 +20,9 @@ import { Avatar } from '@/components/profile/Avatar';
 type ViewMode = 'day' | 'week' | 'month';
 
 export default function AdminScheduleScreen() {
+  const { t, language } = useLanguage();
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
   const [chores, setChores] = useState<ChoreItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -88,29 +94,29 @@ export default function AdminScheduleScreen() {
     const map: Record<string, ChoreItem[]> = {};
     filteredChores.forEach((chore) => {
       const key = chore.due_date
-        ? new Date(chore.due_date).toLocaleDateString('en-US', {
+        ? new Date(chore.due_date).toLocaleDateString(language, {
             weekday: 'short',
             month: 'short',
             day: 'numeric',
             year: 'numeric',
           })
-        : 'Unscheduled / Flexible';
+        : t('ag_unscheduled');
       if (!map[key]) map[key] = [];
       map[key].push(chore);
     });
     return map;
-  }, [filteredChores]);
+  }, [filteredChores, language, t]);
 
   const dateKeys = Object.keys(groupedChores);
 
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
       case 'high':
-        return { bg: '#FEE2E2', text: '#EF4444', label: 'High' };
+        return { bg: (themeColors.isDark ? themeColors.surface : '#FEE2E2'), text: '#EF4444', label: t('priority_high') };
       case 'medium':
-        return { bg: '#FFF4E6', text: '#FF9F1C', label: 'Medium' };
+        return { bg: (themeColors.isDark ? themeColors.surface : '#FFF4E6'), text: '#FF9F1C', label: t('priority_medium') };
       default:
-        return { bg: '#E6F9F0', text: '#10B981', label: 'Low' };
+        return { bg: (themeColors.isDark ? themeColors.surface : '#E6F9F0'), text: '#10B981', label: t('priority_low') };
     }
   };
 
@@ -130,10 +136,8 @@ export default function AdminScheduleScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Household Schedule</Text>
-          <Text style={styles.headerSubtitle}>
-            Timeline view of chores across your entire family
-          </Text>
+          <Text style={styles.headerTitle}>{t('ag_schedule')}</Text>
+          <Text style={styles.headerSubtitle}>{t('ag_schedule_description')}</Text>
         </View>
 
         {/* ── View Mode Toggle Pills (Day / Week / Month) ── */}
@@ -141,9 +145,9 @@ export default function AdminScheduleScreen() {
           {(['day', 'week', 'month'] as ViewMode[]).map((mode) => {
             const isSelected = viewMode === mode;
             const labelMap: Record<ViewMode, string> = {
-              day: 'Day View',
-              week: 'Week View',
-              month: 'Month View',
+              day: t('ag_day_view'),
+              week: t('ag_week_view'),
+              month: t('ag_month_view'),
             };
 
             return (
@@ -171,17 +175,7 @@ export default function AdminScheduleScreen() {
         {/* Summary Banner */}
         <View style={styles.summaryBar}>
           <Ionicons name="calendar-outline" size={18} color="#713DE8" />
-          <Text style={styles.summaryText}>
-            Showing <Text style={styles.boldText}>{filteredChores.length}</Text>{' '}
-            {filteredChores.length === 1 ? 'chore' : 'chores'} in{' '}
-            <Text style={styles.boldText}>
-              {viewMode === 'day'
-                ? "Today's Schedule"
-                : viewMode === 'week'
-                ? 'This Week'
-                : 'This Month'}
-            </Text>
-          </Text>
+          <Text style={styles.summaryText}>{formatAdminMessage(t, 'ag_schedule_summary', {count: filteredChores.length, period: viewMode === 'day' ? t('ag_today_schedule') : t(viewMode === 'week' ? 'filter_week' : 'filter_month')})}</Text>
         </View>
 
         {loading ? (
@@ -189,9 +183,9 @@ export default function AdminScheduleScreen() {
         ) : dateKeys.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyIcon}>📋</Text>
-            <Text style={styles.emptyTitle}>No Chores Scheduled</Text>
+            <Text style={styles.emptyTitle}>{t('ag_no_scheduled')}</Text>
             <Text style={styles.emptySubtitle}>
-              No chores found for the selected {viewMode} timeline.
+              {formatAdminMessage(t, 'ag_no_period_chores', {period: t('ag_' + viewMode + '_view')})}
             </Text>
           </View>
         ) : (
@@ -257,12 +251,12 @@ export default function AdminScheduleScreen() {
                           {/* Assigned Member */}
                           <View style={styles.assigneeGroup}>
                             <Avatar
-                              name={c.assignee_name || 'Unassigned'}
+                              name={c.assignee_name || t('admin_unassigned')}
                               uri={c.assignee_avatar || undefined}
                               size={26}
                             />
                             <Text style={styles.assigneeText}>
-                              {c.assignee_name ? c.assignee_name : 'Unassigned'}
+                              {c.assignee_name ? c.assignee_name : t('admin_unassigned')}
                             </Text>
                           </View>
 
@@ -288,7 +282,7 @@ export default function AdminScheduleScreen() {
                                 { color: isCompleted ? '#059669' : '#D97706' },
                               ]}
                             >
-                              {isCompleted ? 'Completed' : 'Pending'}
+                              {isCompleted ? t('filter_completed') : t('filter_pending')}
                             </Text>
                           </View>
                         </View>
@@ -305,10 +299,10 @@ export default function AdminScheduleScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#FAFAFD'),
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -323,19 +317,19 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 26,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     letterSpacing: -0.4,
   },
   headerSubtitle: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
   },
 
   // View Mode Toggle
   viewToggleContainer: {
     flexDirection: 'row',
-    backgroundColor: '#EAE7F5',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#EAE7F5'),
     borderRadius: 18,
     padding: 4,
     gap: 4,
@@ -358,7 +352,7 @@ const styles = StyleSheet.create({
   togglePillText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
   },
   togglePillTextSelected: {
     color: '#FFFFFF',
@@ -369,14 +363,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE'),
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 14,
   },
   summaryText: {
     fontSize: 13,
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   boldText: {
     fontWeight: '800',
@@ -407,19 +401,19 @@ const styles = StyleSheet.create({
   groupCountText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
   },
 
   choresContainer: {
     gap: 10,
   },
   choreItemCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 18,
     padding: 16,
     gap: 12,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.04,
@@ -439,11 +433,11 @@ const styles = StyleSheet.create({
   choreTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   choreDesc: {
     fontSize: 12,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     fontWeight: '500',
   },
   priorityBadge: {
@@ -462,7 +456,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#F5F3FF',
+    borderTopColor: (themeColors.isDark ? themeColors.border : '#F5F3FF'),
   },
   assigneeGroup: {
     flexDirection: 'row',
@@ -472,7 +466,7 @@ const styles = StyleSheet.create({
   assigneeText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#4B5563',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#4B5563'),
   },
   statusBadge: {
     flexDirection: 'row',
@@ -483,10 +477,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   statusCompletedBg: {
-    backgroundColor: '#D1FAE5',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#D1FAE5'),
   },
   statusPendingBg: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEF3C7'),
   },
   statusText: {
     fontSize: 12,
@@ -494,12 +488,12 @@ const styles = StyleSheet.create({
   },
 
   emptyCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 20,
     padding: 28,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     gap: 8,
   },
   emptyIcon: {
@@ -508,11 +502,11 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   emptySubtitle: {
     fontSize: 13,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     textAlign: 'center',
   },
 });

@@ -1,13 +1,24 @@
+import type { ChoreTimeRequest } from './choreTimeRequestService';
 import { apiRequest } from './api';
 import { authService } from './authService';
 import { ApiError } from './api';
 
 export interface AppNotification {
+  sender_id?: string|null;
+  sender_name?: string|null;
   id: string;
   user_id: string;
   title: string;
   message: string;
-  type: 'chore_reminder' | 'chore_completed' | 'chore_assigned' | 'weekly_progress' | 'family_update' | 'info' | 'personal_reminder' | 'announcement';
+  type: 'client_chore_message' | 'chore_reminder' | 'reminder_due' | 'chore_completed' | 'chore_assigned' | 'weekly_progress' | 'family_update' | 'announcement' | 'info' | 'personal_reminder' | 'time_change_request' | 'time_change_approved' | 'time_change_rejected';
+  can_request_time?: boolean;
+  chore_id?: string | null;
+  chore_title?: string | null;
+  chore_due_date?: string | null;
+  assigned_by?: string | null;
+  time_request_id?: string | null;
+  time_request?: ChoreTimeRequest | null;
+  announcement_id?: string | null;
   is_read: boolean;
   reminder_at?: string | null;
   created_at: string;
@@ -41,13 +52,24 @@ function makeMockNotifications(): AppNotification[] {
 let mockNotifications: AppNotification[] = makeMockNotifications();
 export function isDemoNotificationMode() { return mockNotifications !== null && demoMode; }
 let demoMode = false;
+let unreadRevision = 0, lastPublishedUnread = 0;
 const unreadListeners = new Set<(count: number) => void>();
-function publishUnread(count: number) { unreadListeners.forEach((listener) => listener(count)); }
+function publishUnread(count: number) { lastPublishedUnread = count; unreadListeners.forEach((listener) => listener(count)); }
 
 export const notificationService = {
+  async sendChoreMessage(chore_id:string,message:string) {
+    const endpoint='/api/notifications/chore-messages';
+    try {
+      return await apiRequest<{notification:{id:string;created_at:string}}>(
+        endpoint,{method:'POST',body:JSON.stringify({chore_id,message})},await token());
+    } catch(error) {
+      if (typeof __DEV__ !== 'undefined' && __DEV__) console.warn('Message Admin request failed', {endpoint,method:'POST',status:error instanceof ApiError ? error.status : undefined,response:error instanceof Error ? error.message : 'Unknown API error'});
+      throw error;
+    }
+  },
   subscribeUnreadCount(listener: (count: number) => void) { unreadListeners.add(listener); return () => unreadListeners.delete(listener); },
 
-  async getNotifications(filter: 'all' | 'unread' | 'read' = 'all'): Promise<AppNotification[]> {
+  async getNotifications(filter: 'all' | 'unread' | 'read' = 'all', requireLive = false): Promise<AppNotification[]> {
     const authToken = await token();
     try {
       const res = await apiRequest<{ notifications: AppNotification[] }>(
@@ -56,9 +78,10 @@ export const notificationService = {
         authToken
       );
       demoMode = false;
+      if (authToken !== await authService.getAuthToken()) throw new Error('Your session has changed.');
       return res.notifications ?? [];
     } catch (error) {
-      if (!(error instanceof ApiError) || error.status !== undefined) throw error;
+      if (requireLive || !(error instanceof ApiError) || error.status !== undefined) throw error;
       demoMode = true;
       const all = mockNotifications;
       if (filter === 'unread') return all.filter((n) => !n.is_read);
@@ -67,56 +90,71 @@ export const notificationService = {
     }
   },
 
-  async getUnreadCount(): Promise<number> {
+  async getUnreadCount(requireLive = false): Promise<number> {
+    const revision = unreadRevision;
     const authToken = await token();
     try {
       const res = await apiRequest<{ count: number }>('/api/notifications/unread-count', {}, authToken);
+      // A response from a previous login must not update the current account's bell.
+      if (authToken !== await authService.getAuthToken()) return 0;
+      if (revision !== unreadRevision) return lastPublishedUnread;
       demoMode = false;
       publishUnread(res.count ?? 0);
       return res.count ?? 0;
     } catch (error) {
-      if (!(error instanceof ApiError) || error.status !== undefined) throw error;
+      if (requireLive || !(error instanceof ApiError) || error.status !== undefined) throw error;
       demoMode = true;
       const count = mockNotifications.filter((n) => !n.is_read).length; publishUnread(count); return count;
     }
   },
 
-  async markRead(id: string): Promise<void> {
+  async markRead(id: string, requireLive = false): Promise<void> {
     const authToken = await token();
     try {
       await apiRequest<{ message: string }>(`/api/notifications/${id}/read`, { method: 'PATCH' }, authToken);
+      if (authToken !== await authService.getAuthToken()) return;
+      unreadRevision++;
       demoMode = false;
-      await notificationService.getUnreadCount();
+      await notificationService.getUnreadCount(requireLive).catch(error => console.warn('Unread count refresh failed', error));
     } catch (error) {
-      if (!(error instanceof ApiError) || error.status !== undefined) throw error;
+      if (requireLive || !(error instanceof ApiError) || error.status !== undefined) throw error;
       demoMode = true;
       mockNotifications = mockNotifications.map((n) => n.id === id ? { ...n, is_read: true } : n);
       publishUnread(mockNotifications.filter((n) => !n.is_read).length);
     }
   },
 
-  async markAllRead(): Promise<void> {
+  async markAllRead(requireLive = false): Promise<void> {
     const authToken = await token();
     try {
       await apiRequest<{ message: string }>('/api/notifications/read-all', { method: 'PATCH' }, authToken);
+      if (authToken !== await authService.getAuthToken()) return;
+      unreadRevision++;
       demoMode = false;
       publishUnread(0);
     } catch (error) {
-      if (!(error instanceof ApiError) || error.status !== undefined) throw error;
+      if (requireLive || !(error instanceof ApiError) || error.status !== undefined) throw error;
       demoMode = true;
       mockNotifications = mockNotifications.map((n) => ({ ...n, is_read: true }));
       publishUnread(0);
     }
   },
 
-  async deleteNotification(id: string): Promise<void> {
+  async deleteNotification(id: string, requireLive = false): Promise<void> {
     const authToken = await token();
     try {
       await apiRequest<{ message: string; id: string }>(`/api/notifications/${id}`, { method: 'DELETE' }, authToken);
       demoMode = false;
-      await notificationService.getUnreadCount();
+      if (authToken !== await authService.getAuthToken()) return;
+      unreadRevision++;
+      // A failed badge refresh must not turn a committed inbox deletion into a
+      // failed deletion, or substitute demo data in the live client flow.
+      await notificationService.getUnreadCount(requireLive).catch(error => {
+        if (!requireLive) throw error;
+        console.warn('Unread count refresh failed after deletion', error);
+      });
     } catch (error) {
-      if (!(error instanceof ApiError) || error.status !== undefined) throw error;
+      if (requireLive || !(error instanceof ApiError) || error.status !== undefined) throw error;
       demoMode = true;
       mockNotifications = mockNotifications.filter((n) => n.id !== id);
       publishUnread(mockNotifications.filter((n) => !n.is_read).length);

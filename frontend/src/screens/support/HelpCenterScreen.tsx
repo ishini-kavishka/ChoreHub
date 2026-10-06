@@ -1,3 +1,5 @@
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
+import { useLanguage } from '@/context/LanguageContext';
 import React from 'react';
 import {
   Pressable,
@@ -18,40 +20,45 @@ interface TopicItem {
   icon: keyof typeof Ionicons.glyphMap;
 }
 
+
+
+export default function HelpCenterScreen() {
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
+  const { t } = useLanguage();
 const POPULAR_TOPICS: TopicItem[] = [
   {
     id: 'getting-started',
-    title: 'Getting Started',
-    subtitle: 'Learn the basics',
+    title: t('ui_getting_started'),
+    subtitle: t('ui_learn_the_basics'),
     icon: 'rocket-outline',
   },
   {
     id: 'chore-management',
-    title: 'Chore Management',
-    subtitle: 'Assign, edit and track chores',
+    title: t('ui_chore_management'),
+    subtitle: t('ui_assign_edit_and_track_chores'),
     icon: 'clipboard-outline',
   },
   {
     id: 'notifications',
-    title: 'Notifications',
-    subtitle: 'Reminders and alerts',
+    title: t('notifications_title'),
+    subtitle: t('ui_reminders_and_alerts'),
     icon: 'notifications-outline',
   },
   {
     id: 'account-details',
-    title: 'Account details',
-    subtitle: 'Password, Login and more',
+    title: t('ui_account_details'),
+    subtitle: t('ui_password_login_and_more'),
     icon: 'person-outline',
   },
   {
     id: 'app-settings',
-    title: 'App Settings',
-    subtitle: 'Preferences and Customization',
+    title: t('menu_app_settings'),
+    subtitle: t('ui_preferences_and_customization'),
     icon: 'settings-outline',
   },
 ];
 
-export default function HelpCenterScreen() {
   const handleSelectTopic = (topic: TopicItem) => {
     router.push({
       pathname: '/support/topic',
@@ -67,11 +74,11 @@ export default function HelpCenterScreen() {
           onPress={() => router.canGoBack() ? router.back() : router.replace('/support' as any)}
           style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t('admin_back')}
         >
-          <Ionicons name="chevron-back" size={24} color="#1E1B2E" />
+          <Ionicons name="chevron-back" size={24} color={themeColors.isDark ? themeColors.textPrimary : "#1E1B2E"} />
         </Pressable>
-        <Text style={styles.headerTitle}>Help Center</Text>
+        <Text style={styles.headerTitle}>{t('ui_help_center')}</Text>
         <View style={styles.placeholderBtn} />
       </View>
 
@@ -85,15 +92,13 @@ export default function HelpCenterScreen() {
             <View style={styles.graphicIconCircle}>
               <Ionicons name="library-outline" size={44} color="#6C3BEA" />
             </View>
-            <Text style={styles.graphicTitle}>Knowledge Base & Guides</Text>
-            <Text style={styles.graphicSubtitle}>
-              Find detailed walkthroughs for all ChoreHub features
-            </Text>
+            <Text style={styles.graphicTitle}>{t('ui_knowledge_base_guides')}</Text>
+            <Text style={styles.graphicSubtitle}>{t('ui_find_detailed_walkthroughs_for_all_chorehub_features')}</Text>
           </View>
         </View>
 
         {/* Popular Topics Section */}
-        <Text style={styles.sectionHeader}>Popular Topics</Text>
+        <Text style={styles.sectionHeader}>{t('ui_popular_topics')}</Text>
 
         <View style={styles.topicsList}>
           {POPULAR_TOPICS.map((topic) => (
@@ -113,7 +118,7 @@ export default function HelpCenterScreen() {
                 <Text style={styles.topicTitle}>{topic.title}</Text>
                 <Text style={styles.topicSubtitle}>{topic.subtitle}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#8A879A" />
+              <Ionicons name="chevron-forward" size={20} color={themeColors.isDark ? themeColors.textSecondary : "#8A879A"} />
             </Pressable>
           ))}
         </View>
@@ -125,10 +130,10 @@ export default function HelpCenterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#FAFAFD'),
   },
   header: {
     flexDirection: 'row',
@@ -137,8 +142,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0EEF8',
-    backgroundColor: '#FFFFFF',
+    borderBottomColor: (themeColors.isDark ? themeColors.border : '#F0EEF8'),
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
   },
   backBtn: {
     width: 36,
@@ -153,7 +158,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -164,13 +169,13 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   graphicCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 20,
     paddingVertical: 20,
     paddingHorizontal: 16,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#6C3BEA',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -181,7 +186,7 @@ const styles = StyleSheet.create({
     width: 76,
     height: 76,
     borderRadius: 38,
-    backgroundColor: '#F3EEFF',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F3EEFF'),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
@@ -189,25 +194,25 @@ const styles = StyleSheet.create({
   graphicTitle: {
     fontSize: 17,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     marginBottom: 4,
   },
   graphicSubtitle: {
     fontSize: 12,
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
     textAlign: 'center',
   },
   sectionHeader: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     marginBottom: 12,
   },
   topicsList: {
     gap: 10,
   },
   topicCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 18,
     paddingVertical: 14,
     paddingHorizontal: 16,
@@ -215,7 +220,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 14,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#6C3BEA',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.03,
@@ -230,7 +235,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: '#F4F2FA',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F4F2FA'),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -240,11 +245,11 @@ const styles = StyleSheet.create({
   topicTitle: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     marginBottom: 2,
   },
   topicSubtitle: {
     fontSize: 12,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
   },
 });

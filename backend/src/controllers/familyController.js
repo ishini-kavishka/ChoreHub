@@ -1,3 +1,4 @@
+const { notifyFamilyUpdate } = require('../services/notificationDeliveryService');
 const crypto = require('crypto');
 const { pool } = require('../config/db');
 
@@ -47,7 +48,10 @@ async function createFamily(req, res, next) {
 }
 
 async function joinFamily(req, res, next) {
+  let db;
   try {
+    db = await pool.connect();
+    await db.query('BEGIN');
     const userId = req.userId;
     const { invite_code } = req.body || {};
 
@@ -55,7 +59,7 @@ async function joinFamily(req, res, next) {
       throw appError('Invite code is required.');
     }
 
-    const familyResult = await pool.query(
+    const familyResult = await db.query(
       'SELECT * FROM families WHERE UPPER(invite_code) = UPPER($1)',
       [invite_code.trim()]
     );
@@ -63,17 +67,22 @@ async function joinFamily(req, res, next) {
     const family = familyResult.rows[0];
     if (!family) throw appError('Invalid family invite code.', 404);
 
-    await pool.query(
+    const inserted = await db.query(
       `INSERT INTO family_members (family_id, user_id, role, relationship)
        VALUES ($1, $2, 'member', 'Other')
-       ON CONFLICT (family_id, user_id) DO NOTHING`,
+       ON CONFLICT (family_id, user_id) DO NOTHING RETURNING user_id`,
       [family.id, userId]
     );
 
+    if(inserted.rowCount) {
+      const user = (await db.query('SELECT full_name FROM users WHERE id=$1',[userId])).rows[0];
+      await notifyFamilyUpdate(db,family.id,userId,'Family Update', `${user.full_name} joined the household.`);
+    }
+    await db.query('COMMIT');
     return res.json({ message: 'Successfully joined family!', family });
   } catch (error) {
-    return next(error);
-  }
+    if (db) await db.query('ROLLBACK'); return next(error);
+  } finally { db?.release(); }
 }
 
 async function getMyFamily(req, res, next) {
@@ -225,13 +234,17 @@ async function addFamilyMember(req, res, next) {
     if (targetUser.is_active === false) throw appError('Target user account is inactive.', 400);
 
     // Insert or update relationship
-    await client.query(
+    const changedMembership = await client.query(
       `INSERT INTO family_members (family_id, user_id, role, relationship)
        VALUES ($1, $2, 'member', $3)
-       ON CONFLICT (family_id, user_id) DO UPDATE SET relationship = $3`,
+       ON CONFLICT (family_id, user_id) DO UPDATE SET relationship = $3
+       WHERE family_members.relationship IS DISTINCT FROM $3 RETURNING user_id`,
       [familyId, user_id, memberRelationship]
     );
 
+    if (changedMembership.rowCount) {
+      await notifyFamilyUpdate(client, familyId, userId, 'Family Update', `${targetUser.full_name} was added or updated in the household.`);
+    }
     await client.query('COMMIT');
     return res.status(201).json({ message: 'Family member added successfully!' });
   } catch (error) {

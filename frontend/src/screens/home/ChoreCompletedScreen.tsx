@@ -1,21 +1,25 @@
+import { useThemedStyles, type ThemeColors } from '@/context/ThemeContext';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useLanguage } from '@/context/LanguageContext';
 
 export default function ChoreCompletedScreen() {
+  const styles = useThemedStyles(createStyles);
+  const { t, language } = useLanguage();
   const params = useLocalSearchParams<{ title?: string; completedAt?: string }>();
-  const choreTitle = params.title || 'Chore';
+  const choreTitle = params.title || t('chores');
 
   const formatCompletionTime = (isoString?: string) => {
     const d = isoString ? new Date(isoString) : new Date();
-    const dateStr = d.toLocaleDateString('en-GB', {
+    const dateStr = d.toLocaleDateString(language, {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
     });
-    const timeStr = d.toLocaleTimeString('en-US', {
+    const timeStr = d.toLocaleTimeString(language, {
       hour: '2-digit',
       minute: '2-digit',
     });
@@ -55,9 +59,9 @@ export default function ChoreCompletedScreen() {
 
         {/* Text Content */}
         <View style={styles.textGroup}>
-          <Text style={styles.mainTitle}>Chore Completed!</Text>
+          <Text style={styles.mainTitle}>{t('chore_completed_title')}</Text>
           <Text style={styles.subText}>
-            Great job! You have completed{'\n'}
+            {t('great_job_completed')}{'\n'}
             <Text style={styles.choreTitleHighlight}>"{choreTitle}"</Text>.
           </Text>
         </View>
@@ -68,7 +72,7 @@ export default function ChoreCompletedScreen() {
             <Ionicons name="calendar-outline" size={24} color="#713DE8" />
           </View>
           <View style={styles.timestampTextGroup}>
-            <Text style={styles.completedOnLabel}>Completed on</Text>
+            <Text style={styles.completedOnLabel}>{t('completed_on')}</Text>
             <Text style={styles.timestampValue}>{formattedTimestamp}</Text>
           </View>
         </View>
@@ -81,14 +85,14 @@ export default function ChoreCompletedScreen() {
             onPress={handleDone}
             style={({ pressed }) => [styles.doneBtn, pressed && { opacity: 0.88 }]}
           >
-            <Text style={styles.doneBtnText}>Done</Text>
+            <Text style={styles.doneBtnText}>{t('btn_done')}</Text>
           </Pressable>
 
           <Pressable
             onPress={handleViewMyChores}
             style={({ pressed }) => [styles.viewChoresBtn, pressed && { opacity: 0.88 }]}
           >
-            <Text style={styles.viewChoresBtnText}>View My Chores</Text>
+            <Text style={styles.viewChoresBtnText}>{t('btn_view_my_chores')}</Text>
           </Pressable>
         </View>
       </View>
@@ -96,10 +100,10 @@ export default function ChoreCompletedScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#FAFAFD'),
   },
   container: {
     flex: 1,
@@ -151,36 +155,36 @@ const styles = StyleSheet.create({
   mainTitle: {
     fontSize: 28,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     textAlign: 'center',
   },
   subText: {
     fontSize: 15,
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
     textAlign: 'center',
     lineHeight: 22,
     fontWeight: '500',
   },
   choreTitleHighlight: {
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   timestampCard: {
     width: '100%',
-    backgroundColor: '#F4F0FF',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F4F0FF'),
     borderRadius: 20,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
     borderWidth: 1,
-    borderColor: '#E9E2FE',
+    borderColor: (themeColors.isDark ? themeColors.border : '#E9E2FE'),
   },
   calendarIconWrap: {
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#713DE8',
@@ -195,13 +199,13 @@ const styles = StyleSheet.create({
   },
   completedOnLabel: {
     fontSize: 12,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     fontWeight: '600',
   },
   timestampValue: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   buttonGroup: {
     width: '100%',
@@ -225,7 +229,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   viewChoresBtn: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 18,
     paddingVertical: 16,
     alignItems: 'center',

@@ -1,3 +1,7 @@
+import { translateFeedback } from '@/i18n/translations';
+import { useAppAlert } from '@/components/ui/AppDialog';
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
+import { useLanguage } from '@/context/LanguageContext';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -17,6 +21,10 @@ import { profileService } from '@/services/profileService';
 import * as ImagePicker from 'expo-image-picker';
 
 export default function UpdateProfilePictureScreen() {
+  const alert = useAppAlert();
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
+  const { t } = useLanguage();
   const [name, setName] = useState('');
   const [uri, setUri] = useState<string | undefined>();
   const [error, setError] = useState('');
@@ -31,7 +39,7 @@ export default function UpdateProfilePictureScreen() {
         setUri(p.avatarUri);
       })
       .catch((err) => {
-        setError(err instanceof Error ? err.message : 'Could not load profile.');
+        setError(t('admin_error'));
       })
       .finally(() => {
         setFetching(false);
@@ -42,7 +50,7 @@ export default function UpdateProfilePictureScreen() {
     setError('');
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      setError('Photo library access is required to choose a profile picture.');
+      setError(t('ui_photo_library_access_is_required_to_choose_a_profile_picture'));
       return;
     }
 
@@ -68,11 +76,11 @@ export default function UpdateProfilePictureScreen() {
 
     try {
       await profileService.updateAvatar(uri || '');
-      Alert.alert('Profile Picture Updated! 🎉', 'Your new profile picture has been saved.', [
-        { text: 'Done', onPress: () => router.back() },
+      alert(t('ui_profile_picture_updated'), t('ui_your_new_profile_picture_has_been_saved'), [
+        { text: t('btn_done'), onPress: () => router.back() },
       ]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'We could not update your profile picture. Please try again.');
+      setError(t('admin_error'));
     } finally {
       setLoading(false);
     }
@@ -94,22 +102,20 @@ export default function UpdateProfilePictureScreen() {
         {/* ── Header Row ── */}
         <View style={styles.headerRow}>
           <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={10}>
-            <Ionicons name="arrow-back" size={24} color="#1E1B2E" />
+            <Ionicons name="arrow-back" size={24} color={themeColors.isDark ? themeColors.textPrimary : "#1E1B2E"} />
           </Pressable>
-          <Text style={styles.headerTitle}>Profile Picture</Text>
+          <Text style={styles.headerTitle}>{t('ui_profile_picture')}</Text>
           <View style={{ width: 24 }} />
         </View>
 
         {/* ── Subtitle ── */}
-        <Text style={styles.subtitle}>
-          Choose a photo that helps your household members recognize you.
-        </Text>
+        <Text style={styles.subtitle}>{t('ui_choose_a_photo_that_helps_your_household_members_recognize_you')}</Text>
 
         {/* ── Error Banner ── */}
         {error ? (
           <View style={styles.errorCard}>
             <Ionicons name="alert-circle" size={18} color="#DC2626" />
-            <Text style={styles.errorText}>{error}</Text>
+            <Text style={styles.errorText}>{translateFeedback(error, t)}</Text>
           </View>
         ) : null}
 
@@ -122,7 +128,7 @@ export default function UpdateProfilePictureScreen() {
             </Pressable>
           </View>
           <Text style={styles.userName}>{name}</Text>
-          <Text style={styles.hintText}>A square photo looks best.</Text>
+          <Text style={styles.hintText}>{t('ui_a_square_photo_looks_best')}</Text>
         </View>
 
         {/* ── Action Buttons ── */}
@@ -133,7 +139,7 @@ export default function UpdateProfilePictureScreen() {
             style={({ pressed }) => [styles.selectBtn, pressed && { opacity: 0.88 }]}
           >
             <Ionicons name="image-outline" size={20} color="#713DE8" />
-            <Text style={styles.selectBtnText}>Select a Photo</Text>
+            <Text style={styles.selectBtnText}>{t('ui_select_a_photo')}</Text>
           </Pressable>
 
           {/* Remove Photo Button (if uri exists) */}
@@ -143,7 +149,7 @@ export default function UpdateProfilePictureScreen() {
               style={({ pressed }) => [styles.removeBtn, pressed && { opacity: 0.88 }]}
             >
               <Ionicons name="trash-outline" size={18} color="#EF4444" />
-              <Text style={styles.removeBtnText}>Remove Photo</Text>
+              <Text style={styles.removeBtnText}>{t('ui_remove_photo')}</Text>
             </Pressable>
           ) : null}
 
@@ -156,7 +162,7 @@ export default function UpdateProfilePictureScreen() {
             {loading ? (
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
-              <Text style={styles.saveBtnText}>Save Profile Picture</Text>
+              <Text style={styles.saveBtnText}>{t('ui_save_profile_picture')}</Text>
             )}
           </Pressable>
         </View>
@@ -165,10 +171,10 @@ export default function UpdateProfilePictureScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#FAFAFD'),
   },
   loadingCenter: {
     flex: 1,
@@ -194,12 +200,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   subtitle: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     textAlign: 'center',
     marginBottom: 24,
     paddingHorizontal: 12,
@@ -208,7 +214,7 @@ const styles = StyleSheet.create({
   // ── Error Banner ──
   errorCard: {
     width: '100%',
-    backgroundColor: '#FEE2E2',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEE2E2'),
     borderRadius: 12,
     padding: 12,
     flexDirection: 'row',
@@ -220,20 +226,20 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 13,
-    color: '#DC2626',
+    color: (themeColors.isDark ? themeColors.error : '#DC2626'),
     fontWeight: '600',
     flex: 1,
   },
 
   // ── Avatar Preview Card ──
   previewCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 24,
     padding: 28,
     alignItems: 'center',
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
@@ -255,7 +261,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: '#FFFFFF',
+    borderColor: (themeColors.isDark ? themeColors.border : '#FFFFFF'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
@@ -265,13 +271,13 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 20,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     marginBottom: 4,
   },
   hintText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
   },
 
   // ── Button Stack ──
@@ -280,7 +286,7 @@ const styles = StyleSheet.create({
   },
   selectBtn: {
     width: '100%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 18,
     height: 52,
     flexDirection: 'row',
@@ -297,7 +303,7 @@ const styles = StyleSheet.create({
   },
   removeBtn: {
     width: '100%',
-    backgroundColor: '#FEF2F2',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEF2F2'),
     borderRadius: 18,
     height: 48,
     flexDirection: 'row',

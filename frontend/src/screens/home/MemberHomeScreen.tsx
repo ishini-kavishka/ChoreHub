@@ -1,4 +1,9 @@
-import React, { useCallback, useState } from 'react';
+import { notificationService, type AppNotification } from '@/services/notificationService';
+import { subscribeSession } from '@/services/authStorage';
+import { notificationDisplay } from '@/i18n/clientTranslations';
+import { useAppAlert } from '@/components/ui/AppDialog';
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,14 +19,18 @@ import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '@/components/profile/Avatar';
 import { useAppTheme } from '@/context/ThemeContext';
-import { NotificationPanel } from '@/components/notifications/NotificationPanel';
+import { useLanguage } from '@/context/LanguageContext';
 import { authService, Member } from '@/services/authService';
 import { profileService } from '@/services/profileService';
 import { choreService, ChoreItem, ChoreStats } from '@/services/choreService';
-import { notificationService } from '@/services/notificationService';
+import { NotificationBell, refreshMemberUnread } from '@/components/notifications/NotificationBell';
 
 export default function MemberHomeScreen() {
+  const alert = useAppAlert();
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
+  const { t, language } = useLanguage();
   const [profile, setProfile] = useState<Member | null>(null);
   const [stats, setStats] = useState<ChoreStats>({
     completed: 0,
@@ -30,9 +39,9 @@ export default function MemberHomeScreen() {
     total: 0,
     completionPercentage: 0,
   });
+  const [recentNotifications, setRecentNotifications] = useState<AppNotification[]>([]);
+  const [notificationError, setNotificationError] = useState(false);
   const [chores, setChores] = useState<ChoreItem[]>([]);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -57,12 +66,6 @@ export default function MemberHomeScreen() {
         setChores(memberRes.chores);
       }
 
-      try {
-        const unreadCount = await notificationService.getUnreadCount();
-        setUnreadNotifsCount(unreadCount);
-      } catch {
-        // Fallback
-      }
     } catch {
       // Soft fail
     } finally {
@@ -77,8 +80,16 @@ export default function MemberHomeScreen() {
     }, [loadData])
   );
 
+  const loadRecent = useCallback(async () => {
+    try { const notices = await notificationService.getNotifications('all', true); setRecentNotifications(notices.slice(0, 3)); setNotificationError(false); }
+    catch { setNotificationError(true); }
+  }, []);
+  useFocusEffect(useCallback(() => { void loadRecent(); }, [loadRecent]));
+  useEffect(() => subscribeSession(() => setRecentNotifications([])), []);
   const onRefresh = () => {
+    void loadRecent();
     setRefreshing(true);
+    void refreshMemberUnread(true);
     loadData();
   };
 
@@ -100,7 +111,7 @@ export default function MemberHomeScreen() {
       if (refreshed?.stats) setStats(refreshed.stats);
       if (refreshed?.chores) setChores(refreshed.chores);
     } catch {
-      Alert.alert('Error', 'Could not update chore status.');
+      alert(t('error'), t('admin_error'));
       loadData();
     }
   };
@@ -114,64 +125,71 @@ export default function MemberHomeScreen() {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning!';
-    if (hour < 18) return 'Good afternoon!';
-    return 'Good evening!';
+    if (hour < 12) return t('greeting_morning');
+    if (hour < 18) return t('greeting_afternoon');
+    return t('greeting_evening');
   };
 
-  const firstName = profile?.name ? profile.name.trim().split(' ')[0] : 'Member';
+  const firstName = profile?.name ? profile.name.trim().split(' ')[0] : t('role_member');
   const initial = firstName.charAt(0).toUpperCase();
   const completionPct = Math.round(stats.completionPercentage ?? 0);
 
   const getCategoryIcon = (category?: string) => {
     const cat = (category || '').toLowerCase();
     if (cat.includes('garden') || cat.includes('plant') || cat.includes('yard')) {
-      return { icon: 'leaf-outline' as const, bg: '#DCFCE7', color: '#16A34A' };
+      return { icon: 'leaf-outline' as const, bg: (themeColors.isDark ? themeColors.surface : '#DCFCE7'), color: '#16A34A' };
     }
     if (cat.includes('living') || cat.includes('mop') || cat.includes('floor') || cat.includes('clean')) {
-      return { icon: 'construct-outline' as const, bg: '#DBEAFE', color: '#2563EB' };
+      return { icon: 'construct-outline' as const, bg: (themeColors.isDark ? themeColors.surface : '#DBEAFE'), color: '#2563EB' };
     }
     if (cat.includes('bath') || cat.includes('trash') || cat.includes('wash')) {
-      return { icon: 'trash-outline' as const, bg: '#FEE2E2', color: '#DC2626' };
+      return { icon: 'trash-outline' as const, bg: (themeColors.isDark ? themeColors.surface : '#FEE2E2'), color: '#DC2626' };
     }
-    return { icon: 'checkbox-outline' as const, bg: '#EDE9FE', color: '#713DE8' };
+    return { icon: 'checkbox-outline' as const, bg: (themeColors.isDark ? themeColors.surface : '#EDE9FE'), color: '#713DE8' };
   };
 
   const formatDueTime = (dateString?: string | null) => {
-    if (!dateString) return 'Today, 10:00 AM';
+    if (!dateString) return `${t('filter_today')}, 10:00 AM`;
     const d = new Date(dateString);
-    if (isNaN(d.getTime())) return 'Today, 10:00 AM';
-    return `Today, ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+    if (isNaN(d.getTime())) return `${t('filter_today')}, 10:00 AM`;
+    return `${t('filter_today')}, ${d.toLocaleTimeString(language, { hour: 'numeric', minute: '2-digit' })}`;
   };
 
   const QUICK_ACTIONS = [
     {
       id: 'chores',
-      label: 'View All\nChores',
+      label: t('quick_view_chores'),
       icon: 'clipboard-outline' as const,
       color: '#713DE8',
       onPress: () => router.push('/home/chores' as any),
     },
     {
       id: 'schedule',
-      label: 'My\nSchedule',
+      label: t('ui_my_schedule'),
       icon: 'time-outline' as const,
       color: '#059669',
       onPress: () => router.push('/home/schedule' as any),
     },
     {
       id: 'calendar',
-      label: 'View\nCalendar',
+      label: t('quick_view_calendar'),
       icon: 'calendar-outline' as const,
       color: '#EC4899',
       onPress: () => router.push('/home/calendar' as any),
     },
     {
       id: 'family',
-      label: 'Family\nMembers',
+      label: t('quick_family_members'),
       icon: 'people-outline' as const,
       color: '#2563EB',
       onPress: () => router.push('/home/family' as any),
+    },
+    {
+      id: 'progress',
+      label: t('quick_my_progress'),
+      icon: 'bar-chart-outline' as const,
+      color: '#713DE8',
+      onPress: () => router.push('/home/progress' as any),
     },
   ];
 
@@ -203,33 +221,14 @@ export default function MemberHomeScreen() {
         <View style={styles.topHeader}>
           {/* ChoreHub Logo */}
           <View style={styles.logoRow}>
-            <Text style={styles.logoChore}>Chore</Text>
+            <Text style={styles.logoChore}>{t('pm_chore')}</Text>
             <Text style={styles.logoHub}>Hub</Text>
           </View>
 
           {/* Right Header Controls */}
           <View style={styles.headerRight}>
             {/* Notification Bell */}
-            <Pressable
-              style={({ pressed }) => [
-                styles.bellBtn,
-                { backgroundColor: colors.card, borderColor: colors.border },
-                pressed && { opacity: 0.7 },
-              ]}
-              onPress={() => setShowNotifications(true)}
-              accessibilityLabel="Open notifications"
-            >
-              <Ionicons name="notifications-outline" size={24} color={colors.textPrimary} />
-              {unreadNotifsCount > 0 ? (
-                <View style={styles.bellBadgeDot}>
-                  <Text style={styles.bellBadgeText}>
-                    {unreadNotifsCount > 9 ? '9+' : unreadNotifsCount}
-                  </Text>
-                </View>
-              ) : (
-                <View style={styles.bellBadgeDot} />
-              )}
-            </Pressable>
+            <NotificationBell returnTo="/home"/>
 
             {/* Avatar Badge */}
             <Pressable
@@ -241,20 +240,20 @@ export default function MemberHomeScreen() {
           </View>
         </View>
 
-        {/* ── Greeting Banner Section ── */}
+          {/* ── Greeting Banner Section ── */}
         <View style={styles.greetingSection}>
           <View style={styles.greetingTextGroup}>
-            <Text style={[styles.greetingSub, { color: colors.textSecondary }]}>{getGreeting()} 👋</Text>
+            <Text style={[styles.greetingSub, { color: colors.textSecondary }]}>{getGreeting()}{t('greeting_suffix')}</Text>
             <Text style={[styles.greetingTitle, { color: colors.textPrimary }]}>{firstName}!</Text>
             <Text style={[styles.greetingCaption, { color: colors.textSecondary }]}>
-              Let's make today productive together.
+              {t('make_today_productive')}
             </Text>
           </View>
 
           {/* Right Illustration Badge */}
           <View style={styles.illustrationWrap}>
             <View style={styles.speechBubble}>
-              <Text style={styles.speechBubbleText}>Small Steps{'\n'}Big Change!</Text>
+              <Text style={styles.speechBubbleText}>{t('small_steps_big_change')}</Text>
             </View>
             <View style={styles.avatarGraphicCircle}>
               <Text style={styles.graphicEmoji}>👩‍🌾</Text>
@@ -266,10 +265,10 @@ export default function MemberHomeScreen() {
         <View style={styles.progressCard}>
           {/* Card Header */}
           <View style={styles.progressCardHeader}>
-            <Text style={styles.progressCardTitle}>My Progress</Text>
+            <Text style={styles.progressCardTitle}>{t('my_progress')}</Text>
           <Pressable onPress={() => router.push('/home/progress' as any)} style={styles.viewLinkRow}>
-              <Text style={styles.viewLinkText}>View</Text>
-              <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
+              <Text style={styles.viewLinkText}>{t('view')}</Text>
+              <Ionicons name="chevron-forward" size={14} color={themeColors.primary} />
             </Pressable>
           </View>
 
@@ -290,10 +289,10 @@ export default function MemberHomeScreen() {
             {/* Progress Text & Icon */}
             <View style={styles.gaugeRightCol}>
               <Text style={styles.gaugeMessage}>
-                {stats.completed} of {stats.total} chores completed this week!
+                {stats.completed} / {stats.total} {t('chores_completed_this_week')}
               </Text>
               <View style={styles.chartIconBadge}>
-                <Ionicons name="bar-chart" size={20} color="#FFFFFF" />
+                <Ionicons name="bar-chart" size={20} color={themeColors.primary} />
               </View>
             </View>
           </View>
@@ -302,29 +301,29 @@ export default function MemberHomeScreen() {
           <View style={styles.innerStatsRow}>
             {/* Completed */}
             <View style={[styles.innerStatCard, { backgroundColor: colors.card }]}>
-              <View style={[styles.innerStatIconCircle, { backgroundColor: '#DCFCE7' }]}>
+              <View style={[styles.innerStatIconCircle, { backgroundColor: (themeColors.isDark ? themeColors.surface : '#DCFCE7') }]}>
                 <Ionicons name="checkmark" size={16} color="#16A34A" />
               </View>
               <Text style={[styles.innerStatNum, { color: colors.textPrimary }]}>{stats.completed}</Text>
-              <Text style={styles.innerStatLabel}>Completed</Text>
+              <Text style={styles.innerStatLabel}>{t('status_completed')}</Text>
             </View>
 
             {/* Pending */}
             <View style={[styles.innerStatCard, { backgroundColor: colors.card }]}>
-              <View style={[styles.innerStatIconCircle, { backgroundColor: '#FEF3C7' }]}>
+              <View style={[styles.innerStatIconCircle, { backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEF3C7') }]}>
                 <Ionicons name="time" size={16} color="#D97706" />
               </View>
               <Text style={[styles.innerStatNum, { color: colors.textPrimary }]}>{stats.pending}</Text>
-              <Text style={styles.innerStatLabel}>Pending</Text>
+              <Text style={styles.innerStatLabel}>{t('status_pending')}</Text>
             </View>
 
             {/* Overdue */}
             <View style={[styles.innerStatCard, { backgroundColor: colors.card }]}>
-              <View style={[styles.innerStatIconCircle, { backgroundColor: '#FEE2E2' }]}>
+              <View style={[styles.innerStatIconCircle, { backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEE2E2') }]}>
                 <Ionicons name="alert" size={16} color="#DC2626" />
               </View>
               <Text style={[styles.innerStatNum, { color: colors.textPrimary }]}>{stats.overdue}</Text>
-              <Text style={styles.innerStatLabel}>Overdue</Text>
+              <Text style={styles.innerStatLabel}>{t('status_overdue')}</Text>
             </View>
           </View>
         </View>
@@ -332,12 +331,12 @@ export default function MemberHomeScreen() {
         {/* ── Today's Chores Section ── */}
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={[styles.sectionHeaderTitle, { color: colors.textPrimary }]}>Today's Chores</Text>
+            <Text style={[styles.sectionHeaderTitle, { color: colors.textPrimary }]}>{t('todays_chores')}</Text>
             <Pressable
               onPress={() => router.push('/home/chores' as any)}
               style={styles.viewAllRow}
             >
-              <Text style={styles.viewAllText}>View All</Text>
+              <Text style={styles.viewAllText}>{t('view_all')}</Text>
               <Ionicons name="chevron-forward" size={14} color="#713DE8" />
             </Pressable>
           </View>
@@ -345,8 +344,8 @@ export default function MemberHomeScreen() {
           {chores.length === 0 ? (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyIcon}>✨</Text>
-              <Text style={styles.emptyTitle}>All caught up!</Text>
-              <Text style={styles.emptySub}>No pending chores scheduled for today.</Text>
+              <Text style={styles.emptyTitle}>{t('all_caught_up')}</Text>
+              <Text style={styles.emptySub}>{t('no_pending_chores_today')}</Text>
             </View>
           ) : (
             <View style={styles.choresList}>
@@ -382,7 +381,7 @@ export default function MemberHomeScreen() {
                         <Text style={styles.choreCategory}>{item.category}</Text>
                       ) : null}
                       <View style={styles.dueTimeRow}>
-                        <Ionicons name="calendar-outline" size={13} color="#8A879A" />
+                        <Ionicons name="calendar-outline" size={13} color={themeColors.isDark ? themeColors.textSecondary : "#8A879A"} />
                         <Text style={styles.dueTimeText}>
                           {formatDueTime(item.due_date)}
                         </Text>
@@ -393,18 +392,18 @@ export default function MemberHomeScreen() {
                     <View style={styles.choreRightCol}>
                       {item.status === 'pending' ? (
                         <View style={styles.pendingPill}>
-                          <Text style={styles.pendingPillText}>Pending</Text>
+                          <Text style={styles.pendingPillText}>{t('status_pending')}</Text>
                         </View>
                       ) : item.priority === 'high' ? (
                         <View style={styles.highPriorityPill}>
-                          <Text style={styles.highPriorityText}>High</Text>
+                          <Text style={styles.highPriorityText}>{t('priority_high')}</Text>
                         </View>
                       ) : (
                         <View style={styles.mediumPriorityPill}>
-                          <Text style={styles.mediumPriorityText}>Medium</Text>
+                          <Text style={styles.mediumPriorityText}>{t('priority_medium')}</Text>
                         </View>
                       )}
-                      <Ionicons name="chevron-forward" size={16} color="#C4C1D4" />
+                      <Ionicons name="chevron-forward" size={16} color={themeColors.isDark ? themeColors.textSecondary : "#C4C1D4"} />
                     </View>
                   </Pressable>
                 );
@@ -415,7 +414,7 @@ export default function MemberHomeScreen() {
 
         {/* ── Quick Actions Section ── */}
         <View style={styles.sectionContainer}>
-          <Text style={styles.sectionHeaderTitle}>Quick Actions</Text>
+          <Text style={styles.sectionHeaderTitle}>{t('quick_actions')}</Text>
           <View style={styles.quickGrid}>
             {QUICK_ACTIONS.map((action) => (
               <Pressable
@@ -438,47 +437,38 @@ export default function MemberHomeScreen() {
         {/* ── Recent Notifications Section ── */}
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionHeaderTitle}>Recent Notifications</Text>
-            <Pressable onPress={() => {}} style={styles.viewAllRow}>
-              <Text style={styles.viewAllText}>View All</Text>
+            <Text style={styles.sectionHeaderTitle}>{t('recent_notifications')}</Text>
+            <Pressable onPress={() => router.push('/home/notifications' as any)} style={styles.viewAllRow}>
+              <Text style={styles.viewAllText}>{t('view_all')}</Text>
               <Ionicons name="chevron-forward" size={14} color="#713DE8" />
             </Pressable>
           </View>
 
-          <View style={styles.notificationCard}>
-            <View style={styles.notifLeftBorder} />
-            <View style={styles.notifIconWrap}>
-              <Ionicons name="notifications" size={20} color="#EF4444" />
-            </View>
-            <View style={styles.notifContent}>
-              <View style={styles.notifTitleRow}>
-                <Text style={styles.notifTitle}>Chore Due Today</Text>
-                <Text style={styles.notifTime}>2 hours ago</Text>
+          {recentNotifications.map(notice => {
+            const display = notificationDisplay(notice, t);
+            return <Pressable key={notice.id} accessibilityRole="button" onPress={() => router.push({ pathname: '/home/notifications', params: { returnTo: '/home' } })} style={styles.notificationCard}>
+              <View style={styles.notifLeftBorder}/>
+              <View style={styles.notifIconWrap}><Ionicons name="notifications-outline" size={20} color={colors.primary}/></View>
+              <View style={styles.notifContent}>
+                <Text style={styles.notifTitle}>{display.title}</Text>
+                <Text style={styles.notifSub}>{display.message}</Text>
+                <Text style={styles.notifTime}>{new Date(notice.created_at).toLocaleString(language)}</Text>
               </View>
-              <Text style={styles.notifSub}>
-                {chores[0]?.title
-                  ? `${chores[0].title} is due today at 10:00 AM.`
-                  : 'Water plants is due today at 10:00 AM.'}
-              </Text>
-            </View>
-          </View>
+            </Pressable>;
+          })}
+          {!recentNotifications.length && <Text style={{ color: colors.textSecondary }}>{t(notificationError ? 'admin_error' : 'no_notifications')}</Text>}
+
         </View>
       </ScrollView>
 
-      {/* Notification Panel Modal */}
-      <NotificationPanel
-        visible={showNotifications}
-        onClose={() => setShowNotifications(false)}
-        onUnreadCountChange={setUnreadNotifsCount}
-      />
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#FAFAFD'),
   },
   centerLoader: {
     flex: 1,
@@ -486,10 +476,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    width: '100%', maxWidth: 560, alignSelf: 'center',
+    paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 36,
-    gap: 20,
+    gap: 16,
   },
 
   // ── Top Header Bar ──
@@ -504,13 +495,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoChore: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: '900',
     color: '#713DE8',
     letterSpacing: -0.5,
   },
   logoHub: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: '900',
     color: '#FF9F1C',
     letterSpacing: -0.5,
@@ -524,11 +515,11 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     position: 'relative',
   },
   bellBadgeDot: {
@@ -566,17 +557,17 @@ const styles = StyleSheet.create({
   greetingSub: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
   },
   greetingTitle: {
-    fontSize: 30,
+    fontSize: 26,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     letterSpacing: -0.5,
   },
   greetingCaption: {
     fontSize: 13,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     fontWeight: '500',
     marginTop: 2,
   },
@@ -585,7 +576,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   speechBubble: {
-    backgroundColor: '#EEF2FF',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EEF2FF'),
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 12,
@@ -601,7 +592,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE'),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -611,15 +602,16 @@ const styles = StyleSheet.create({
 
   // ── My Progress Purple Card ──
   progressCard: {
-    backgroundColor: '#6D28D9',
-    borderRadius: 24,
-    padding: 20,
+    backgroundColor: themeColors.card,
+    borderWidth: 1, borderColor: themeColors.border,
+    borderRadius: 16,
+    padding: 16,
     gap: 16,
     shadowColor: '#6D28D9',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.04,
     shadowRadius: 16,
-    elevation: 6,
+    elevation: 1,
   },
   progressCardHeader: {
     flexDirection: 'row',
@@ -629,7 +621,7 @@ const styles = StyleSheet.create({
   progressCardTitle: {
     fontSize: 18,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: themeColors.textPrimary,
   },
   viewLinkRow: {
     flexDirection: 'row',
@@ -639,7 +631,7 @@ const styles = StyleSheet.create({
   viewLinkText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: themeColors.textPrimary,
     opacity: 0.9,
   },
   gaugeRow: {
@@ -658,7 +650,7 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     borderWidth: 7,
     borderColor: '#A78BFA',
-    borderTopColor: '#FFFFFF',
+    borderTopColor: themeColors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -678,7 +670,7 @@ const styles = StyleSheet.create({
   gaugePercentText: {
     fontSize: 18,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: themeColors.textPrimary,
   },
   gaugeRightCol: {
     flex: 1,
@@ -691,14 +683,14 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: themeColors.textPrimary,
     lineHeight: 20,
   },
   chartIconBadge: {
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: themeColors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -709,7 +701,7 @@ const styles = StyleSheet.create({
   },
   innerStatCard: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 16,
     paddingVertical: 12,
     alignItems: 'center',
@@ -726,12 +718,12 @@ const styles = StyleSheet.create({
   innerStatNum: {
     fontSize: 18,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   innerStatLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#757288',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#757288'),
   },
 
   // ── Section Styles ──
@@ -746,7 +738,7 @@ const styles = StyleSheet.create({
   sectionHeaderTitle: {
     fontSize: 19,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   viewAllRow: {
     flexDirection: 'row',
@@ -761,30 +753,30 @@ const styles = StyleSheet.create({
 
   // ── Today's Chores ──
   emptyCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 20,
     padding: 24,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     gap: 6,
   },
   emptyIcon: { fontSize: 28 },
-  emptyTitle: { fontSize: 16, fontWeight: '800', color: '#1E1B2E' },
-  emptySub: { fontSize: 13, color: '#8A879A' },
+  emptyTitle: { fontSize: 16, fontWeight: '800', color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E') },
+  emptySub: { fontSize: 13, color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A') },
 
   choresList: {
     gap: 10,
   },
   choreCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 18,
     padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -809,11 +801,11 @@ const styles = StyleSheet.create({
   choreTitle: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   choreCategory: {
     fontSize: 12,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     fontWeight: '500',
   },
   dueTimeRow: {
@@ -824,7 +816,7 @@ const styles = StyleSheet.create({
   },
   dueTimeText: {
     fontSize: 11,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     fontWeight: '600',
   },
   choreRightCol: {
@@ -833,7 +825,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   pendingPill: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEF3C7'),
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 10,
@@ -844,7 +836,7 @@ const styles = StyleSheet.create({
     color: '#D97706',
   },
   mediumPriorityPill: {
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE'),
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 10,
@@ -855,7 +847,7 @@ const styles = StyleSheet.create({
     color: '#713DE8',
   },
   highPriorityPill: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEE2E2'),
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 10,
@@ -874,14 +866,14 @@ const styles = StyleSheet.create({
   },
   quickCard: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 18,
     paddingVertical: 16,
     paddingHorizontal: 6,
     alignItems: 'center',
     gap: 8,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -896,28 +888,28 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: '#F4F2FA',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F4F2FA'),
     alignItems: 'center',
     justifyContent: 'center',
   },
   quickLabel: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     textAlign: 'center',
     lineHeight: 14,
   },
 
   // ── Recent Notifications ──
   notificationCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 18,
     padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     position: 'relative',
     overflow: 'hidden',
     shadowColor: '#713DE8',
@@ -938,7 +930,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEF2F2'),
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 4,
@@ -955,16 +947,16 @@ const styles = StyleSheet.create({
   notifTitle: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   notifTime: {
     fontSize: 11,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     fontWeight: '600',
   },
   notifSub: {
     fontSize: 12,
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
     lineHeight: 16,
   },
 });

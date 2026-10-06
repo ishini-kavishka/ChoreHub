@@ -1,3 +1,5 @@
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
+import { useLanguage } from '@/context/LanguageContext';
 import React from 'react';
 import {
   Image,
@@ -14,6 +16,9 @@ import { Ionicons } from '@expo/vector-icons';
 const familyIllustration = require('../../../assets/images/welcome_family.png');
 
 export default function WelcomeScreen() {
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
+  const { t } = useLanguage();
   const handleGetStarted = () => {
     router.push('/auth/signup' as any);
   };
@@ -48,10 +53,8 @@ export default function WelcomeScreen() {
           </View>
 
           {/* Headline & Subtitle */}
-          <Text style={styles.headline}>Organize • Assign • Track • Achieve</Text>
-          <Text style={styles.subtitle}>
-            Make household chores easier,{'\n'}together.
-          </Text>
+          <Text style={styles.headline}>{t('ui_organize_assign_track_achieve')}</Text>
+          <Text style={styles.subtitle}>{t('ui_make_household_chores_easier')}{'\n'}{t('ui_together')}</Text>
         </View>
 
         {/* ── Hero Family Illustration Image ── */}
@@ -68,34 +71,34 @@ export default function WelcomeScreen() {
           <View style={styles.featureBadgesRow}>
             {/* 1. Assign Chores */}
             <View style={styles.featureItem}>
-              <View style={[styles.featureIconBadge, { backgroundColor: '#EDE9FE' }]}>
+              <View style={[styles.featureIconBadge, { backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE') }]}>
                 <Ionicons name="clipboard" size={20} color="#713DE8" />
               </View>
-              <Text style={styles.featureLabel}>Assign{'\n'}Chores</Text>
+              <Text style={styles.featureLabel}>{t('ui_assign')}{'\n'}{t('chores')}</Text>
             </View>
 
             {/* 2. Manage Family */}
             <View style={styles.featureItem}>
-              <View style={[styles.featureIconBadge, { backgroundColor: '#FFF4E6' }]}>
+              <View style={[styles.featureIconBadge, { backgroundColor: (themeColors.isDark ? themeColors.surface : '#FFF4E6') }]}>
                 <Ionicons name="people" size={20} color="#FF9F1C" />
               </View>
-              <Text style={styles.featureLabel}>Manage{'\n'}Family</Text>
+              <Text style={styles.featureLabel}>{t('ui_manage')}{'\n'}{t('family')}</Text>
             </View>
 
             {/* 3. Track Progress */}
             <View style={styles.featureItem}>
-              <View style={[styles.featureIconBadge, { backgroundColor: '#E6F9F0' }]}>
+              <View style={[styles.featureIconBadge, { backgroundColor: (themeColors.isDark ? themeColors.surface : '#E6F9F0') }]}>
                 <Ionicons name="stats-chart" size={20} color="#10B981" />
               </View>
-              <Text style={styles.featureLabel}>Track{'\n'}Progress</Text>
+              <Text style={styles.featureLabel}>{t('ui_track')}{'\n'}{t('progress_title')}</Text>
             </View>
 
             {/* 4. Stay Notified */}
             <View style={styles.featureItem}>
-              <View style={[styles.featureIconBadge, { backgroundColor: '#F3E8FF' }]}>
+              <View style={[styles.featureIconBadge, { backgroundColor: (themeColors.isDark ? themeColors.surface : '#F3E8FF') }]}>
                 <Ionicons name="notifications" size={20} color="#8B5CF6" />
               </View>
-              <Text style={styles.featureLabel}>Stay{'\n'}Notified</Text>
+              <Text style={styles.featureLabel}>{t('ui_stay')}{'\n'}{t('ui_notified')}</Text>
             </View>
           </View>
 
@@ -115,7 +118,7 @@ export default function WelcomeScreen() {
             onPress={handleGetStarted}
             style={({ pressed }) => [styles.getStartedBtn, pressed && { opacity: 0.88 }]}
           >
-            <Text style={styles.getStartedBtnText}>Get Started</Text>
+            <Text style={styles.getStartedBtnText}>{t('ui_get_started')}</Text>
             <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
           </Pressable>
 
@@ -123,15 +126,15 @@ export default function WelcomeScreen() {
             onPress={handleLogin}
             style={({ pressed }) => [styles.loginBtn, pressed && { opacity: 0.88 }]}
           >
-            <Text style={styles.loginBtnText}>Login</Text>
+            <Text style={styles.loginBtnText}>{t('login')}</Text>
           </Pressable>
         </View>
 
         {/* ── Footer Link ── */}
         <View style={styles.footerRow}>
-          <Text style={styles.footerText}>Don't have an account? </Text>
+          <Text style={styles.footerText}>{t('dont_have_account')}</Text>
           <Pressable onPress={() => router.push('/auth/signup' as any)}>
-            <Text style={styles.signUpLinkText}>Sign Up</Text>
+            <Text style={styles.signUpLinkText}>{t('sign_up')}</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -139,10 +142,10 @@ export default function WelcomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#FAFAFD'),
   },
   scrollContent: {
     paddingHorizontal: 24,
@@ -216,7 +219,7 @@ const styles = StyleSheet.create({
   headline: {
     fontSize: 18,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     marginTop: 6,
     textAlign: 'center',
     letterSpacing: -0.2,
@@ -224,7 +227,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
     textAlign: 'center',
     lineHeight: 22,
     marginTop: 4,
@@ -274,7 +277,7 @@ const styles = StyleSheet.create({
   featureLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     textAlign: 'center',
     lineHeight: 15,
   },
@@ -287,7 +290,7 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 3.5,
-    backgroundColor: '#EAE7F5',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EAE7F5'),
   },
   dotActive: {
     width: 8,
@@ -325,7 +328,7 @@ const styles = StyleSheet.create({
   loginBtn: {
     width: '100%',
     height: 54,
-    backgroundColor: '#F5F3FF',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F5F3FF'),
     borderRadius: 18,
     borderWidth: 1.5,
     borderColor: '#C4B5FD',
@@ -347,7 +350,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
     fontWeight: '500',
   },
   signUpLinkText: {

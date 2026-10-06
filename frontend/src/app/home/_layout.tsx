@@ -1,8 +1,10 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { MemberTabBar } from '@/components/navigation/MemberTabBar';
+import { useLanguage } from '@/context/LanguageContext';
 
 export default function HomeLayout() {
+  const { t } = useLanguage();
   return (
     <Tabs
       tabBar={(props: any) => <MemberTabBar {...props} />}
@@ -15,35 +17,35 @@ export default function HomeLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: t('tab_home'),
         }}
       />
 
       <Tabs.Screen
         name="chores"
         options={{
-          title: 'Chores',
+          title: t('tab_chores'),
         }}
       />
 
       <Tabs.Screen
         name="calendar"
         options={{
-          title: 'Calendar',
+          title: t('tab_calendar'),
         }}
       />
 
       <Tabs.Screen
         name="notifications"
         options={{
-          title: 'Notification',
+          title: t('tab_notifications'),
         }}
       />
 
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
+          title: t('tab_profile'),
         }}
       />
 

@@ -1,3 +1,5 @@
+import { useLanguage } from '@/context/LanguageContext';
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -14,9 +16,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { choreService, ChoreItem } from '@/services/choreService';
 import { Avatar } from '@/components/profile/Avatar';
 
-const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
 
 export default function AdminCalendarScreen() {
+  const { t, language } = useLanguage();
+  const DAYS_OF_WEEK = Array.from({length: 7}, (_, day) => new Date(2026, 0, 4 + day).toLocaleDateString(language, {weekday: 'short'}));
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
   const [chores, setChores] = useState<ChoreItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -106,7 +112,7 @@ export default function AdminCalendarScreen() {
     }
   };
 
-  const monthName = new Date(currentYear, currentMonth, 1).toLocaleString('en-US', {
+  const monthName = new Date(currentYear, currentMonth, 1).toLocaleString(language, {
     month: 'long',
   });
 
@@ -115,11 +121,11 @@ export default function AdminCalendarScreen() {
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
       case 'high':
-        return { bg: '#FEE2E2', text: '#EF4444', label: 'High' };
+        return { bg: (themeColors.isDark ? themeColors.surface : '#FEE2E2'), text: '#EF4444', label: t('priority_high') };
       case 'medium':
-        return { bg: '#FFF4E6', text: '#FF9F1C', label: 'Medium' };
+        return { bg: (themeColors.isDark ? themeColors.surface : '#FFF4E6'), text: '#FF9F1C', label: t('priority_medium') };
       default:
-        return { bg: '#E6F9F0', text: '#10B981', label: 'Low' };
+        return { bg: (themeColors.isDark ? themeColors.surface : '#E6F9F0'), text: '#10B981', label: t('priority_low') };
     }
   };
 
@@ -139,10 +145,8 @@ export default function AdminCalendarScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Household Calendar</Text>
-          <Text style={styles.headerSubtitle}>
-            View scheduled chores across all family members
-          </Text>
+          <Text style={styles.headerTitle}>{t('ag_calendar')}</Text>
+          <Text style={styles.headerSubtitle}>{t('ag_calendar_description')}</Text>
         </View>
 
         {/* ── Interactive Month Calendar Card ── */}
@@ -150,7 +154,7 @@ export default function AdminCalendarScreen() {
           {/* Month Header Navigation */}
           <View style={styles.monthHeaderRow}>
             <Pressable onPress={handlePrevMonth} style={styles.navArrowBtn} hitSlop={10}>
-              <Ionicons name="chevron-back" size={20} color="#1E1B2E" />
+              <Ionicons name="chevron-back" size={20} color={themeColors.isDark ? themeColors.textPrimary : "#1E1B2E"} />
             </Pressable>
 
             <Text style={styles.monthTitleText}>
@@ -158,7 +162,7 @@ export default function AdminCalendarScreen() {
             </Text>
 
             <Pressable onPress={handleNextMonth} style={styles.navArrowBtn} hitSlop={10}>
-              <Ionicons name="chevron-forward" size={20} color="#1E1B2E" />
+              <Ionicons name="chevron-forward" size={20} color={themeColors.isDark ? themeColors.textPrimary : "#1E1B2E"} />
             </Pressable>
           </View>
 
@@ -233,8 +237,7 @@ export default function AdminCalendarScreen() {
 
         {/* ── Selected Date Chores Section ── */}
         <View style={styles.selectedDateHeader}>
-          <Text style={styles.selectedDateTitle}>
-            Chores for {new Date(selectedDateStr + 'T00:00:00').toLocaleDateString('en-US', {
+          <Text style={styles.selectedDateTitle}>{t('ag_chores_for')}{' '}{new Date(selectedDateStr + 'T00:00:00').toLocaleDateString(language, {
               weekday: 'short',
               month: 'short',
               day: 'numeric',
@@ -253,10 +256,8 @@ export default function AdminCalendarScreen() {
         ) : selectedDateChores.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyIcon}>📅</Text>
-            <Text style={styles.emptyTitle}>No Chores Scheduled</Text>
-            <Text style={styles.emptySubtitle}>
-              There are no chores assigned on this date.
-            </Text>
+            <Text style={styles.emptyTitle}>{t('ag_no_scheduled')}</Text>
+            <Text style={styles.emptySubtitle}>{t('ag_no_date_chores')}</Text>
           </View>
         ) : (
           <View style={styles.choresList}>
@@ -297,12 +298,12 @@ export default function AdminCalendarScreen() {
                   <View style={styles.choreBottomRow}>
                     <View style={styles.assigneeWrap}>
                       <Avatar
-                        name={c.assignee_name || 'Unassigned'}
+                        name={c.assignee_name || t('admin_unassigned')}
                         uri={c.assignee_avatar || undefined}
                         size={28}
                       />
                       <Text style={styles.assigneeName}>
-                        {c.assignee_name ? c.assignee_name : 'Unassigned'}
+                        {c.assignee_name ? c.assignee_name : t('admin_unassigned')}
                       </Text>
                     </View>
 
@@ -323,7 +324,7 @@ export default function AdminCalendarScreen() {
                           { color: isCompleted ? '#059669' : '#D97706' },
                         ]}
                       >
-                        {isCompleted ? 'Completed' : 'Pending'}
+                        {isCompleted ? t('filter_completed') : t('filter_pending')}
                       </Text>
                     </View>
                   </View>
@@ -337,10 +338,10 @@ export default function AdminCalendarScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#FAFAFD'),
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -355,22 +356,22 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 26,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     letterSpacing: -0.4,
   },
   headerSubtitle: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
   },
 
   // Calendar Card
   calendarCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 22,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.04,
@@ -387,16 +388,16 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FAFAFD'),
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
   },
   monthTitleText: {
     fontSize: 18,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
 
   daysOfWeekRow: {
@@ -404,7 +405,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     marginBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F5F3FF',
+    borderBottomColor: (themeColors.isDark ? themeColors.border : '#F5F3FF'),
     paddingBottom: 8,
   },
   dayOfWeekText: {
@@ -412,7 +413,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 12,
     fontWeight: '800',
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
   },
 
   gridContainer: {
@@ -435,12 +436,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#713DE8',
   },
   todayDayCircle: {
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE'),
   },
   dayNumberText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   selectedDayText: {
     color: '#FFFFFF',
@@ -472,10 +473,10 @@ const styles = StyleSheet.create({
   selectedDateTitle: {
     fontSize: 18,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   choreCountBadge: {
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE'),
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
@@ -490,12 +491,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   choreCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 18,
     padding: 16,
     gap: 12,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.04,
@@ -514,11 +515,11 @@ const styles = StyleSheet.create({
   choreTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   categoryTag: {
     fontSize: 12,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     fontWeight: '500',
   },
   prioBadge: {
@@ -537,7 +538,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#F5F3FF',
+    borderTopColor: (themeColors.isDark ? themeColors.border : '#F5F3FF'),
   },
   assigneeWrap: {
     flexDirection: 'row',
@@ -547,7 +548,7 @@ const styles = StyleSheet.create({
   assigneeName: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#4B5563',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#4B5563'),
   },
   statusBadge: {
     flexDirection: 'row',
@@ -558,10 +559,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   completedStatusBg: {
-    backgroundColor: '#D1FAE5',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#D1FAE5'),
   },
   pendingStatusBg: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEF3C7'),
   },
   statusText: {
     fontSize: 12,
@@ -569,12 +570,12 @@ const styles = StyleSheet.create({
   },
 
   emptyCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 20,
     padding: 28,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     gap: 8,
   },
   emptyIcon: {
@@ -583,11 +584,11 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   emptySubtitle: {
     fontSize: 13,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     textAlign: 'center',
   },
 });

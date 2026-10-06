@@ -1,6 +1,8 @@
+import { useThemedStyles, type ThemeColors } from '@/context/ThemeContext';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
 export function Avatar({ name, uri, size = 88 }: { name: string; uri?: string; size?: number }) {
+  const styles = useThemedStyles(createStyles);
   const initial = name ? name.trim().charAt(0).toUpperCase() : '?';
   return (
     <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2 }]}>
@@ -13,11 +15,11 @@ export function Avatar({ name, uri, size = 88 }: { name: string; uri?: string; s
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   avatar: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE'),
     borderWidth: 2,
     borderColor: '#713DE8',
     overflow: 'hidden',

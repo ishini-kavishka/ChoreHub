@@ -1,7 +1,10 @@
+import { useAppAlert } from '@/components/ui/AppDialog';
+import { useLanguage } from '@/context/LanguageContext';
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
+
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,6 +17,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { choreService, ChoreItem } from '@/services/choreService';
 
 export default function ChoreDetailsScreen() {
+  const alert = useAppAlert();
+  const { t, language } = useLanguage();
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
   const params = useLocalSearchParams<{ id?: string; choreData?: string }>();
   const choreId = params.id;
 
@@ -46,7 +53,7 @@ export default function ChoreDetailsScreen() {
         setChore(res.chore);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not fetch chore details.');
+      setError(t('ag_fetch_failed'));
     } finally {
       setLoading(false);
     }
@@ -64,7 +71,7 @@ export default function ChoreDetailsScreen() {
       setChore((prev) => (prev ? { ...prev, status: updatedStatus } : null));
       await choreService.toggleChoreComplete(chore.id);
     } catch {
-      Alert.alert('Error', 'Could not update chore status.');
+      alert(t('error'), t('ag_status_failed'));
       loadChoreDetails();
     } finally {
       setToggling(false);
@@ -81,22 +88,22 @@ export default function ChoreDetailsScreen() {
 
   const handleDelete = () => {
     if (!chore) return;
-    Alert.alert(
-      'Delete Chore',
-      `Are you sure you want to delete "${chore.title}"?`,
+    alert(
+      t('ag_delete_chore'),
+      {key: 'ag_delete_confirm', values: {title: chore.title}},
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('delete'),
           style: 'destructive',
           onPress: async () => {
             setDeleting(true);
             try {
               await choreService.deleteChore(chore.id);
-              Alert.alert('Success', 'Chore deleted successfully.');
+              alert(t('success'), t('ag_chore_deleted'));
               router.back();
             } catch (err) {
-              Alert.alert('Error', err instanceof Error ? err.message : 'Failed to delete chore.');
+              alert(t('error'), t('ag_delete_failed'));
               setDeleting(false);
             }
           },
@@ -106,10 +113,10 @@ export default function ChoreDetailsScreen() {
   };
 
   const formatDate = (dateString?: string | null) => {
-    if (!dateString) return 'Not set';
+    if (!dateString) return t('not_set');
     const date = new Date(dateString);
-    if (isNaN(date.getTime())) return 'Not set';
-    return date.toLocaleDateString('en-GB', {
+    if (isNaN(date.getTime())) return t('not_set');
+    return date.toLocaleDateString(language, {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
@@ -119,35 +126,35 @@ export default function ChoreDetailsScreen() {
   const getPriorityStyle = (priority?: string) => {
     switch (priority) {
       case 'high':
-        return { bg: '#FEE2E2', text: '#DC2626', label: 'High' };
+        return { bg: (themeColors.isDark ? themeColors.surface : '#FEE2E2'), text: '#DC2626', label: t('priority_high') };
       case 'low':
-        return { bg: '#DCFCE7', text: '#16A34A', label: 'Low' };
+        return { bg: (themeColors.isDark ? themeColors.surface : '#DCFCE7'), text: '#16A34A', label: t('priority_low') };
       default:
-        return { bg: '#EDE9FE', text: '#713DE8', label: 'Medium' };
+        return { bg: (themeColors.isDark ? themeColors.surface : '#EDE9FE'), text: '#713DE8', label: t('priority_medium') };
     }
   };
 
   const getStatusStyle = (status?: string) => {
     switch (status) {
       case 'completed':
-        return { bg: '#DCFCE7', text: '#16A34A', label: 'Completed', dot: '#10B981' };
+        return { bg: (themeColors.isDark ? themeColors.surface : '#DCFCE7'), text: '#16A34A', label: t('filter_completed'), dot: '#10B981' };
       case 'overdue':
-        return { bg: '#FEE2E2', text: '#DC2626', label: 'Overdue', dot: '#EF4444' };
+        return { bg: (themeColors.isDark ? themeColors.surface : '#FEE2E2'), text: '#DC2626', label: t('status_overdue'), dot: '#EF4444' };
       default:
-        return { bg: '#FEF3C7', text: '#D97706', label: 'Pending', dot: '#F59E0B' };
+        return { bg: (themeColors.isDark ? themeColors.surface : '#FEF3C7'), text: '#D97706', label: t('filter_pending'), dot: '#F59E0B' };
     }
   };
 
   const getRepeatLabel = (rec?: string) => {
     switch (rec) {
       case 'daily':
-        return 'Daily';
+        return t('repeat_daily');
       case 'weekly':
-        return 'Weekly';
+        return t('repeat_weekly');
       case 'monthly':
-        return 'Monthly';
+        return t('repeat_monthly');
       default:
-        return 'No repeat';
+        return t('repeat_none');
     }
   };
 
@@ -156,7 +163,7 @@ export default function ChoreDetailsScreen() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#713DE8" />
-          <Text style={styles.loadingText}>Loading chore details...</Text>
+          <Text style={styles.loadingText}>{t('ag_loading_details')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -167,15 +174,15 @@ export default function ChoreDetailsScreen() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={24} color="#1E1B2E" />
+            <Ionicons name="chevron-back" size={24} color={themeColors.isDark ? themeColors.textPrimary : "#1E1B2E"} />
           </Pressable>
-          <Text style={styles.headerTitle}>Chore Details</Text>
+          <Text style={styles.headerTitle}>{t('chore_details_title')}</Text>
           <View style={{ width: 32 }} />
         </View>
         <View style={styles.centerContainer}>
-          <Text style={styles.errorText}>Chore not found or deleted.</Text>
+          <Text style={styles.errorText}>{t('ag_chore_missing')}</Text>
           <Pressable onPress={() => router.back()} style={styles.returnBtn}>
-            <Text style={styles.returnBtnText}>Go Back</Text>
+            <Text style={styles.returnBtnText}>{t('go_back')}</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -196,11 +203,11 @@ export default function ChoreDetailsScreen() {
         <Pressable
           onPress={() => router.back()}
           style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
-          accessibilityLabel="Back"
+          accessibilityLabel={t('back')}
         >
-          <Ionicons name="chevron-back" size={24} color="#1E1B2E" />
+          <Ionicons name="chevron-back" size={24} color={themeColors.isDark ? themeColors.textPrimary : "#1E1B2E"} />
         </Pressable>
-        <Text style={styles.headerTitle}>Chore Details</Text>
+        <Text style={styles.headerTitle}>{t('chore_details_title')}</Text>
         <View style={{ width: 32 }} />
       </View>
 
@@ -252,8 +259,8 @@ export default function ChoreDetailsScreen() {
           {/* Assigned to */}
           <View style={styles.detailRow}>
             <View style={styles.detailLabelRow}>
-              <Ionicons name="person-outline" size={18} color="#1E1B2E" />
-              <Text style={styles.detailLabel}>Assigned to</Text>
+              <Ionicons name="person-outline" size={18} color={themeColors.isDark ? themeColors.textPrimary : "#1E1B2E"} />
+              <Text style={styles.detailLabel}>{t('ag_assigned_to')}</Text>
             </View>
             {chore.assignee_name ? (
               <View style={styles.assigneeValueRow}>
@@ -263,15 +270,15 @@ export default function ChoreDetailsScreen() {
                 <Text style={styles.detailValueText}>{chore.assignee_name}</Text>
               </View>
             ) : (
-              <Text style={styles.detailValueTextMuted}>Unassigned</Text>
+              <Text style={styles.detailValueTextMuted}>{t('admin_unassigned')}</Text>
             )}
           </View>
 
           {/* Priority */}
           <View style={styles.detailRow}>
             <View style={styles.detailLabelRow}>
-              <Ionicons name="star-outline" size={18} color="#1E1B2E" />
-              <Text style={styles.detailLabel}>Priority</Text>
+              <Ionicons name="star-outline" size={18} color={themeColors.isDark ? themeColors.textPrimary : "#1E1B2E"} />
+              <Text style={styles.detailLabel}>{t('priority_label')}</Text>
             </View>
             <View
               style={[
@@ -288,8 +295,8 @@ export default function ChoreDetailsScreen() {
           {/* Due Date */}
           <View style={styles.detailRow}>
             <View style={styles.detailLabelRow}>
-              <Ionicons name="calendar-outline" size={18} color="#1E1B2E" />
-              <Text style={styles.detailLabel}>Due Date</Text>
+              <Ionicons name="calendar-outline" size={18} color={themeColors.isDark ? themeColors.textPrimary : "#1E1B2E"} />
+              <Text style={styles.detailLabel}>{t('due_date_label')}</Text>
             </View>
             <View style={styles.valueWithIcon}>
               <Text style={styles.valueIcon}>📅</Text>
@@ -300,8 +307,8 @@ export default function ChoreDetailsScreen() {
           {/* Repeat */}
           <View style={styles.detailRow}>
             <View style={styles.detailLabelRow}>
-              <Ionicons name="refresh-outline" size={18} color="#1E1B2E" />
-              <Text style={styles.detailLabel}>Repeat</Text>
+              <Ionicons name="refresh-outline" size={18} color={themeColors.isDark ? themeColors.textPrimary : "#1E1B2E"} />
+              <Text style={styles.detailLabel}>{t('repeat_label')}</Text>
             </View>
             <View style={styles.valueWithIcon}>
               <Text style={styles.valueIcon}>🔄</Text>
@@ -312,8 +319,8 @@ export default function ChoreDetailsScreen() {
           {/* Status */}
           <View style={styles.detailRowNoBorder}>
             <View style={styles.detailLabelRow}>
-              <Ionicons name="cog-outline" size={18} color="#1E1B2E" />
-              <Text style={styles.detailLabel}>Status</Text>
+              <Ionicons name="cog-outline" size={18} color={themeColors.isDark ? themeColors.textPrimary : "#1E1B2E"} />
+              <Text style={styles.detailLabel}>{t('ui_status')}</Text>
             </View>
             <View style={styles.valueWithIcon}>
               <View style={[styles.statusDot, { backgroundColor: statusStyle.dot }]} />
@@ -343,7 +350,7 @@ export default function ChoreDetailsScreen() {
                   color="#713DE8"
                 />
                 <Text style={styles.actionBtnOutlineText}>
-                  {isCompleted ? 'Mark as Pending' : 'Mark as Completed'}
+                  {isCompleted ? t('mark_as_pending') : t('mark_as_completed')}
                 </Text>
               </>
             )}
@@ -357,7 +364,7 @@ export default function ChoreDetailsScreen() {
               pressed && { opacity: 0.8 },
             ]}
           >
-            <Text style={styles.actionBtnOutlineText}>Edit Chore</Text>
+            <Text style={styles.actionBtnOutlineText}>{t('ui_edit_chore')}</Text>
           </Pressable>
 
           {/* Delete Chore */}
@@ -372,7 +379,7 @@ export default function ChoreDetailsScreen() {
             {deleting ? (
               <ActivityIndicator color="#DC2626" size="small" />
             ) : (
-              <Text style={styles.deleteBtnOutlineText}>Delete Chore</Text>
+              <Text style={styles.deleteBtnOutlineText}>{t('ag_delete_chore')}</Text>
             )}
           </Pressable>
         </View>
@@ -381,10 +388,10 @@ export default function ChoreDetailsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#FAFAFD'),
   },
   centerContainer: {
     flex: 1,
@@ -394,12 +401,12 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 14,
-    color: '#757288',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#757288'),
     fontWeight: '600',
   },
   errorText: {
     fontSize: 15,
-    color: '#DC2626',
+    color: (themeColors.isDark ? themeColors.error : '#DC2626'),
     fontWeight: '600',
   },
   returnBtn: {
@@ -418,9 +425,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderBottomWidth: 1,
-    borderBottomColor: '#F4F2FA',
+    borderBottomColor: (themeColors.isDark ? themeColors.border : '#F4F2FA'),
   },
   backBtn: {
     padding: 4,
@@ -428,7 +435,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -437,11 +444,11 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   topSummaryCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 20,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -457,7 +464,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 16,
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE'),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -477,7 +484,7 @@ const styles = StyleSheet.create({
   choreTitle: {
     fontSize: 18,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     flex: 1,
   },
   statusPillTop: {
@@ -492,21 +499,21 @@ const styles = StyleSheet.create({
   categoryText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
   },
   descriptionText: {
     fontSize: 13,
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
     marginTop: 2,
     lineHeight: 18,
   },
   detailsListCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -519,7 +526,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#F4F2FA',
+    borderBottomColor: (themeColors.isDark ? themeColors.border : '#F4F2FA'),
   },
   detailRowNoBorder: {
     flexDirection: 'row',
@@ -535,7 +542,7 @@ const styles = StyleSheet.create({
   detailLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   assigneeValueRow: {
     flexDirection: 'row',
@@ -546,7 +553,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE'),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -558,11 +565,11 @@ const styles = StyleSheet.create({
   detailValueText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   detailValueTextMuted: {
     fontSize: 14,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
   },
   priorityPill: {
     paddingHorizontal: 12,
@@ -591,7 +598,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   actionBtnOutline: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderWidth: 1.5,
     borderColor: '#713DE8',
     borderRadius: 16,
@@ -607,7 +614,7 @@ const styles = StyleSheet.create({
     color: '#713DE8',
   },
   deleteBtnOutline: {
-    backgroundColor: '#FFF5F5',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFF5F5'),
     borderWidth: 1.5,
     borderColor: '#FCA5A5',
     borderRadius: 16,

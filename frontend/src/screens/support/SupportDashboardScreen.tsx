@@ -1,3 +1,5 @@
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
+import { useLanguage } from '@/context/LanguageContext';
 import React from 'react';
 import {
   Pressable,
@@ -20,6 +22,8 @@ interface MenuCardProps {
 }
 
 function MenuCard({ icon, title, subtitle, onPress, badge }: MenuCardProps) {
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
   return (
     <Pressable
       onPress={onPress}
@@ -40,12 +44,15 @@ function MenuCard({ icon, title, subtitle, onPress, badge }: MenuCardProps) {
         </View>
         <Text style={styles.cardSubtitle}>{subtitle}</Text>
       </View>
-      <Ionicons name="chevron-forward" size={20} color="#8A879A" />
+      <Ionicons name="chevron-forward" size={20} color={themeColors.isDark ? themeColors.textSecondary : "#8A879A"} />
     </Pressable>
   );
 }
 
 export default function SupportDashboardScreen() {
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
+  const { t } = useLanguage();
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       {/* Header */}
@@ -54,11 +61,11 @@ export default function SupportDashboardScreen() {
           onPress={() => router.canGoBack() ? router.back() : router.replace('/home' as any)}
           style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t('admin_back')}
         >
-          <Ionicons name="chevron-back" size={24} color="#1E1B2E" />
+          <Ionicons name="chevron-back" size={24} color={themeColors.isDark ? themeColors.textPrimary : "#1E1B2E"} />
         </Pressable>
-        <Text style={styles.headerTitle}>Support & Help (Home)</Text>
+        <Text style={styles.headerTitle}>{t('ui_support_help_home')}</Text>
         <View style={styles.placeholderBtn} />
       </View>
 
@@ -68,10 +75,8 @@ export default function SupportDashboardScreen() {
       >
         {/* Subtitle */}
         <View style={styles.heroTextSection}>
-          <Text style={styles.heroTitle}>We're here to help you</Text>
-          <Text style={styles.heroSubtitle}>
-            Find answers, get support or contact us anytime.
-          </Text>
+          <Text style={styles.heroTitle}>{t('ui_we_re_here_to_help_you')}</Text>
+          <Text style={styles.heroSubtitle}>{t('ui_find_answers_get_support_or_contact_us_anytime')}</Text>
         </View>
 
         {/* Center Illustration Banner */}
@@ -93,54 +98,61 @@ export default function SupportDashboardScreen() {
               <Ionicons name="ticket-outline" size={24} color="#6C3BEA" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.ticketBannerTitle}>Have an issue or dispute?</Text>
-              <Text style={styles.ticketBannerSub}>Track and resolve requests</Text>
+              <Text style={styles.ticketBannerTitle}>{t('ui_have_an_issue_or_dispute')}</Text>
+              <Text style={styles.ticketBannerSub}>{t('ui_track_and_resolve_requests')}</Text>
             </View>
           </View>
           <Pressable
             onPress={() => router.push('/support/tickets' as any)}
             style={({ pressed }) => [styles.ticketBtn, pressed && { opacity: 0.85 }]}
           >
-            <Text style={styles.ticketBtnText}>My Tickets</Text>
+            <Text style={styles.ticketBtnText}>{t('ui_my_tickets')}</Text>
           </Pressable>
         </View>
 
         {/* Navigation Menu Options */}
         <View style={styles.menuContainer}>
-          <Text style={styles.sectionHeader}>SUPPORT & GUIDES</Text>
+          <Text style={styles.sectionHeader}>{t('ui_support_guides')}</Text>
 
           <MenuCard
             icon="book-outline"
-            title="Help Center"
-            subtitle="Common issues & guides"
+            title={t('ui_help_center')}
+            subtitle={t('ui_common_issues_guides')}
             onPress={() => router.push('/support/help-center' as any)}
           />
 
           <MenuCard
             icon="help-circle-outline"
-            title="FAQs"
-            subtitle="Quick answers to your questions"
+            title={t('ui_faqs')}
+            subtitle={t('ui_quick_answers_to_your_questions')}
             onPress={() => router.push('/support/faqs' as any)}
           />
 
           <MenuCard
             icon="ticket-outline"
-            title="Submit a Support Request / Ticket"
-            subtitle="Get technical or chore assistance"
+            title={t('ui_submit_a_support_request_ticket')}
+            subtitle={t('ui_get_technical_or_chore_assistance')}
             onPress={() => router.push('/support/tickets' as any)}
           />
 
           <MenuCard
             icon="mail-outline"
-            title="Contact Support"
-            subtitle="Get in touch with our team"
+            title={t('ui_contact_support')}
+            subtitle={t('ui_get_in_touch_with_our_team')}
             onPress={() => router.push('/support/contact-support' as any)}
           />
 
           <MenuCard
+            icon="chatbox-ellipses-outline"
+            title={t('ui_contact_us')}
+            subtitle={t('ui_send_a_direct_message_to_our_team')}
+            onPress={() => router.push('/support/contact-us' as any)}
+          />
+
+          <MenuCard
             icon="alert-circle-outline"
-            title="Report an Issue"
-            subtitle="Report a bug or problem in the app"
+            title={t('ui_report_an_issue')}
+            subtitle={t('ui_report_a_bug_or_problem_in_the_app')}
             onPress={() => router.push('/support/tickets' as any)}
           />
         </View>
@@ -152,10 +164,10 @@ export default function SupportDashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#FAFAFD'),
   },
   header: {
     flexDirection: 'row',
@@ -164,8 +176,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0EEF8',
-    backgroundColor: '#FFFFFF',
+    borderBottomColor: (themeColors.isDark ? themeColors.border : '#F0EEF8'),
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
   },
   backBtn: {
     width: 36,
@@ -180,7 +192,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -194,13 +206,13 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     textAlign: 'center',
     marginBottom: 6,
   },
   heroSubtitle: {
     fontSize: 13,
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
     textAlign: 'center',
     lineHeight: 18,
     paddingHorizontal: 16,
@@ -214,9 +226,9 @@ const styles = StyleSheet.create({
     width: 130,
     height: 130,
     borderRadius: 65,
-    backgroundColor: '#F3EEFF',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F3EEFF'),
     borderWidth: 2,
-    borderColor: '#E6DEFC',
+    borderColor: (themeColors.isDark ? themeColors.border : '#E6DEFC'),
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#6C3BEA',
@@ -229,7 +241,7 @@ const styles = StyleSheet.create({
     width: 102,
     height: 102,
     borderRadius: 51,
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE'),
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -243,7 +255,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     paddingVertical: 2,
     borderWidth: 1.5,
-    borderColor: '#FFFFFF',
+    borderColor: (themeColors.isDark ? themeColors.border : '#FFFFFF'),
   },
   badge24Text: {
     fontSize: 9,
@@ -254,12 +266,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 18,
     padding: 14,
     marginTop: 16,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#6C3BEA',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -277,18 +289,18 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#F3EEFF',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F3EEFF'),
     alignItems: 'center',
     justifyContent: 'center',
   },
   ticketBannerTitle: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   ticketBannerSub: {
     fontSize: 11,
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
   },
   ticketBtn: {
     backgroundColor: '#6C3BEA',
@@ -308,13 +320,13 @@ const styles = StyleSheet.create({
   sectionHeader: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#718091',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#718091'),
     letterSpacing: 0.8,
     marginBottom: 4,
     marginLeft: 4,
   },
   menuCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 18,
     paddingVertical: 14,
     paddingHorizontal: 16,
@@ -322,7 +334,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 14,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#6C3BEA',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -337,7 +349,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 14,
-    backgroundColor: '#F4F2FA',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F4F2FA'),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -352,11 +364,11 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     marginBottom: 2,
   },
   badgeWrap: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEF3C7'),
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
@@ -368,7 +380,7 @@ const styles = StyleSheet.create({
   },
   cardSubtitle: {
     fontSize: 12,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     fontWeight: '500',
   },
 });
