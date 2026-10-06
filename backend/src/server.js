@@ -1,4 +1,7 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({
+  path: [path.join(__dirname, '..', '.env.local'), path.join(__dirname, '..', '.env')],
+});
 
 const cors = require('cors');
 const express = require('express');
@@ -93,10 +96,11 @@ app.use(errorHandler);
 // Server
 // =========================================================
 const port = Number(process.env.PORT) || 5000;
+const host = process.env.HOST || '0.0.0.0';
 
 if (require.main === module) {
-  const server = app.listen(port, () => {
-    console.log(`ChoreHub API listening on port ${port}`);
+  const server = app.listen(port, host, () => {
+    console.log(`ChoreHub API listening on http://${host}:${port}`);
   });
 
   if (process.env.DATABASE_URL) {

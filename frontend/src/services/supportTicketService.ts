@@ -23,7 +23,21 @@ async function getToken() {
   return token;
 }
 
+export interface SupportMessagePayload {
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+}
+
 export const supportTicketService = {
+  async sendSupportMessage(payload: SupportMessagePayload): Promise<{ message: string }> {
+    return apiRequest<{ message: string }>('/api/support/tickets/messages', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
   async getTickets(): Promise<SupportTicket[]> {
     const response = await apiRequest<{ tickets: SupportTicket[] }>(
       '/api/support/tickets',

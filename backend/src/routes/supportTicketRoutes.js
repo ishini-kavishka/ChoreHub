@@ -7,9 +7,11 @@ const {
   updateUserTicket,
   updateTicketStatus,
   deleteTicket,
+  sendSupportMessage,
 } = require('../controllers/supportTicketController');
 
 const router = express.Router();
+router.post('/messages', sendSupportMessage);
 router.use(requireAuth);
 router.get('/my', getUserTickets);
 router.get('/', requireAdmin, getTickets);
