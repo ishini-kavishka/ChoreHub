@@ -162,10 +162,17 @@ export default function AdminDashboardScreen() {
           <View style={styles.headerRight}>
             <Pressable
               style={({ pressed }) => [styles.bellBtn, pressed && { opacity: 0.7 }]}
-              onPress={() => {}}
+              onPress={() => router.push('/admin/notifications' as any)}
+              accessibilityLabel={t('notifications')}
             >
               <Ionicons name="notifications-outline" size={24} color={themeColors.isDark ? themeColors.textPrimary : "#1E1B2E"} />
-              <View style={styles.bellBadgeDot} />
+              {unreadCount > 0 && (
+                <View style={styles.bellBadgeDot}>
+                  <Text style={styles.bellBadgeText}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
             </Pressable>
 
             <Pressable
@@ -371,12 +378,23 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   },
   bellBadgeDot: {
     position: 'absolute',
-    top: 9,
-    right: 9,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: (themeColors.isDark ? themeColors.background : '#FFFFFF'),
+  },
+  bellBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+    lineHeight: 13,
   },
   avatarWrap: {
     borderRadius: 21,
