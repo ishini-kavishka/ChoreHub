@@ -279,7 +279,37 @@ async function updateChore(req, res, next) {
       id,
     ]);
 
-    return res.json({ chore: result.rows[0] });
+    const updatedChore = result.rows[0];
+
+    // Notify assigned user when chore is newly assigned via edit
+    if (updatedAssigned && updatedAssigned !== chore.assigned_to && updatedAssigned !== userId) {
+      pool.query(
+        `INSERT INTO notifications (user_id, title, message, type)
+         VALUES ($1, $2, $3, $4)`,
+        [
+          updatedAssigned,
+          'New Chore Assigned',
+          `You have been assigned to: "${updatedChore.title}"`,
+          'chore_assigned',
+        ]
+      ).catch(() => {});
+    }
+
+    // Notify creator when chore is marked completed (if completer ≠ creator)
+    if (updatedStatus === 'completed' && chore.status !== 'completed' && chore.created_by && chore.created_by !== userId) {
+      pool.query(
+        `INSERT INTO notifications (user_id, title, message, type)
+         VALUES ($1, $2, $3, $4)`,
+        [
+          chore.created_by,
+          'Chore Completed',
+          `"${updatedChore.title}" has been marked as completed`,
+          'chore_completed',
+        ]
+      ).catch(() => {});
+    }
+
+    return res.json({ chore: updatedChore });
   } catch (error) {
     return next(error);
   }
@@ -305,7 +335,23 @@ async function toggleChoreComplete(req, res, next) {
       [newStatus, completedAt, id, newStatus === 'completed' ? req.userId : null]
     );
 
-    return res.json({ chore: result.rows[0] });
+    const updatedChore = result.rows[0];
+
+    // Notify the creator when a chore is marked completed (if completer ≠ creator)
+    if (newStatus === 'completed' && updatedChore.created_by && updatedChore.created_by !== req.userId) {
+      pool.query(
+        `INSERT INTO notifications (user_id, title, message, type)
+         VALUES ($1, $2, $3, $4)`,
+        [
+          updatedChore.created_by,
+          'Chore Completed',
+          `"${updatedChore.title}" has been marked as completed`,
+          'chore_completed',
+        ]
+      ).catch(() => {});
+    }
+
+    return res.json({ chore: updatedChore });
   } catch (error) {
     return next(error);
   }

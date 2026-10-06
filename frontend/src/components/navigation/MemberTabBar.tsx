@@ -3,33 +3,35 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useAppTheme } from '@/context/ThemeContext';
+import { useLanguage } from '@/context/LanguageContext';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
 interface TabConfig {
-  label: string;
+  labelKey: string;
   activeIcon: IconName;
   inactiveIcon: IconName;
 }
 
 const TAB_CONFIGS: Record<string, TabConfig> = {
   index: {
-    label: 'Home',
+    labelKey: 'tab_home',
     activeIcon: 'home',
     inactiveIcon: 'home-outline',
   },
   chores: {
-    label: 'Chores',
+    labelKey: 'tab_chores',
     activeIcon: 'clipboard',
     inactiveIcon: 'clipboard-outline',
   },
   calendar: {
-    label: 'Calendar',
+    labelKey: 'tab_calendar',
     activeIcon: 'calendar',
     inactiveIcon: 'calendar-outline',
   },
   profile: {
-    label: 'Profile',
+    labelKey: 'tab_profile',
     activeIcon: 'person',
     inactiveIcon: 'person-outline',
   },
@@ -37,9 +39,19 @@ const TAB_CONFIGS: Record<string, TabConfig> = {
 
 export function MemberTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { colors } = useAppTheme();
 
   return (
-    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: colors.card,
+          borderTopColor: colors.border,
+          paddingBottom: Math.max(insets.bottom, 10),
+        },
+      ]}
+    >
       {state.routes
         .filter((route) => TAB_CONFIGS[route.name] !== undefined)
         .map((route) => {
@@ -60,8 +72,8 @@ export function MemberTabBar({ state, descriptors, navigation }: BottomTabBarPro
             }
           };
 
-          const activeColor = '#6C3BEA';
-          const inactiveColor = '#8A879A';
+          const activeColor = colors.primary;
+          const inactiveColor = colors.textSecondary;
           const currentColor = isFocused ? activeColor : inactiveColor;
           const iconName = isFocused ? tabConfig.activeIcon : tabConfig.inactiveIcon;
 

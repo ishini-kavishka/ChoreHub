@@ -147,8 +147,15 @@ async function ensureAuthSchema() {
       message TEXT NOT NULL,
       type TEXT DEFAULT 'info',
       is_read BOOLEAN NOT NULL DEFAULT FALSE,
+      reminder_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
+  `);
+
+  // Add reminder_at for databases created before this column existed
+  await pool.query(`
+    ALTER TABLE public.notifications
+    ADD COLUMN IF NOT EXISTS reminder_at TIMESTAMPTZ
   `);
 
   // =========================================================
@@ -159,6 +166,8 @@ async function ensureAuthSchema() {
       user_id UUID PRIMARY KEY
         REFERENCES public.users(id) ON DELETE CASCADE,
       chore_reminders BOOLEAN NOT NULL DEFAULT TRUE,
+      due_date_alerts BOOLEAN NOT NULL DEFAULT TRUE,
+      weekly_summary BOOLEAN NOT NULL DEFAULT TRUE,
       chore_completions BOOLEAN NOT NULL DEFAULT TRUE,
       family_updates BOOLEAN NOT NULL DEFAULT TRUE,
       announcements BOOLEAN NOT NULL DEFAULT FALSE,
@@ -166,6 +175,10 @@ async function ensureAuthSchema() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  await pool.query(`ALTER TABLE public.notification_settings
+    ADD COLUMN IF NOT EXISTS due_date_alerts BOOLEAN NOT NULL DEFAULT TRUE,
+    ADD COLUMN IF NOT EXISTS weekly_summary BOOLEAN NOT NULL DEFAULT TRUE`);
 
   // =========================================================
   // User Preferences
@@ -176,8 +189,17 @@ async function ensureAuthSchema() {
         REFERENCES public.users(id) ON DELETE CASCADE,
       theme TEXT NOT NULL DEFAULT 'light',
       language TEXT NOT NULL DEFAULT 'en',
+      brightness INTEGER NOT NULL DEFAULT 70,
+      auto_brightness BOOLEAN NOT NULL DEFAULT FALSE,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
+  `);
+
+  await pool.query(`
+    ALTER TABLE public.user_preferences
+    ADD COLUMN IF NOT EXISTS brightness INTEGER NOT NULL DEFAULT 70;
+    ALTER TABLE public.user_preferences
+    ADD COLUMN IF NOT EXISTS auto_brightness BOOLEAN NOT NULL DEFAULT FALSE;
   `);
 
   // =========================================================

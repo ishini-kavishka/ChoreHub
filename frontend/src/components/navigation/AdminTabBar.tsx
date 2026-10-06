@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useAppTheme } from '@/context/ThemeContext';
+import { useLanguage } from '@/context/LanguageContext';
+import { notificationService } from '@/services/notificationService';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -17,6 +20,16 @@ const TAB_CONFIGS: Record<string, TabConfig> = {
     label: 'Home',
     activeIcon: 'home',
     inactiveIcon: 'home-outline',
+  },
+  progress: {
+    label: 'Progress',
+    activeIcon: 'bar-chart',
+    inactiveIcon: 'bar-chart-outline',
+  },
+  notifications: {
+    label: 'Alerts',
+    activeIcon: 'notifications',
+    inactiveIcon: 'notifications-outline',
   },
   chores: {
     label: 'Chores',
@@ -37,6 +50,17 @@ const TAB_CONFIGS: Record<string, TabConfig> = {
 
 export function AdminTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { theme, colors } = useAppTheme();
+  const { t } = useLanguage();
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    const unsub = notificationService.subscribeUnreadCount(setUnread);
+    notificationService.getUnreadCount().then(setUnread).catch(() => {});
+    return () => {
+      unsub();
+    };
+  }, []);
 
   return (
     <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 10) }]}>
@@ -60,33 +84,54 @@ export function AdminTabBar({ state, descriptors, navigation }: BottomTabBarProp
           }
         };
 
-        const activeColor = '#6C3BEA';
-        const inactiveColor = '#8A879A';
-        const currentColor = isFocused ? activeColor : inactiveColor;
-        const iconName = isFocused ? tabConfig.activeIcon : tabConfig.inactiveIcon;
+          const activeColor = theme === 'dark' ? '#BEABFF' : '#713DE8';
+          const inactiveColor = '#8A879A';
+          const currentColor = isFocused ? activeColor : inactiveColor;
+          const iconName = isFocused ? tabConfig.activeIcon : tabConfig.inactiveIcon;
 
-        return (
-          <Pressable
-            key={route.key}
-            onPress={onPress}
-            style={({ pressed }) => [styles.tabItem, pressed && styles.tabPressed]}
-            accessibilityRole="button"
-            accessibilityState={isFocused ? { selected: true } : {}}
-            accessibilityLabel={tabConfig.label}
-          >
-            <Ionicons name={iconName} size={22} color={currentColor} style={styles.icon} />
-            <Text
-              style={[
-                styles.label,
-                { color: currentColor },
-                isFocused && styles.activeLabel,
-              ]}
+          const label =
+            route.name === 'dashboard'
+              ? t('home')
+              : route.name === 'progress'
+              ? t('admin_progress')
+              : route.name === 'notifications'
+              ? t('notifications')
+              : route.name === 'members'
+              ? t('admin_members')
+              : route.name === 'chores'
+              ? t('chores')
+              : t('profile');
+
+          return (
+            <Pressable
+              key={route.key}
+              onPress={onPress}
+              style={({ pressed }) => [styles.tabItem, pressed && styles.tabPressed]}
+              accessibilityRole="button"
+              accessibilityState={isFocused ? { selected: true } : {}}
+              accessibilityLabel={label}
             >
-              {tabConfig.label}
-            </Text>
-          </Pressable>
-        );
-      })}
+              <View style={styles.iconWrapper}>
+                <Ionicons name={iconName} size={22} color={currentColor} style={styles.icon} />
+                {route.name === 'notifications' && unread > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{unread > 99 ? '99+' : unread}</Text>
+                  </View>
+                )}
+              </View>
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.label,
+                  { color: currentColor },
+                  isFocused && styles.activeLabel,
+                ]}
+              >
+                {label}
+              </Text>
+            </Pressable>
+          );
+        })}
     </View>
   );
 }
@@ -105,24 +150,49 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
   },
   tabItem: {
+    minHeight: 44,
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 3,
     paddingVertical: 2,
+    paddingHorizontal: 2,
   },
   tabPressed: {
     opacity: 0.7,
   },
+  iconWrapper: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   icon: {
     marginBottom: 1,
   },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -10,
+    backgroundColor: '#EF4444',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
+  },
   label: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
-    letterSpacing: 0.2,
+    letterSpacing: 0.1,
+    textAlign: 'center',
   },
   activeLabel: {
-    fontWeight: '700',
+    fontWeight: '800',
   },
 });

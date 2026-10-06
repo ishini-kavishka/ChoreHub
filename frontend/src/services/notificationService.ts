@@ -7,9 +7,16 @@ export interface AppNotification {
   user_id: string;
   title: string;
   message: string;
-  type: 'chore_reminder' | 'chore_completed' | 'chore_assigned' | 'weekly_progress' | 'family_update' | 'info';
+  type: 'chore_reminder' | 'chore_completed' | 'chore_assigned' | 'weekly_progress' | 'family_update' | 'info' | 'personal_reminder';
   is_read: boolean;
+  reminder_at?: string | null;
   created_at: string;
+}
+
+export interface ReminderPayload {
+  title: string;
+  message: string;
+  reminder_at?: string;
 }
 
 async function token() {
@@ -39,6 +46,7 @@ function publishUnread(count: number) { unreadListeners.forEach((listener) => li
 
 export const notificationService = {
   subscribeUnreadCount(listener: (count: number) => void) { unreadListeners.add(listener); return () => unreadListeners.delete(listener); },
+
   async getNotifications(filter: 'all' | 'unread' | 'read' = 'all'): Promise<AppNotification[]> {
     const authToken = await token();
     try {
@@ -99,5 +107,39 @@ export const notificationService = {
       mockNotifications = mockNotifications.map((n) => ({ ...n, is_read: true }));
       publishUnread(0);
     }
+  },
+
+  async deleteNotification(id: string): Promise<void> {
+    const authToken = await token();
+    try {
+      await apiRequest<{ message: string; id: string }>(`/api/notifications/${id}`, { method: 'DELETE' }, authToken);
+      demoMode = false;
+      await notificationService.getUnreadCount();
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== undefined) throw error;
+      demoMode = true;
+      mockNotifications = mockNotifications.filter((n) => n.id !== id);
+      publishUnread(mockNotifications.filter((n) => !n.is_read).length);
+    }
+  },
+
+  // ─── Personal Reminder CRUD ────────────────────────────────────────────────
+
+  async createReminder(payload: ReminderPayload): Promise<AppNotification> {
+    const res = await apiRequest<{ notification: AppNotification }>(
+      '/api/notifications/reminders',
+      { method: 'POST', body: JSON.stringify(payload) },
+      await token()
+    );
+    return res.notification;
+  },
+
+  async updateReminder(id: string, payload: ReminderPayload): Promise<AppNotification> {
+    const res = await apiRequest<{ notification: AppNotification }>(
+      `/api/notifications/reminders/${id}`,
+      { method: 'PUT', body: JSON.stringify(payload) },
+      await token()
+    );
+    return res.notification;
   },
 };

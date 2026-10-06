@@ -1,12 +1,18 @@
 /**
  * i18n translations dictionary.
  * Supports: English (en), Sinhala (si), Tamil (ta).
+ * Only languages with COMPLETE translations are included.
  */
+
+import { adminTranslations } from './adminTranslations';
+import { crudTranslations } from './crudTranslations';
 
 export type Language = 'en' | 'si' | 'ta';
 
 export const translations = {
   en: {
+    ...adminTranslations.en,
+    ...crudTranslations.en,
     // Tab bar
     home: 'Home',
     chores: 'Chores',
@@ -85,9 +91,13 @@ export const translations = {
     build: 'Build',
     privacy_policy: 'Privacy Policy',
     terms_of_service: 'Terms of Service',
+    language_screen_title: 'Language',
+    search_languages: 'Search languages…',
   },
 
   si: {
+    ...adminTranslations.si,
+    ...crudTranslations.si,
     home: 'මුල් පිටුව',
     chores: 'කාර්යයන්',
     calendar: 'දින දර්ශනය',
@@ -159,9 +169,13 @@ export const translations = {
     build: 'ගොඩනැගිල්ල',
     privacy_policy: 'රහස්‍යතා ප්‍රතිපත්තිය',
     terms_of_service: 'සේවා නියම',
+    language_screen_title: 'භාෂාව',
+    search_languages: 'භාෂා සොයන්න…',
   },
 
   ta: {
+    ...adminTranslations.ta,
+    ...crudTranslations.ta,
     home: 'முகப்பு',
     chores: 'வீட்டு வேலைகள்',
     calendar: 'நாட்காட்டி',
@@ -233,6 +247,8 @@ export const translations = {
     build: 'கட்டமைப்பு',
     privacy_policy: 'தனியுரிமைக் கொள்கை',
     terms_of_service: 'சேவை விதிமுறைகள்',
+    language_screen_title: 'மொழி',
+    search_languages: 'மொழிகளை தேடுங்கள்…',
   },
 } as const;
 
