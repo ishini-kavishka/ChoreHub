@@ -7,7 +7,7 @@ export interface AppNotification {
   user_id: string;
   title: string;
   message: string;
-  type: 'chore_reminder' | 'chore_completed' | 'chore_assigned' | 'weekly_progress' | 'family_update' | 'info' | 'personal_reminder';
+  type: 'chore_reminder' | 'chore_completed' | 'chore_assigned' | 'weekly_progress' | 'family_update' | 'info' | 'personal_reminder' | 'announcement';
   is_read: boolean;
   reminder_at?: string | null;
   created_at: string;

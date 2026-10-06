@@ -18,17 +18,20 @@ type ViewMode = 'day' | 'week' | 'month';
 export default function MemberScheduleScreen() {
   const [chores, setChores] = useState<ChoreItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>('week');
+  const [viewMode, setViewMode] = useState<ViewMode>('day');
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   const loadData = useCallback(async () => {
+    setError(null);
     try {
       const res = await choreService.getMemberChores();
       if (res?.chores) {
         setChores(res.chores);
       }
-    } catch {
-      // Soft fail
+    } catch (err: any) {
+      setError(err?.message || 'Unable to load your schedule.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -46,9 +49,25 @@ export default function MemberScheduleScreen() {
     loadData();
   };
 
+  const handlePrevDay = () => {
+    const prev = new Date(selectedDate);
+    prev.setDate(prev.getDate() - 1);
+    setSelectedDate(prev);
+  };
+
+  const handleNextDay = () => {
+    const next = new Date(selectedDate);
+    next.setDate(next.getDate() + 1);
+    setSelectedDate(next);
+  };
+
+  const handleResetToday = () => {
+    setSelectedDate(new Date());
+  };
+
   const filteredChores = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const targetDay = new Date(selectedDate);
+    targetDay.setHours(0, 0, 0, 0);
 
     return chores.filter((c) => {
       if (!c.due_date) return true;
@@ -56,25 +75,25 @@ export default function MemberScheduleScreen() {
       dueDate.setHours(0, 0, 0, 0);
 
       if (viewMode === 'day') {
-        return dueDate.getTime() === today.getTime();
+        return dueDate.getTime() === targetDay.getTime();
       }
 
       if (viewMode === 'week') {
-        const nextWeek = new Date(today);
-        nextWeek.setDate(today.getDate() + 7);
-        return dueDate >= today && dueDate <= nextWeek;
+        const weekEnd = new Date(targetDay);
+        weekEnd.setDate(targetDay.getDate() + 7);
+        return dueDate >= targetDay && dueDate <= weekEnd;
       }
 
       if (viewMode === 'month') {
         return (
-          dueDate.getMonth() === today.getMonth() &&
-          dueDate.getFullYear() === today.getFullYear()
+          dueDate.getMonth() === targetDay.getMonth() &&
+          dueDate.getFullYear() === targetDay.getFullYear()
         );
       }
 
       return true;
     });
-  }, [chores, viewMode]);
+  }, [chores, viewMode, selectedDate]);
 
   const groupedChores = useMemo(() => {
     const map: Record<string, ChoreItem[]> = {};
@@ -157,13 +176,49 @@ export default function MemberScheduleScreen() {
           })}
         </View>
 
+        {/* Day Navigation Bar (Visible in Day View) */}
+        {viewMode === 'day' && (
+          <View style={styles.dayNavRow}>
+            <Pressable onPress={handlePrevDay} style={styles.dayNavBtn} hitSlop={8}>
+              <Ionicons name="chevron-back" size={20} color="#713DE8" />
+            </Pressable>
+
+            <View style={styles.dayNavLabelGroup}>
+              <Text style={styles.dayNavDateText}>
+                {selectedDate.toLocaleDateString('en-US', {
+                  weekday: 'short',
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              </Text>
+              {selectedDate.toDateString() === new Date().toDateString() && (
+                <View style={styles.todayPill}>
+                  <Text style={styles.todayPillText}>Today</Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.dayNavRightActions}>
+              <Pressable onPress={handleNextDay} style={styles.dayNavBtn} hitSlop={8}>
+                <Ionicons name="chevron-forward" size={20} color="#713DE8" />
+              </Pressable>
+              {selectedDate.toDateString() !== new Date().toDateString() && (
+                <Pressable onPress={handleResetToday} style={styles.resetTodayBtn}>
+                  <Text style={styles.resetTodayBtnText}>Today</Text>
+                </Pressable>
+              )}
+            </View>
+          </View>
+        )}
+
         <View style={styles.summaryBar}>
           <Ionicons name="calendar-outline" size={16} color="#713DE8" />
           <Text style={styles.summaryText}>
             <Text style={styles.boldText}>{filteredChores.length}</Text>{' '}
             {filteredChores.length === 1 ? 'chore' : 'chores'} in your{' '}
             {viewMode === 'day'
-              ? "today's schedule"
+              ? 'daily schedule'
               : viewMode === 'week'
               ? 'weekly schedule'
               : 'monthly schedule'}
@@ -172,6 +227,22 @@ export default function MemberScheduleScreen() {
 
         {loading ? (
           <ActivityIndicator size="large" color="#713DE8" style={{ marginTop: 24 }} />
+        ) : error ? (
+          <View style={styles.errorCard}>
+            <Ionicons name="alert-circle" size={40} color="#EF4444" />
+            <Text style={styles.errorTitle}>Unable to load your schedule.</Text>
+            <Text style={styles.errorSubtitle}>{error}</Text>
+            <Pressable
+              onPress={() => {
+                setLoading(true);
+                loadData();
+              }}
+              style={styles.retryBtn}
+            >
+              <Ionicons name="refresh" size={16} color="#FFFFFF" />
+              <Text style={styles.retryBtnText}>Retry</Text>
+            </Pressable>
+          </View>
         ) : dateKeys.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyIcon}>📋</Text>
@@ -218,6 +289,9 @@ export default function MemberScheduleScreen() {
                             >
                               {c.title}
                             </Text>
+                            {c.category ? (
+                              <Text style={styles.categoryTag}>🏷️ {c.category}</Text>
+                            ) : null}
                             {c.description ? (
                               <Text style={styles.choreDesc} numberOfLines={1}>
                                 {c.description}
@@ -301,6 +375,60 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '900',
     color: '#1E1B2E',
+  },
+
+  dayNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#EAE7F5',
+  },
+  dayNavBtn: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: '#F3E8FF',
+  },
+  dayNavLabelGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dayNavDateText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1E1B2E',
+  },
+  todayPill: {
+    backgroundColor: '#713DE8',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  todayPillText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  dayNavRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  resetTodayBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: '#EDE9FE',
+  },
+  resetTodayBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#713DE8',
   },
 
   toggleContainer: {
@@ -405,6 +533,11 @@ const styles = StyleSheet.create({
     textDecorationLine: 'line-through',
     color: '#A09DB1',
   },
+  categoryTag: {
+    fontSize: 12,
+    color: '#8A879A',
+    fontWeight: '500',
+  },
   choreDesc: {
     fontSize: 12,
     color: '#8A879A',
@@ -469,5 +602,40 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#8A879A',
     textAlign: 'center',
+  },
+  errorCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FEE2E2',
+    gap: 8,
+    marginTop: 8,
+  },
+  errorTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1E1B2E',
+  },
+  errorSubtitle: {
+    fontSize: 13,
+    color: '#8A879A',
+    textAlign: 'center',
+  },
+  retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#713DE8',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginTop: 6,
+  },
+  retryBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 14,
   },
 });

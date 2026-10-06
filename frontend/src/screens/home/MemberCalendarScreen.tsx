@@ -18,17 +18,19 @@ const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 export default function MemberCalendarScreen() {
   const [chores, setChores] = useState<ChoreItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   // Only MY chores via getMemberChores (backend filters by assigned_to = userId)
   const loadData = useCallback(async () => {
+    setError(null);
     try {
       const res = await choreService.getMemberChores();
       if (res?.chores) {
         setChores(res.chores);
       }
-    } catch {
-      // Soft fail
+    } catch (err: any) {
+      setError(err?.message || 'Unable to load your calendar.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -222,8 +224,9 @@ export default function MemberCalendarScreen() {
         {/* ── Selected Date Chores ── */}
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>
+            Chores on{' '}
             {new Date(selectedDateStr + 'T00:00:00').toLocaleDateString('en-US', {
-              weekday: 'long',
+              weekday: 'short',
               month: 'short',
               day: 'numeric',
             })}
@@ -238,10 +241,26 @@ export default function MemberCalendarScreen() {
 
         {loading ? (
           <ActivityIndicator color="#713DE8" size="large" style={{ marginTop: 16 }} />
+        ) : error ? (
+          <View style={styles.errorCard}>
+            <Ionicons name="alert-circle" size={40} color="#EF4444" />
+            <Text style={styles.errorTitle}>Unable to load your calendar.</Text>
+            <Text style={styles.errorSubtitle}>{error}</Text>
+            <Pressable
+              onPress={() => {
+                setLoading(true);
+                loadData();
+              }}
+              style={styles.retryBtn}
+            >
+              <Ionicons name="refresh" size={16} color="#FFFFFF" />
+              <Text style={styles.retryBtnText}>Retry</Text>
+            </Pressable>
+          </View>
         ) : selectedChores.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyIcon}>📅</Text>
-            <Text style={styles.emptyTitle}>No chores scheduled for this day</Text>
+            <Text style={styles.emptyTitle}>No chores scheduled for this day.</Text>
             <Text style={styles.emptySubtitle}>Enjoy your free time! 🎉</Text>
           </View>
         ) : (
@@ -497,4 +516,39 @@ const styles = StyleSheet.create({
   emptyIcon: { fontSize: 32 },
   emptyTitle: { fontSize: 16, fontWeight: '800', color: '#1E1B2E', textAlign: 'center' },
   emptySubtitle: { fontSize: 13, color: '#8A879A', textAlign: 'center' },
+  errorCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FEE2E2',
+    gap: 8,
+    marginTop: 8,
+  },
+  errorTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1E1B2E',
+  },
+  errorSubtitle: {
+    fontSize: 13,
+    color: '#8A879A',
+    textAlign: 'center',
+  },
+  retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#713DE8',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginTop: 6,
+  },
+  retryBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 14,
+  },
 });

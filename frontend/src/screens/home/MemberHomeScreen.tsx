@@ -153,6 +153,13 @@ export default function MemberHomeScreen() {
       onPress: () => router.push('/home/chores' as any),
     },
     {
+      id: 'schedule',
+      label: 'My\nSchedule',
+      icon: 'time-outline' as const,
+      color: '#059669',
+      onPress: () => router.push('/home/schedule' as any),
+    },
+    {
       id: 'calendar',
       label: 'View\nCalendar',
       icon: 'calendar-outline' as const,
@@ -165,13 +172,6 @@ export default function MemberHomeScreen() {
       icon: 'people-outline' as const,
       color: '#2563EB',
       onPress: () => router.push('/home/family' as any),
-    },
-    {
-      id: 'progress',
-      label: 'My\nProgress',
-      icon: 'bar-chart-outline' as const,
-      color: '#713DE8',
-      onPress: () => router.push('/home/progress' as any),
     },
   ];
 

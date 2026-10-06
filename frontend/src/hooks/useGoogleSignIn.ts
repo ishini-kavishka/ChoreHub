@@ -11,7 +11,6 @@ export function useGoogleSignIn() {
     webClientId: webClientId || 'google-client-id-not-configured',
     iosClientId,
     androidClientId,
-    selectAccount: true,
     scopes: ['openid', 'profile', 'email'],
   });
 
