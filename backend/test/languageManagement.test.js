@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 require('dotenv').config({ quiet: true });
-const { pool } = require('../src/config/db');
+const { pool, ensureSupportedLanguageSchema } = require('../src/config/db');
 const bcrypt = require('bcryptjs');
 const { randomUUID } = require('node:crypto');
 const app = require('../src/server');
@@ -13,8 +13,20 @@ test('Admin language management, client availability, and fallback', { skip: pro
   try {
     await client.query('BEGIN');
     pool.query = client.query.bind(client);
+    const supported = require('../../shared/languages.json').filter(item=>item.translation_supported);
+    const newlyBundled = supported.filter(item=>!['en','si','ta'].includes(item.code)).map(item=>item.code);
+    // Simulate upgrading previously unsupported, untouched catalog seeds.
+    await client.query(`UPDATE supported_languages SET is_enabled=FALSE,
+      created_at='2000-01-01',updated_at='2000-01-01' WHERE code=ANY($1::text[])`,[newlyBundled]);
+    await ensureSupportedLanguageSchema();
+    assert.ok((await client.query('SELECT is_enabled FROM supported_languages WHERE code=ANY($1::text[])',[newlyBundled])).rows.every(row=>row.is_enabled));
+    await client.query("UPDATE supported_languages SET is_enabled=FALSE,updated_at=CURRENT_TIMESTAMP WHERE code='ja'");
+    await ensureSupportedLanguageSchema();
+    assert.equal((await client.query("SELECT is_enabled FROM supported_languages WHERE code='ja'")).rows[0].is_enabled,false,'restart preserves an explicit Admin disable');
     // The user's live availability may already have languages disabled. Test setup is rolled back.
-    await client.query("UPDATE supported_languages SET is_enabled = TRUE WHERE code IN ('en', 'si', 'ta')");
+    for (const item of supported) await client.query(`INSERT INTO supported_languages
+      (code,name,native_name,flag,is_enabled,sort_order) VALUES($1,$2,$3,$4,TRUE,$5)
+      ON CONFLICT(code) DO UPDATE SET is_enabled=TRUE`,[item.code,item.name,item.native_name,item.flag,item.sort_order]);
 
     // Isolated accounts use the real login endpoint; existing user credentials are never changed.
     const password = 'Language-test-password';
@@ -110,9 +122,21 @@ test('Admin language management, client availability, and fallback', { skip: pro
       method, headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
+    for (const {code} of supported) {
+      for (const token of [memberToken,adminToken]) {
+        const saved = await request('/api/settings/preferences','PUT',{language:code},token);
+        assert.equal(saved.status,200,code+' saves for Member and Admin');
+        assert.equal((await saved.json()).preferences.language,code);
+        // Fresh JWT/login + GET simulates restoring after restarting the app.
+        const restored = await request('/api/settings/preferences','GET',undefined,
+          await login(token===memberToken?member.email:admin.email));
+        assert.equal((await restored.json()).preferences.language,code);
+      }
+    }
+    await request('/api/settings/preferences','PUT',{language:'ta'});
     const publicList = await fetch(base + '/api/settings/languages');
     assert.equal(publicList.status, 200);
-    assert.ok((await publicList.json()).languages.filter(l => ['en', 'si', 'ta'].includes(l.code)).every(l => l.translation_supported));
+    assert.ok((await publicList.json()).languages.filter(l => supported.some(item=>item.code===l.code)).every(l => l.translation_supported));
     const record = { code: 'zz', name: 'Test locale', native_name: 'Test locale' };
     assert.ok(memberToken, 'A normal member account is required for authorization coverage.');
     for (const code of ['en', 'si', 'ta']) {

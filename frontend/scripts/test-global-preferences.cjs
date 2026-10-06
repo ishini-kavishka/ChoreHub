@@ -5,7 +5,7 @@ const {translations}=require('../src/i18n/translations.ts');
 const original=Module._load,storage=new Map(),listeners=new Set(),foreground=new Set(),remote=new Map();
 let user={id:'a'},offline=false,delay;
 remote.set('a',{theme:'light',language:'en',brightness:70,auto_brightness:false});remote.set('b',{theme:'light',language:'ta',brightness:80,auto_brightness:false});
-const langs=['en','si','ta'].map(code=>({code,is_enabled:true,translation_supported:true}));
+const langs=Object.keys(translations).map(code=>({code,is_enabled:true,translation_supported:true}));
 Module._load=function(name,...args){
   if(name==='react-native')return{View:'view',useColorScheme:()=> 'light',AppState:{addEventListener:(_,cb)=>{foreground.add(cb);return{remove:()=>foreground.delete(cb)};}}};
   if(name==='@react-native-async-storage/async-storage')return{getItem:async key=>storage.get(key)??null,setItem:async(key,value)=>storage.set(key,value)};
@@ -18,10 +18,10 @@ const {ThemeProvider,useAppTheme}=require('../src/context/ThemeContext.tsx'),{La
 let theme,language;
 function Consumer(){theme=useAppTheme();language=useLanguage();return theme.ready&&language.ready?React.createElement('ready',{background:theme.colors.background},language.t('tab_home')):React.createElement('loading');}
 const mount=async()=>{let r;await act(async()=>{r=create(React.createElement(ThemeProvider,null,React.createElement(LanguageProvider,null,React.createElement(Consumer))));});return r;};
-test('all six combinations update immediately, stay independent and restore across restart/account changes',async()=>{
+test('all forty combinations update immediately, stay independent and restore across restart/account changes',async()=>{
   let r=await mount();
   try{
-    for(const code of ['en','si','ta'])for(const mode of ['light','dark']){
+    for(const code of Object.keys(translations))for(const mode of ['light','dark']){
       await act(async()=>{await theme.setTheme(mode);await language.setLanguage(code);});
       assert.equal(theme.theme,mode);assert.equal(language.language,code);assert.equal(remote.get('a').theme,mode);assert.equal(remote.get('a').language,code);
       assert.equal(r.root.findByType('ready').children[0],translations[code].tab_home);

@@ -203,27 +203,7 @@ async function ensureAuthSchema() {
     ADD COLUMN IF NOT EXISTS auto_brightness BOOLEAN NOT NULL DEFAULT FALSE;
   `);
 
-  // =========================================================
-  // Supported Languages (Admin-managed client languages)
-  // =========================================================
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS public.supported_languages (
-      code TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      native_name TEXT NOT NULL,
-      flag TEXT NOT NULL DEFAULT '🌐',
-      is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
-  for (const language of languageCatalog) {
-    await pool.query(`INSERT INTO public.supported_languages (code, name, native_name, flag, is_enabled, sort_order)
-      VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (code) DO NOTHING`,
-      [language.code, language.name, language.native_name, language.flag, language.translation_supported, language.sort_order]);
-  }
+  await ensureSupportedLanguageSchema();
 
   // =========================================================
   // Indexes
@@ -271,6 +251,40 @@ async function ensureAuthSchema() {
   console.log('Database schema checked successfully.');
 }
 
+async function ensureSupportedLanguageSchema() {
+  // =========================================================
+  // Supported Languages (Admin-managed client languages)
+  // =========================================================
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS public.supported_languages (
+      code TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      native_name TEXT NOT NULL,
+      flag TEXT NOT NULL DEFAULT '🌐',
+      is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  for (const language of languageCatalog) {
+    await pool.query(`INSERT INTO public.supported_languages (code, name, native_name, flag, is_enabled, sort_order)
+      VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (code) DO NOTHING`,
+      [language.code, language.name, language.native_name, language.flag, language.translation_supported, language.sort_order]);
+  }
+
+  // Upgrade untouched catalog seeds when their bundled translations become
+  // available. Explicit administrator choices have a newer updated_at and are
+  // preserved; later disables must never be undone by a server restart.
+  await pool.query(`UPDATE public.supported_languages
+    SET is_enabled = TRUE, updated_at = CURRENT_TIMESTAMP
+    WHERE code = ANY($1::text[]) AND is_enabled = FALSE
+      AND updated_at = created_at`,
+    [languageCatalog.filter(language => !['en', 'si', 'ta'].includes(language.code)
+      && language.translation_supported).map(language => language.code)]);
+}
+
 async function ensureNotificationMessageSchema() {
   await pool.query('ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS sender_id UUID REFERENCES public.users(id) ON DELETE SET NULL');
 }
@@ -281,6 +295,7 @@ async function ensurePersonalReminderDeviceSchema() {
 }
 
 module.exports = {
+  ensureSupportedLanguageSchema,
   ensurePersonalReminderDeviceSchema,
   ensureNotificationMessageSchema,
   pool,

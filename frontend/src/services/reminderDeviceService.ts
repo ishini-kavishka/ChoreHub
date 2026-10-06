@@ -1,4 +1,6 @@
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { translations } from '../i18n/translations';
 import type { Reminder } from './component04CrudService';
 
 export type DeviceReminderStatus = 'scheduled' | 'denied' | 'unsupported' | 'disabled' | 'failed';
@@ -34,10 +36,14 @@ async function sync(snapshot: Snapshot, askPermission: boolean): Promise<DeviceR
   const own = pending.filter(p => p.content.data?.source === source);
   for (const p of own) if (!desired.has(p.identifier)) await n.cancelScheduledNotificationAsync(p.identifier);
   if (!snapshot.enabled || !snapshot.userId) return 'disabled';
+  // Use the same account-specific preference and bundled dictionary as the UI.
+  const savedLanguage = await AsyncStorage.getItem('chorehub.language.' + snapshot.userId).catch(() => null);
+  const language = savedLanguage && Object.hasOwn(translations, savedLanguage) ? savedLanguage as keyof typeof translations : 'en';
+  const dictionary = translations[language];
   if (Platform.OS === 'android') {
     for (const sound of [true, false]) for (const vibrate of [true, false]) {
       await n.setNotificationChannelAsync(channel(sound, vibrate), {
-        name: 'Personal reminders (' + (sound ? 'sound' : 'silent') + ', ' + (vibrate ? 'vibration' : 'no vibration') + ')',
+        name: `${dictionary.reminder_intro} (${dictionary.reminder_sound}: ${sound ? '✓' : '—'}, ${dictionary.reminder_vibrate}: ${vibrate ? '✓' : '—'})`,
         importance: n.AndroidImportance.HIGH, sound: sound ? 'default' : null,
         enableVibrate: vibrate, ...(vibrate ? { vibrationPattern: [0, 300, 200, 300] } : {}),
         lockscreenVisibility: n.AndroidNotificationVisibility.PRIVATE,
@@ -53,7 +59,7 @@ async function sync(snapshot: Snapshot, askPermission: boolean): Promise<DeviceR
     return 'denied';
   }
   for (const [id, r] of desired) {
-    const body = [r.chore_name, r.chore_due_date ? new Date(r.chore_due_date).toLocaleString() : '', r.note].filter(Boolean).join('\n');
+    const body = [r.chore_name, r.chore_due_date ? new Date(r.chore_due_date).toLocaleString(language) : '', r.note].filter(Boolean).join('\n');
     const signature = JSON.stringify([r.title, body, r.remind_at, r.vibrate !== false, r.sound !== false]);
     if (own.some(p => p.identifier === id && p.content.data?.signature === signature)) continue;
     await n.cancelScheduledNotificationAsync(id);

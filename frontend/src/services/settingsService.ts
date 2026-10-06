@@ -2,6 +2,7 @@ import { apiRequest } from './api';
 import { authService } from './authService';
 import { ApiError } from './api';
 import languageCatalog from '../../../shared/languages.json';
+import type { Language } from '@/i18n/translations';
 import { reminderDeviceService } from './reminderDeviceService';
 export let settingsDemoMode = false;
 
@@ -19,7 +20,7 @@ export interface NotificationSettings {
 export interface UserPreferences {
   user_id?: string;
   theme: 'light' | 'dark' | 'system';
-  language: 'en' | 'si' | 'ta';
+  language: Language;
   brightness?: number;
   auto_brightness?: boolean;
 }

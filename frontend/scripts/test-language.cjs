@@ -13,7 +13,7 @@ require.extensions['.ts'] = require.extensions['.tsx'] = (module, filename) => m
   } }).outputText, filename);
 const { translations } = require('../src/i18n/translations.ts');
 const { notificationDisplay } = require('../src/i18n/clientTranslations.ts');
-const defaults = ['en', 'si', 'ta'].map(code => ({ code, is_enabled: true, translation_supported: true }));
+const defaults = Object.keys(translations).map(code => ({ code, is_enabled: true, translation_supported: true }));
 let user = { id: 'member-a' }, selected = 'en', languages = defaults, failure = false, offline = false;
 const storage = new Map(), sessionListeners = new Set(), foregroundListeners = new Set();
 const originalLoad = Module._load;
@@ -38,6 +38,7 @@ Module._load = function (name, ...args) {
 const { LanguageProvider, useLanguage } = require('../src/context/LanguageContext.tsx');
 Module._load = originalLoad;
 let context;
+const restoredLocales = new Set();
 function ClientInterface() {
   context = useLanguage();
   return React.createElement('interface', null, ['tab_home', 'tab_chores', 'tab_progress', 'tab_profile',
@@ -59,6 +60,10 @@ test('supported catalog entries have complete dictionaries covering every litera
     for (const key of keys) {
       assert.equal(typeof translations[code][key], 'string');
       assert.ok(translations[code][key].trim(), code + ': ' + key);
+      assert.ok(!/\?{3,}|\uFFFD|ZXQ|QXZ/.test(translations[code][key]),code+': corrupt or unrestored label '+key);
+      if (['hi','zh','ja','ko'].includes(code) && /[A-Za-z]{3}/.test(translations.en[key])) {
+        assert.notEqual(translations[code][key], translations.en[key], code + ': English copy at ' + key);
+      }
       assert.deepEqual((translations[code][key].match(/\{\w+\}/g) || []).sort(),
         (translations.en[key].match(/\{\w+\}/g) || []).sort(), code + ': ' + key);
     }
@@ -83,7 +88,7 @@ test('supported catalog entries have complete dictionaries covering every litera
   walk(path.join(root, 'screens')); walk(path.join(root, 'components'));
 });
 test('system notifications translate templates while preserving user-entered content', () => {
-  for (const language of ['en', 'si', 'ta']) {
+  for (const language of Object.keys(translations)) {
     const t = key => translations[language][key];
     const title = 'My custom chore with {count} and "quotes"';
     const notification = { type: 'chore_completed', title: 'Chore Completed', message: `"${title}" has been marked as completed` };
@@ -96,12 +101,24 @@ test('system notifications translate templates while preserving user-entered con
 });
 test('provider rerenders, saves, restores after restart/login, rejects unavailable locales and rolls back failures', async () => {
   let renderer = await mount();
-  for (const code of ['si', 'ta', 'en']) {
+  for (const code of [...Object.keys(translations).filter(code=>code!=='en'), 'en']) {
     await act(async () => { await context.setLanguage(code); });
     assert.equal(context.language, code);
+    assert.equal(renderer.root.findByType('layout').props.style.direction,
+      ['ar','ur'].includes(code)?'rtl':'ltr',code+' uses its catalog writing direction');
     assert.equal(selected, code);
     assert.equal(storage.get('chorehub.language.member-a'), code);
     assert.ok(renderer.root.findByType('interface').children[0].includes(translations[code].tab_home));
+    await act(async () => renderer.unmount());
+    renderer = await mount();
+    assert.equal(context.language, code, code + ' restores after restart');
+    assert.ok(renderer.root.findByType('interface').children[0].includes(translations[code].settings_title));
+    offline = true;
+    await act(async () => renderer.unmount());
+    renderer = await mount();
+    assert.equal(context.language, code, code + ' restores offline from account cache');
+    restoredLocales.add(code);
+    offline = false;
   }
   await act(async () => { await context.setLanguage('si'); renderer.unmount(); });
   renderer = await mount();
@@ -130,4 +147,21 @@ test('provider rerenders, saves, restores after restart/login, rejects unavailab
   translations.si.tab_home = missing;
   assert.equal(context.t('unknown_key'), translations.en.error, 'unknown key never leaks to UI');
   await act(async () => { renderer.unmount(); });
+});
+
+test.after(() => {
+  const catalog = require('../../shared/languages.json');
+  const required = Object.keys(translations.en);
+  const rows = catalog.map(item => {
+    const dictionary = translations[item.code] || {};
+    return { language: item.name, code: item.code, rtl: item.rtl,
+      translationSupported: item.translation_supported,
+      keys: Object.keys(dictionary).length,
+      missingKeys: required.filter(key => !Object.hasOwn(dictionary, key)),
+      extraKeys: Object.keys(dictionary).filter(key => !required.includes(key)),
+      persistenceTested: restoredLocales.has(item.code) };
+  });
+  const output = path.resolve(__dirname, '../.expo');
+  fs.mkdirSync(output, { recursive: true });
+  fs.writeFileSync(path.join(output, 'language-completeness-results.json'), JSON.stringify(rows, null, 2));
 });

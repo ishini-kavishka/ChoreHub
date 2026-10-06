@@ -3,7 +3,7 @@ import { privateMessageTranslations } from './privateMessageTranslations';
 import { timeRequestTranslations } from './timeRequestTranslations';
 /**
  * i18n translations dictionary.
- * Supports: English (en), Sinhala (si), Tamil (ta).
+ * Supports all languages in the shared language catalog.
  * Complete translations across all client and admin screens.
  */
 
@@ -406,9 +406,9 @@ export const translations = {
     progress_title: 'ප්‍රගතිය',
     heres_your_progress: 'මෙන්න ඔබේ ප්‍රගතිය',
     overall_completion: 'සමස්ත සම්පූර්ණ කිරීම',
-    client_category_completion: '????? ???? ???????? ?????',
-    client_weekly_progress: '?????? ????????',
-    category_general: '????????',
+    client_category_completion: "කාණ්ඩ අනුව සම්පූර්ණ කිරීම",
+    client_weekly_progress: "සතිපතා ප්‍රගතිය",
+    category_general: "සාමාන්‍ය",
     completed_chores: 'සම්පූර්ණ කළ කාර්යයන්',
     pending_chores: 'ඉතිරි කාර්යයන්',
     overdue_chores: 'කල් ඉකුත් වූ කාර්යයන්',
@@ -679,9 +679,9 @@ export const translations = {
     progress_title: 'முன்னேற்றம்',
     heres_your_progress: 'இதோ உங்கள் முன்னேற்றம்',
     overall_completion: 'ஒட்டுமொத்த முடிவு',
-    client_category_completion: '??? ??????? ??????',
-    client_weekly_progress: '????????? ???????????',
-    category_general: '????',
+    client_category_completion: "வகை வாரியான நிறைவு",
+    client_weekly_progress: "வாராந்திர முன்னேற்றம்",
+    category_general: "பொது",
     completed_chores: 'முடிந்த வேலைகள்',
     pending_chores: 'நிலுவையில் உள்ள வேலைகள்',
     overdue_chores: 'தாமதமான வேலைகள்',

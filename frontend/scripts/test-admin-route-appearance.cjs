@@ -6,7 +6,7 @@ const {translations}=require('../src/i18n/translations.ts');
 let mode='light',language='en',realLanguageHook=null;
 const navigationEvents=[];const preferenceCache=new Map();
 const tokens={light:{isDark:false,background:'#F8F7FC',card:'#fff',surface:'#EFEAFF',textPrimary:'#211C35',textSecondary:'#655E78',border:'#E7E0F2',primary:'#7C5CFC',error:'#B3261E',success:'#15803D'},dark:{isDark:true,background:'#14121F',card:'#211D30',surface:'#342C4C',textPrimary:'#fff',textSecondary:'#C0B9D2',border:'#494059',primary:'#7C5CFC',error:'#FFAAA8',success:'#76DEBB'}};
-const translators=Object.fromEntries(['en','si','ta'].map(code=>[code,(key,fallback)=>translations[code][key]??fallback??translations[code].error]));
+const translators=Object.fromEntries(Object.keys(translations).map(code=>[code,(key,fallback)=>translations[code][key]??fallback??translations[code].error]));
 const member={id:'member',name:'Chamara',full_name:'Chamara',email:'chamara@example.invalid',role:'admin',phone:'0123456789'};
 const chore={id:'own-chore',title:'Clean Room',description:'Keep my original note',assigned_to:member.id,created_by:'admin',status:'pending',priority:'medium',category:'General',recurrence:'none',due_date:new Date().toISOString(),created_at:new Date().toISOString()};
 const stats={completed:0,pending:1,overdue:0,total:1,completionPercentage:0};
@@ -40,10 +40,10 @@ const routes=[];
 for(const group of ['admin','support'])for(const filename of fs.readdirSync(path.resolve(__dirname,'../src/app',group))){if(filename.endsWith('.tsx')&&!filename.startsWith('_')&&(group==='admin'||filename.startsWith('admin')))routes.push({route:group+'/'+filename.slice(0,-4),Component:require('../src/app/'+group+'/'+filename).default});}
 // Alias interception stays active for imports inside nested rendering helpers.
 const appearance=[];
-for(const {route,Component}of routes)test(route+' updates through all six global combinations',async()=>{
+for(const {route,Component}of routes)test(route+' updates through all forty global combinations',async()=>{
   let r;const texts={};
   try{
-    for(const code of ['en','si','ta'])for(const theme of ['light','dark']){
+    for(const code of Object.keys(translations))for(const theme of ['light','dark']){
       language=code;mode=theme;await act(async()=>{const element=React.createElement(Component);if(r)r.update(element);else r=create(element);});
       const text=r.root.findAllByType('text').map(n=>n.children.filter(child=>typeof child==='string'||typeof child==='number').join('')).join('|');texts[code]=text;
       assert.ok(text.length,route+' renders content');
@@ -64,7 +64,7 @@ for(const {route,Component}of routes)test(route+' updates through all six global
       assert.equal(pale.length,0,route+' has no fixed white client cards/inputs');
       appearance.push({route,theme,language:code});
     }
-    assert.notEqual(texts.en,texts.si,route+' interface responds to Sinhala');assert.notEqual(texts.en,texts.ta,route+' interface responds to Tamil');
+    for(const code of Object.keys(translations).filter(code=>code!=='en'))assert.notEqual(texts.en,texts[code],route+' interface responds to '+code);
   }finally{if(r)await act(async()=>r.unmount());}
 });
 const modalCases=[
@@ -76,7 +76,7 @@ const modalCases=[
 for(const [name,Component,props]of modalCases)test(name+' modal responds to theme/language and preserves user text',async()=>{
   let r;const texts={};
   try{
-    for(const code of ['en','si','ta'])for(const theme of ['light','dark']){
+    for(const code of Object.keys(translations))for(const theme of ['light','dark']){
       language=code;mode=theme;await act(async()=>{const element=React.createElement(Component,props);if(r)r.update(element);else r=create(element);});
       assert.equal(r.root.findAllByType('dialog').length,1);
       texts[code]=r.root.findAllByType('text').map(n=>n.children.filter(c=>typeof c==='string').join('')).join('|');
@@ -90,7 +90,7 @@ for(const [name,Component,props]of modalCases)test(name+' modal responds to them
 test('admin bottom navigation uses global colors and translated labels without changing routes',async()=>{
   const {AdminTabBar}=require('../src/components/navigation/AdminTabBar.tsx');let r;
   const props={state:{index:0,routes:['dashboard','progress','notifications','chores','members','profile'].map(name=>({key:name,name}))},descriptors:Object.fromEntries(['dashboard','progress','notifications','chores','members','profile'].map(key=>[key,{options:{}}])),navigation:{emit:()=>({}),navigate(){}}};
-  try{for(const code of ['en','si','ta'])for(const theme of ['light','dark']){language=code;mode=theme;await act(async()=>{if(r)r.update(React.createElement(AdminTabBar,props));else r=create(React.createElement(AdminTabBar,props));});assert.equal(r.root.findAllByType('button').length,6);assert.equal(r.root.findAllByType('text')[0].children[0],translations[code].home);assert.equal(native.StyleSheet.flatten(r.root.findAllByType('view')[0].props.style).backgroundColor,mode==='dark'?tokens[mode].card:'#FFFFFF');}}
+  try{for(const code of Object.keys(translations))for(const theme of ['light','dark']){language=code;mode=theme;await act(async()=>{if(r)r.update(React.createElement(AdminTabBar,props));else r=create(React.createElement(AdminTabBar,props));});assert.equal(r.root.findAllByType('button').length,6);assert.equal(r.root.findAllByType('text')[0].children[0],translations[code].home);assert.equal(native.StyleSheet.flatten(r.root.findAllByType('view')[0].props.style).backgroundColor,mode==='dark'?tokens[mode].card:'#FFFFFF');}}
   finally{if(r)await act(async()=>r.unmount());}
 });
 test('themed shared confirmations preserve callbacks, prevent duplicate actions and follow locale changes',async()=>{
@@ -112,7 +112,7 @@ function assertDarkDialog(r){for(const node of r.root.findAll(n=>typeof n.type==
 
 for(const name of ['add-chore','edit-chore'])test('Admin '+name+' pickers follow all six combinations and retain stored values',async()=>{
   const Component=routes.find(r=>r.route==='admin/'+name).Component;let r;
-  try{for(const code of ['en','si','ta'])for(const theme of ['light','dark']){
+  try{for(const code of Object.keys(translations))for(const theme of ['light','dark']){
     language=code;mode=theme;await act(async()=>{r=create(React.createElement(Component));});
     for(const picker of ['Member','Repeat','Date',...(name==='edit-chore'?['Status']:[])]){
       const button=r.root.findAllByType('button').find(n=>n.props.onPress?.toString().includes('setShow'+picker+'Picker(true)'));assert.ok(button,picker+' picker button exists');
@@ -170,7 +170,7 @@ test('Admin Settings changes only the selected global preference',async()=>{
 
 test('Admin private-message removal dialog follows every theme/locale and preserves the client message',async()=>{
   const originalList=services.notificationService.getNotifications;services.notificationService.getNotifications=async()=>[{id:'private',user_id:member.id,title:'Client Message',message:'I cannot do Clean Room at 6 PM.',type:'client_chore_message',sender_name:'Original Client',chore_title:'Clean Room',chore_due_date:chore.due_date,is_read:false,created_at:new Date().toISOString()}];let r;
-  try{for(const code of ['en','si','ta'])for(const theme of ['light','dark']){language=code;mode=theme;const Component=routes.find(r=>r.route==='admin/notifications').Component;await act(async()=>{r=create(React.createElement(Component));});
+  try{for(const code of Object.keys(translations))for(const theme of ['light','dark']){language=code;mode=theme;const Component=routes.find(r=>r.route==='admin/notifications').Component;await act(async()=>{r=create(React.createElement(Component));});
     assert.ok(textOf(r.root).includes('I cannot do Clean Room at 6 PM.'));assert.ok(textOf(r.root).includes('Clean Room'));assert.ok(textOf(r.root).includes('Original Client'));
     await act(async()=>r.root.findAllByType('button').find(n=>n.props.accessibilityLabel?.startsWith(translations[code].delete+':')).props.onPress({stopPropagation(){}}));assert.equal(r.root.findAllByType('dialog').length,1);if(theme==='dark')assertDarkDialog(r);assert.ok(textOf(r.root.findByType('dialog')).includes(translations[code].cancel));
     await act(async()=>r.unmount());r=null;
@@ -178,7 +178,7 @@ test('Admin private-message removal dialog follows every theme/locale and preser
 });
 test('Admin ticket reply modal follows all six combinations without translating customer content',async()=>{
   let r;const Component=routes.find(r=>r.route==='support/admin-tickets').Component;
-  try{for(const code of ['en','si','ta'])for(const theme of ['light','dark']){language=code;mode=theme;await act(async()=>{r=create(React.createElement(Component));});
+  try{for(const code of Object.keys(translations))for(const theme of ['light','dark']){language=code;mode=theme;await act(async()=>{r=create(React.createElement(Component));});
     await act(async()=>r.root.findAllByType('button').find(n=>textOf(n).includes('TEST123')).props.onPress());assert.equal(r.root.findAllByType('dialog').length,1);if(theme==='dark')assertDarkDialog(r);assert.ok(textOf(r.root).includes('Original Client'));assert.ok(r.root.findAllByType('input').some(n=>n.props.value==='Original reply'));assert.ok(textOf(r.root).includes(translations[code].ag_reply_request));
     await act(async()=>r.unmount());r=null;
   }}finally{if(r)await act(async()=>r.unmount());}
@@ -199,7 +199,7 @@ test('Admin Language uses the real provider to translate every mounted Admin pag
   const app=()=>React.createElement(LanguageProvider,null,pages.map(name=>React.createElement('page',{key:name,name},React.createElement(routes.find(r=>r.route==='admin/'+name).Component))));
   try{
     await act(async()=>{r=create(app());});
-    for(const code of ['si','ta','en']){
+    for(const code of [...Object.keys(translations).filter(code=>code!=='en'),'en']){
       const selector=r.root.findAllByType('page').find(n=>n.props.name==='language');
       const item=langs.find(l=>l.code===code);const button=selector.findAllByType('button').find(n=>n.props.accessibilityLabel===item.name+' ('+item.native_name+')');
       await act(async()=>button.props.onPress());
@@ -212,7 +212,7 @@ test('Admin Language uses the real provider to translate every mounted Admin pag
       assert.equal(selector.findAllByType('button').filter(n=>n.props.accessibilityRole==='radio'&&n.props.accessibilityState.selected).length,1);
     }
     const selector=r.root.findAllByType('page').find(n=>n.props.name==='language');
-    for(const query of ['English','Sinhala','Tamil',langs[1].native_name]){
+    for(const query of langs.filter(item=>item.translation_supported).flatMap(item=>[item.name,item.native_name])){
       await act(async()=>selector.findByType('input').props.onChangeText(query));
       assert.equal(selector.findAllByType('button').filter(n=>n.props.accessibilityRole==='radio').length,1);
     }

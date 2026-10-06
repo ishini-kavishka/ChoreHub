@@ -9,8 +9,9 @@ const notifications={AndroidNotificationVisibility:{PRIVATE:0},AndroidImportance
   cancelScheduledNotificationAsync:async id=>{events.push(['cancel',id]);scheduled.delete(id);},
   scheduleNotificationAsync:async request=>{if(failSchedule)throw Error('Exact alarm denied');events.push(['schedule',request.identifier]);scheduled.set(request.identifier,request);return request.identifier;},
 };
+let language='en';
 const original=Module._load;
-Module._load=function(name,...args){if(name==='react-native')return{Platform:platform};if(name==='expo-notifications')return notifications;return original.call(this,name,...args);};
+Module._load=function(name,...args){if(name==='react-native')return{Platform:platform};if(name==='@react-native-async-storage/async-storage')return{getItem:async()=>language};if(name==='expo-notifications')return notifications;return original.call(this,name,...args);};
 const {reminderDeviceService:device}=require('../src/services/reminderDeviceService.ts');
 let records=[],userId='member',enabled=true;
 const load=async()=>({userId,enabled,reminders:records});
@@ -52,5 +53,20 @@ test('standalone silent reminder preserves privacy and uses silent vibration cha
   const request=[...scheduled.values()].find(n=>n.content.data?.userId==='member');assert.equal(request.content.body,'Take cleaning supplies');assert.equal(request.content.sound,false);assert.equal(request.trigger.channelId,'personal-reminders-silent-vibrate-v1');
   assert.equal((await handler.handleNotification({request})).shouldPlaySound,false);
   assert.equal(channels.get(request.trigger.channelId).sound,null);
+});
+test('every locale translates OS channel labels and dates without translating reminder titles or private notes',async()=>{
+ const {translations}=require('../src/i18n/translations.ts');
+ permission={granted:true,status:'granted'};platform.OS='android';enabled=true;userId='member';records=[reminder()];
+ for(const code of Object.keys(translations)){
+  language=code;await device.reconcile(load);
+  const notice=[...scheduled.values()].find(n=>n.content.data?.userId==='member');
+  assert.ok(channels.get(notice.trigger.channelId).name.includes(translations[code].reminder_intro));
+  assert.equal(notice.content.title,records[0].title);assert.ok(notice.content.body.includes(records[0].note));
+  assert.ok(notice.content.body.includes(new Date(records[0].chore_due_date).toLocaleString(code)));
+  assert.equal(notice.trigger.date.getTime(),Date.parse(records[0].remind_at));
+ }
+ language='invalid';await device.reconcile(load);
+ assert.ok(channels.get('personal-reminders-vibrate-v1').name.includes(translations.en.reminder_intro),'invalid cached locale uses English');
+ language='en';
 });
 test.after(()=>{Module._load=original;});

@@ -5,7 +5,7 @@ require.extensions['.png']=(module)=>{module.exports='image';};
 const {translations}=require('../src/i18n/translations.ts');
 let mode='light',language='en';
 const tokens={light:{isDark:false,background:'#F8F7FC',card:'#fff',surface:'#EFEAFF',textPrimary:'#211C35',textSecondary:'#655E78',border:'#E7E0F2',primary:'#7C5CFC',error:'#B3261E',success:'#15803D'},dark:{isDark:true,background:'#14121F',card:'#211D30',surface:'#342C4C',textPrimary:'#fff',textSecondary:'#C0B9D2',border:'#494059',primary:'#7C5CFC',error:'#FFAAA8',success:'#76DEBB'}};
-const translators=Object.fromEntries(['en','si','ta'].map(code=>[code,(key,fallback)=>translations[code][key]??fallback??translations[code].error]));
+const translators=Object.fromEntries(Object.keys(translations).map(code=>[code,(key,fallback)=>translations[code][key]??fallback??translations[code].error]));
 const member={id:'member',name:'Chamara',full_name:'Chamara',email:'chamara@example.invalid',role:'member',phone:'0123456789'};
 const chore={id:'own-chore',title:'Clean Room',description:'Keep my original note',assigned_to:member.id,created_by:'admin',status:'pending',priority:'medium',category:'General',recurrence:'none',due_date:new Date().toISOString(),created_at:new Date().toISOString()};
 const stats={completed:0,pending:1,overdue:0,total:1,completionPercentage:0};
@@ -33,10 +33,10 @@ const routes=[];
 for(const group of ['home','profile','support','auth'])for(const filename of fs.readdirSync(path.resolve(__dirname,'../src/app',group))){if(filename.endsWith('.tsx')&&!filename.startsWith('_')&&!filename.startsWith('admin'))routes.push({route:group+'/'+filename.slice(0,-4),Component:require('../src/app/'+group+'/'+filename).default});}
 // Alias interception stays active for imports inside nested rendering helpers.
 const appearance=[];
-for(const {route,Component}of routes)test(route+' updates through all six global combinations',async()=>{
+for(const {route,Component}of routes)test(route+' updates through all forty global combinations',async()=>{
   let r;const texts={};
   try{
-    for(const code of ['en','si','ta'])for(const theme of ['light','dark']){
+    for(const code of Object.keys(translations))for(const theme of ['light','dark']){
       language=code;mode=theme;await act(async()=>{const element=React.createElement(Component);if(r)r.update(element);else r=create(element);});
       const text=r.root.findAllByType('text').map(n=>n.children.filter(child=>typeof child==='string'||typeof child==='number').join('')).join('|');texts[code]=text;
       assert.ok(text.length,route+' renders content');
@@ -53,7 +53,7 @@ for(const {route,Component}of routes)test(route+' updates through all six global
       assert.equal(pale.length,0,route+' has no fixed white client cards/inputs');
       appearance.push({route,theme,language:code});
     }
-    assert.notEqual(texts.en,texts.si,route+' interface responds to Sinhala');assert.notEqual(texts.en,texts.ta,route+' interface responds to Tamil');
+    for(const code of Object.keys(translations).filter(code=>code!=='en'))assert.notEqual(texts.en,texts[code],route+' interface responds to '+code);
   }finally{if(r)await act(async()=>r.unmount());}
 });
 test('member language list includes the entire shared catalog, selects one supported locale and searches the last entry',async()=>{
@@ -64,10 +64,22 @@ test('member language list includes the entire shared catalog, selects one suppo
     const radios=()=>r.root.findAllByType('button').filter(n=>n.props.accessibilityRole==='radio');
     assert.equal(radios().length,langs.length);
     assert.equal(radios().filter(n=>n.props.accessibilityState.selected).length,1);
-    assert.equal(radios().at(-1).props.disabled,true,'missing translations are not selectable');
+    assert.equal(radios().at(-1).props.disabled,false,'the last catalog language has complete translations and is selectable');
     await act(async()=>radios().find(n=>n.props.accessibilityLabel.startsWith('Sinhala')).props.onPress());
     await act(async()=>r.update(React.createElement(Component)));
     assert.equal(language,'si');assert.equal(radios().filter(n=>n.props.accessibilityState.selected).length,1);
+    for(const item of langs.filter(item=>item.translation_supported)){
+      const radio=radios().find(n=>n.props.accessibilityLabel===item.name+' ('+item.native_name+')');
+      assert.equal(radio.props.disabled,false,item.code+' is selectable');
+      await act(async()=>radio.props.onPress());
+      await act(async()=>r.update(React.createElement(Component)));
+      assert.equal(language,item.code);assert.equal(radios().filter(n=>n.props.accessibilityState.selected).length,1);
+      for(const query of [item.name,item.native_name]){
+        await act(async()=>r.root.findByType('input').props.onChangeText(query));
+        assert.equal(radios().length,1,query+' finds its language card');
+        await act(async()=>r.root.findByType('input').props.onChangeText(''));
+      }
+    }
     await act(async()=>r.root.findByType('input').props.onChangeText(langs.at(-1).name));
     assert.equal(radios().length,1);assert.ok(radios()[0].props.accessibilityLabel.startsWith(langs.at(-1).name));
   }finally{if(r)await act(async()=>r.unmount());}
@@ -81,7 +93,7 @@ const modalCases=[
 for(const [name,Component,props]of modalCases)test(name+' modal responds to theme/language and preserves user text',async()=>{
   let r;const texts={};
   try{
-    for(const code of ['en','si','ta'])for(const theme of ['light','dark']){
+    for(const code of Object.keys(translations))for(const theme of ['light','dark']){
       language=code;mode=theme;await act(async()=>{const element=React.createElement(Component,props);if(r)r.update(element);else r=create(element);});
       assert.equal(r.root.findAllByType('dialog').length,1);
       texts[code]=r.root.findAllByType('text').map(n=>n.children.filter(c=>typeof c==='string').join('')).join('|');
@@ -96,7 +108,7 @@ for(const [name,Component,props]of modalCases)test(name+' modal responds to them
 test('member bottom navigation uses global colors and translated labels without changing routes',async()=>{
   const {MemberTabBar}=require('../src/components/navigation/MemberTabBar.tsx');let r;
   const props={state:{index:0,routes:['index','chores','calendar','profile'].map(name=>({key:name,name}))},descriptors:Object.fromEntries(['index','chores','calendar','profile'].map(key=>[key,{options:{}}])),navigation:{emit:()=>({}),navigate(){}}};
-  try{for(const code of ['en','si','ta'])for(const theme of ['light','dark']){language=code;mode=theme;await act(async()=>{if(r)r.update(React.createElement(MemberTabBar,props));else r=create(React.createElement(MemberTabBar,props));});assert.equal(r.root.findAllByType('button').length,4);assert.equal(r.root.findAllByType('text')[0].children[0],translations[code].tab_home);assert.equal(native.StyleSheet.flatten(r.root.findAllByType('view')[0].props.style).backgroundColor,tokens[mode].card);}}
+  try{for(const code of Object.keys(translations))for(const theme of ['light','dark']){language=code;mode=theme;await act(async()=>{if(r)r.update(React.createElement(MemberTabBar,props));else r=create(React.createElement(MemberTabBar,props));});assert.equal(r.root.findAllByType('button').length,4);assert.equal(r.root.findAllByType('text')[0].children[0],translations[code].tab_home);assert.equal(native.StyleSheet.flatten(r.root.findAllByType('view')[0].props.style).backgroundColor,tokens[mode].card);}}
   finally{if(r)await act(async()=>r.unmount());}
 });
 test('themed shared confirmations preserve callbacks, prevent duplicate actions and follow locale changes',async()=>{
