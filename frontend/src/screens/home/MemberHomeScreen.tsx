@@ -13,11 +13,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '@/components/profile/Avatar';
+import { useAppTheme } from '@/context/ThemeContext';
+import { NotificationPanel } from '@/components/notifications/NotificationPanel';
 import { authService, Member } from '@/services/authService';
 import { profileService } from '@/services/profileService';
 import { choreService, ChoreItem, ChoreStats } from '@/services/choreService';
+import { notificationService } from '@/services/notificationService';
 
 export default function MemberHomeScreen() {
+  const { colors } = useAppTheme();
   const [profile, setProfile] = useState<Member | null>(null);
   const [stats, setStats] = useState<ChoreStats>({
     completed: 0,
@@ -27,6 +31,8 @@ export default function MemberHomeScreen() {
     completionPercentage: 0,
   });
   const [chores, setChores] = useState<ChoreItem[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -49,6 +55,13 @@ export default function MemberHomeScreen() {
       }
       if (memberRes?.chores) {
         setChores(memberRes.chores);
+      }
+
+      try {
+        const unreadCount = await notificationService.getUnreadCount();
+        setUnreadNotifsCount(unreadCount);
+      } catch {
+        // Fallback
       }
     } catch {
       // Soft fail
@@ -151,14 +164,14 @@ export default function MemberHomeScreen() {
       label: 'Family\nMembers',
       icon: 'people-outline' as const,
       color: '#2563EB',
-      onPress: () => {},
+      onPress: () => router.push('/home/family' as any),
     },
     {
       id: 'progress',
       label: 'My\nProgress',
       icon: 'bar-chart-outline' as const,
       color: '#713DE8',
-      onPress: () => {},
+      onPress: () => router.push('/home/progress' as any),
     },
   ];
 
@@ -173,7 +186,7 @@ export default function MemberHomeScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -198,11 +211,24 @@ export default function MemberHomeScreen() {
           <View style={styles.headerRight}>
             {/* Notification Bell */}
             <Pressable
-              style={({ pressed }) => [styles.bellBtn, pressed && { opacity: 0.7 }]}
-              onPress={() => {}}
+              style={({ pressed }) => [
+                styles.bellBtn,
+                { backgroundColor: colors.card, borderColor: colors.border },
+                pressed && { opacity: 0.7 },
+              ]}
+              onPress={() => setShowNotifications(true)}
+              accessibilityLabel="Open notifications"
             >
-              <Ionicons name="notifications-outline" size={24} color="#1E1B2E" />
-              <View style={styles.bellBadgeDot} />
+              <Ionicons name="notifications-outline" size={24} color={colors.textPrimary} />
+              {unreadNotifsCount > 0 ? (
+                <View style={styles.bellBadgeDot}>
+                  <Text style={styles.bellBadgeText}>
+                    {unreadNotifsCount > 9 ? '9+' : unreadNotifsCount}
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.bellBadgeDot} />
+              )}
             </Pressable>
 
             {/* Avatar Badge */}
@@ -218,9 +244,9 @@ export default function MemberHomeScreen() {
         {/* ── Greeting Banner Section ── */}
         <View style={styles.greetingSection}>
           <View style={styles.greetingTextGroup}>
-            <Text style={styles.greetingSub}>{getGreeting()} 👋</Text>
-            <Text style={styles.greetingTitle}>{firstName}!</Text>
-            <Text style={styles.greetingCaption}>
+            <Text style={[styles.greetingSub, { color: colors.textSecondary }]}>{getGreeting()} 👋</Text>
+            <Text style={[styles.greetingTitle, { color: colors.textPrimary }]}>{firstName}!</Text>
+            <Text style={[styles.greetingCaption, { color: colors.textSecondary }]}>
               Let's make today productive together.
             </Text>
           </View>
@@ -241,7 +267,7 @@ export default function MemberHomeScreen() {
           {/* Card Header */}
           <View style={styles.progressCardHeader}>
             <Text style={styles.progressCardTitle}>My Progress</Text>
-            <Pressable onPress={() => {}} style={styles.viewLinkRow}>
+          <Pressable onPress={() => router.push('/home/progress' as any)} style={styles.viewLinkRow}>
               <Text style={styles.viewLinkText}>View</Text>
               <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
             </Pressable>
@@ -275,29 +301,29 @@ export default function MemberHomeScreen() {
           {/* Bottom 3 Stat Cards inside container */}
           <View style={styles.innerStatsRow}>
             {/* Completed */}
-            <View style={styles.innerStatCard}>
+            <View style={[styles.innerStatCard, { backgroundColor: colors.card }]}>
               <View style={[styles.innerStatIconCircle, { backgroundColor: '#DCFCE7' }]}>
                 <Ionicons name="checkmark" size={16} color="#16A34A" />
               </View>
-              <Text style={styles.innerStatNum}>{stats.completed}</Text>
+              <Text style={[styles.innerStatNum, { color: colors.textPrimary }]}>{stats.completed}</Text>
               <Text style={styles.innerStatLabel}>Completed</Text>
             </View>
 
             {/* Pending */}
-            <View style={styles.innerStatCard}>
+            <View style={[styles.innerStatCard, { backgroundColor: colors.card }]}>
               <View style={[styles.innerStatIconCircle, { backgroundColor: '#FEF3C7' }]}>
                 <Ionicons name="time" size={16} color="#D97706" />
               </View>
-              <Text style={styles.innerStatNum}>{stats.pending}</Text>
+              <Text style={[styles.innerStatNum, { color: colors.textPrimary }]}>{stats.pending}</Text>
               <Text style={styles.innerStatLabel}>Pending</Text>
             </View>
 
             {/* Overdue */}
-            <View style={styles.innerStatCard}>
+            <View style={[styles.innerStatCard, { backgroundColor: colors.card }]}>
               <View style={[styles.innerStatIconCircle, { backgroundColor: '#FEE2E2' }]}>
                 <Ionicons name="alert" size={16} color="#DC2626" />
               </View>
-              <Text style={styles.innerStatNum}>{stats.overdue}</Text>
+              <Text style={[styles.innerStatNum, { color: colors.textPrimary }]}>{stats.overdue}</Text>
               <Text style={styles.innerStatLabel}>Overdue</Text>
             </View>
           </View>
@@ -306,7 +332,7 @@ export default function MemberHomeScreen() {
         {/* ── Today's Chores Section ── */}
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionHeaderTitle}>Today's Chores</Text>
+            <Text style={[styles.sectionHeaderTitle, { color: colors.textPrimary }]}>Today's Chores</Text>
             <Pressable
               onPress={() => router.push('/home/chores' as any)}
               style={styles.viewAllRow}
@@ -438,6 +464,13 @@ export default function MemberHomeScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Notification Panel Modal */}
+      <NotificationPanel
+        visible={showNotifications}
+        onClose={() => setShowNotifications(false)}
+        onUnreadCountChange={setUnreadNotifsCount}
+      />
     </SafeAreaView>
   );
 }
@@ -500,12 +533,20 @@ const styles = StyleSheet.create({
   },
   bellBadgeDot: {
     position: 'absolute',
-    top: 9,
-    right: 9,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    top: 4,
+    right: 4,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  bellBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
   },
   avatarWrap: {
     borderRadius: 21,

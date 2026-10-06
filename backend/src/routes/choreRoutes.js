@@ -12,6 +12,7 @@ const {
   toggleChoreComplete,
   deleteChore,
 } = require('../controllers/choreController');
+const { getCompletedChores } = require('../controllers/progressController');
 
 const router = express.Router();
 
@@ -20,6 +21,7 @@ router.use(requireAuth);
 router.get('/admin/stats', requireAdmin, getAdminChoreStats);
 router.get('/admin/users', requireAdmin, getAdminAllUsers);
 router.get('/my-chores', getMemberChores);
+router.get('/completed', getCompletedChores);
 
 router.post('/', createChore);
 router.get('/', getChores);

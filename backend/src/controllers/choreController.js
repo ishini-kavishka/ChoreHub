@@ -239,10 +239,13 @@ async function updateChore(req, res, next) {
     const updatedStatus = ['pending', 'completed'].includes(status) ? status : chore.status;
 
     let completedAt = chore.completed_at;
+    let completedBy = chore.completed_by;
     if (updatedStatus === 'completed' && chore.status !== 'completed') {
       completedAt = new Date();
+      completedBy = req.userId;
     } else if (updatedStatus === 'pending') {
       completedAt = null;
+      completedBy = null;
     }
 
     const query = `
@@ -256,8 +259,9 @@ async function updateChore(req, res, next) {
         recurrence = $7,
         status = $8,
         completed_at = $9,
+        completed_by = $10,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $10
+      WHERE id = $11
       RETURNING *
     `;
 
@@ -271,10 +275,41 @@ async function updateChore(req, res, next) {
       updatedRecurrence,
       updatedStatus,
       completedAt,
+      completedBy,
       id,
     ]);
 
-    return res.json({ chore: result.rows[0] });
+    const updatedChore = result.rows[0];
+
+    // Notify assigned user when chore is newly assigned via edit
+    if (updatedAssigned && updatedAssigned !== chore.assigned_to && updatedAssigned !== userId) {
+      pool.query(
+        `INSERT INTO notifications (user_id, title, message, type)
+         VALUES ($1, $2, $3, $4)`,
+        [
+          updatedAssigned,
+          'New Chore Assigned',
+          `You have been assigned to: "${updatedChore.title}"`,
+          'chore_assigned',
+        ]
+      ).catch(() => {});
+    }
+
+    // Notify creator when chore is marked completed (if completer ≠ creator)
+    if (updatedStatus === 'completed' && chore.status !== 'completed' && chore.created_by && chore.created_by !== userId) {
+      pool.query(
+        `INSERT INTO notifications (user_id, title, message, type)
+         VALUES ($1, $2, $3, $4)`,
+        [
+          chore.created_by,
+          'Chore Completed',
+          `"${updatedChore.title}" has been marked as completed`,
+          'chore_completed',
+        ]
+      ).catch(() => {});
+    }
+
+    return res.json({ chore: updatedChore });
   } catch (error) {
     return next(error);
   }
@@ -294,12 +329,29 @@ async function toggleChoreComplete(req, res, next) {
       `UPDATE chores SET
         status = $1,
         completed_at = $2,
+        completed_by = $4,
         updated_at = CURRENT_TIMESTAMP
        WHERE id = $3 RETURNING *`,
-      [newStatus, completedAt, id]
+      [newStatus, completedAt, id, newStatus === 'completed' ? req.userId : null]
     );
 
-    return res.json({ chore: result.rows[0] });
+    const updatedChore = result.rows[0];
+
+    // Notify the creator when a chore is marked completed (if completer ≠ creator)
+    if (newStatus === 'completed' && updatedChore.created_by && updatedChore.created_by !== req.userId) {
+      pool.query(
+        `INSERT INTO notifications (user_id, title, message, type)
+         VALUES ($1, $2, $3, $4)`,
+        [
+          updatedChore.created_by,
+          'Chore Completed',
+          `"${updatedChore.title}" has been marked as completed`,
+          'chore_completed',
+        ]
+      ).catch(() => {});
+    }
+
+    return res.json({ chore: updatedChore });
   } catch (error) {
     return next(error);
   }

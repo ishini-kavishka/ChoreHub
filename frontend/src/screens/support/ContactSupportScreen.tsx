@@ -15,7 +15,7 @@ import { SupportBottomNav } from '@/components/support/SupportBottomNav';
 
 export default function ContactSupportScreen() {
   const handleEmailPress = () => {
-    const email = 'support@chorehub.com';
+    const email = 'supportchorehub@gmail.com';
     Linking.openURL(`mailto:${email}`).catch(() => {
       Alert.alert(
         'Email Support',
@@ -41,7 +41,7 @@ export default function ContactSupportScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => router.canGoBack() ? router.back() : router.replace('/support' as any)}
           style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
           accessibilityRole="button"
           accessibilityLabel="Go back"
@@ -88,7 +88,7 @@ export default function ContactSupportScreen() {
             </View>
             <View style={styles.cardContent}>
               <Text style={styles.cardTitle}>Email</Text>
-              <Text style={styles.cardDetail}>support@chorehub.com</Text>
+              <Text style={styles.cardDetail}>supportchorehub@gmail.com</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#8A879A" />
           </Pressable>
@@ -108,21 +108,6 @@ export default function ContactSupportScreen() {
             <Ionicons name="chevron-forward" size={20} color="#8A879A" />
           </Pressable>
 
-          {/* Form Message Card */}
-          <Pressable
-            onPress={() => router.push('/support/contact-us' as any)}
-            style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
-            accessibilityRole="button"
-          >
-            <View style={styles.cardIconWrap}>
-              <Ionicons name="chatbox-ellipses-outline" size={22} color="#6C3BEA" />
-            </View>
-            <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>Send a message</Text>
-              <Text style={styles.cardDetail}>Submit an inquiry directly</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#8A879A" />
-          </Pressable>
         </View>
       </ScrollView>
 

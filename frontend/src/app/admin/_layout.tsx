@@ -11,6 +11,8 @@ export default function AdminLayout() {
       }}
     >
       <Tabs.Screen name="dashboard" options={{ title: 'Home' }} />
+      <Tabs.Screen name="progress" options={{ title: 'Progress' }} />
+      <Tabs.Screen name="notifications" options={{ title: 'Notifications' }} />
       <Tabs.Screen name="chores" options={{ title: 'Chores' }} />
       <Tabs.Screen name="members" options={{ title: 'Members' }} />
       <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
@@ -20,6 +22,11 @@ export default function AdminLayout() {
       <Tabs.Screen name="add-family-member" options={{ href: null }} />
       <Tabs.Screen name="calendar" options={{ href: null }} />
       <Tabs.Screen name="schedule" options={{ href: null }} />
+      <Tabs.Screen name="settings" options={{ href: null }} />
+      <Tabs.Screen name="completed-chores" options={{ href: null }} />
+      <Tabs.Screen name="about" options={{ href: null }} />
+      <Tabs.Screen name="reminders" options={{ href: null }} />
+      <Tabs.Screen name="announcements" options={{ href: null }} />
     </Tabs>
   );
 }

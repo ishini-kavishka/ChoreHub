@@ -53,10 +53,6 @@ export default function LoginScreen() {
     }
   };
 
-  const handleGoogleSignIn = () => {
-    Alert.alert('Google Sign-In', 'Google Sign-In feature is coming soon!');
-  };
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
@@ -106,112 +102,112 @@ export default function LoginScreen() {
             </View>
           </View>
 
-          {/* Error Feedback Banner */}
-          {error ? (
-            <View style={styles.errorCard}>
-              <Ionicons name="alert-circle" size={18} color="#DC2626" />
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : null}
+          <View style={styles.formCard}>
+            {/* Error Feedback Banner */}
+            {error ? (
+              <View style={styles.errorCard}>
+                <Ionicons name="alert-circle" size={18} color="#DC2626" />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
 
-          {/* ── Input Fields Section ── */}
-          <View style={styles.formGroup}>
-            {/* Email Field */}
-            <View style={styles.inputCard}>
-              <Ionicons name="mail-outline" size={20} color="#8A879A" style={styles.fieldIcon} />
-              <TextInput
-                style={styles.textInput}
-                placeholder="Email"
-                placeholderTextColor="#A09DB1"
-                value={email}
-                onChangeText={(text) => {
-                  setEmail(text);
-                  if (error) setError('');
-                }}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                autoComplete="email"
-              />
-            </View>
-
-            {/* Password Field */}
-            <View style={styles.inputCard}>
-              <Ionicons name="lock-closed-outline" size={20} color="#8A879A" style={styles.fieldIcon} />
-              <TextInput
-                style={styles.textInput}
-                placeholder="Password"
-                placeholderTextColor="#A09DB1"
-                value={password}
-                onChangeText={(text) => {
-                  setPassword(text);
-                  if (error) setError('');
-                }}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-              />
-              <Pressable
-                onPress={() => setShowPassword(!showPassword)}
-                style={styles.eyeBtn}
-                hitSlop={10}
-              >
-                <Ionicons
-                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={20}
-                  color="#8A879A"
+            {/* ── Input Fields Section ── */}
+            <View style={styles.formGroup}>
+              {/* Email Field */}
+              <View style={styles.inputCard}>
+                <Ionicons name="mail-outline" size={20} color="#8A879A" style={styles.fieldIcon} />
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Email"
+                  placeholderTextColor="#A09DB1"
+                  value={email}
+                  onChangeText={(text) => {
+                    setEmail(text);
+                    if (error) setError('');
+                  }}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  autoComplete="email"
                 />
+              </View>
+
+              {/* Password Field */}
+              <View style={styles.inputCard}>
+                <Ionicons name="lock-closed-outline" size={20} color="#8A879A" style={styles.fieldIcon} />
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Password"
+                  placeholderTextColor="#A09DB1"
+                  value={password}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    if (error) setError('');
+                  }}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                />
+                <Pressable
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={styles.eyeBtn}
+                  hitSlop={10}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color="#8A879A"
+                  />
+                </Pressable>
+              </View>
+            </View>
+
+            <Pressable
+              onPress={() => setRememberMe(!rememberMe)}
+              style={styles.rememberRow}
+            >
+              <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+                {rememberMe ? <Ionicons name="checkmark" size={14} color="#FFFFFF" /> : null}
+              </View>
+              <Text style={styles.rememberText}>Remember me</Text>
+            </Pressable>
+
+            {/* ── Login Primary Button ── */}
+            <Pressable
+              onPress={handleLogin}
+              disabled={loading}
+              style={({ pressed }) => [styles.loginBtn, pressed && { opacity: 0.88 }]}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={styles.loginBtnText}>Login</Text>
+              )}
+            </Pressable>
+
+            {/* ── Divider ── */}
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>OR</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* ── Continue with Google Button ── */}
+            <Pressable
+              onPress={() => {}}
+              style={({ pressed }) => [styles.googleBtn, pressed && { opacity: 0.88 }]}
+            >
+              <View style={styles.googleGContainer}>
+                <Text style={styles.googleGText}>G</Text>
+              </View>
+              <Text style={styles.googleBtnText}>Continue with Google</Text>
+            </Pressable>
+
+            {/* ── Footer Link ── */}
+            <View style={styles.footerRow}>
+              <Text style={styles.footerText}>Don't have an account?</Text>
+              <Pressable onPress={() => router.push('/auth/signup' as any)}>
+                <Text style={styles.signUpLinkText}>Sign Up</Text>
               </Pressable>
             </View>
-          </View>
-
-          {/* ── Remember Me Checkbox ── */}
-          <Pressable
-            onPress={() => setRememberMe(!rememberMe)}
-            style={styles.rememberRow}
-          >
-            <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
-              {rememberMe ? <Ionicons name="checkmark" size={14} color="#FFFFFF" /> : null}
-            </View>
-            <Text style={styles.rememberText}>Remember me</Text>
-          </Pressable>
-
-          {/* ── Login Primary Button ── */}
-          <Pressable
-            onPress={handleLogin}
-            disabled={loading}
-            style={({ pressed }) => [styles.loginBtn, pressed && { opacity: 0.88 }]}
-          >
-            {loading ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
-            ) : (
-              <Text style={styles.loginBtnText}>Login</Text>
-            )}
-          </Pressable>
-
-          {/* ── Divider ── */}
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OR</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          {/* ── Continue with Google Button ── */}
-          <Pressable
-            onPress={handleGoogleSignIn}
-            style={({ pressed }) => [styles.googleBtn, pressed && { opacity: 0.88 }]}
-          >
-            {/* Google Icon SVG/Design */}
-            <View style={styles.googleGContainer}>
-              <Text style={styles.googleGText}>G</Text>
-            </View>
-            <Text style={styles.googleBtnText}>Continue with Google</Text>
-          </Pressable>
-
-          {/* ── Footer Link ── */}
-          <View style={styles.footerRow}>
-            <Text style={styles.footerText}>Don't have an account? </Text>
-            <Pressable onPress={() => router.push('/auth/signup' as any)}>
-              <Text style={styles.signUpLinkText}>Sign Up</Text>
-            </Pressable>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -419,6 +415,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
+  // ── Form Card ──
+  formCard: {
+    width: '100%',
+    backgroundColor: '#F3EEFF',
+    borderRadius: 26,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 5,
+  },
+
   // ── Form Inputs ──
   formGroup: {
     width: '100%',
@@ -524,7 +533,7 @@ const styles = StyleSheet.create({
   // ── Google Button ──
   googleBtn: {
     width: '100%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F8F7FF',
     borderRadius: 18,
     height: 54,
     flexDirection: 'row',
@@ -532,10 +541,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 12,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
-    shadowColor: '#000',
+    borderColor: '#E9E3FF',
+    shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
+    shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 2,
     marginBottom: 28,
@@ -563,6 +572,8 @@ const styles = StyleSheet.create({
   footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
   },
   footerText: {
     fontSize: 14,
@@ -573,5 +584,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     color: '#713DE8',
+    marginLeft: 4,
   },
 });
