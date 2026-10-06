@@ -25,6 +25,7 @@ export default function AdminLayout() {
       <Tabs.Screen name="calendar" options={{ href: null }} />
       <Tabs.Screen name="schedule" options={{ href: null }} />
       <Tabs.Screen name="settings" options={{ href: null }} />
+      <Tabs.Screen name="language" options={{ href: null }} />
       <Tabs.Screen name="completed-chores" options={{ href: null }} />
       <Tabs.Screen name="about" options={{ href: null }} />
       <Tabs.Screen name="reminders" options={{ href: null }} />

@@ -6,32 +6,26 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAppTheme } from '@/context/ThemeContext';
 import { adminComponent04Service, Household } from '@/services/adminComponent04Service';
-import { DEFAULT_SUPPORTED_LANGUAGES, NotificationSettings, settingsService, UserPreferences } from '@/services/settingsService';
+import { NotificationSettings, settingsService, UserPreferences } from '@/services/settingsService';
 import { Action, AdminGate, AdminPage, Label, s, useAdminColors } from './AdminComponent04Shared';
-import languageCatalog from '../../../../shared/languages.json';
 
 export default function AdminSettingsScreen() { return <AdminGate>{h => <Settings household={h} />}</AdminGate>; }
 function Settings({ household }: { household: Household }) {
-  const { t, language, setLanguage, refreshAvailableLanguages } = useLanguage(); const { setTheme, preference: themePreference } = useAppTheme(); const c = useAdminColors();
+  const { t, language } = useLanguage(); const { setTheme, preference: themePreference } = useAppTheme(); const c = useAdminColors();
   const [name, setName] = useState(household.name); const [savedName, setSavedName] = useState(household.name);
   const [settings, setSettings] = useState<NotificationSettings | null>(null); const [prefs, setPrefs] = useState<UserPreferences | null>(null);
   const [busy, setBusy] = useState(true); const [saving, setSaving] = useState(false); const lock = useRef(false);
   const [error, setError] = useState(''); const [notice, setNotice] = useState('');
-  const [editor, setEditor] = useState<'name' | 'language' | 'theme' | 'reminder' | null>(null);
-  const [newCode, setNewCode] = useState('');
-  const [newName, setNewName] = useState('');
-  const [newNativeName, setNewNativeName] = useState('');
-  const [clientLangs, setClientLangs] = useState<typeof DEFAULT_SUPPORTED_LANGUAGES>(DEFAULT_SUPPORTED_LANGUAGES);
+  const [editor, setEditor] = useState<'name' | 'theme' | 'reminder' | null>(null);
   const load = useCallback(async () => {
     if (lock.current) return;
     setBusy(true); setError(''); setNotice('');
     try {
-      const [notifications, preferences, langs] = await Promise.all([
+      const [notifications, preferences] = await Promise.all([
         settingsService.getNotificationSettings(true),
         settingsService.getPreferences(true),
-        settingsService.getSupportedLanguages(),
       ]);
-      setSettings(notifications); setPrefs(preferences); setClientLangs(langs);
+      setSettings(notifications); setPrefs(preferences);
 
     } catch { setSettings(null); setPrefs(null); setError(t('admin_error')); }
     finally { setBusy(false); }
@@ -46,19 +40,12 @@ function Settings({ household }: { household: Household }) {
   };
   const preference = (next: Partial<UserPreferences>) => void save(async () => {
     if (next.theme !== undefined) await setTheme(next.theme);
-    if (next.language !== undefined) await setLanguage(next.language);
     setEditor(null);
   });
   useEffect(() => {
     setPrefs(previous => previous ? { ...previous, theme: themePreference, language } : previous);
   }, [themePreference, language, busy]);
-  const toggleClientLang = (code: string, enabled: boolean) => void save(async () => {
-    const updated = await settingsService.updateSupportedLanguage(code, enabled);
-    setClientLangs(prev => prev.map(l => l.code === code ? { ...l, is_enabled: updated.is_enabled } : l));
-    await refreshAvailableLanguages();
-  });
   const toggleEditor = (next: typeof editor) => setEditor(editor === next ? null : next);
-  const languageName = (code: string) => languageCatalog.find(item => item.code === code)?.native_name || code;
   const themeLabel = (theme: UserPreferences['theme']) => theme === 'system' ? t('admin_system_theme') : t(theme === 'light' ? 'light_theme' : 'dark_theme');
   const section = (title: string, children: React.ReactNode) => <View style={[styles.section, { backgroundColor: c.soft }]}><Text style={[styles.sectionTitle, { color: c.text }]}>{title}</Text><View style={[styles.rows, { backgroundColor: c.card }]}>{children}</View></View>;
   const row = (label: string, icon: keyof typeof Ionicons.glyphMap, onPress: () => void, value?: string, inline = false, expanded = false) => <Pressable accessibilityRole="button" accessibilityLabel={`${label}${value ? `, ${value}` : ''}`} accessibilityState={{ disabled: saving || busy, expanded }} disabled={saving || busy} onPress={onPress} style={({ pressed }) => [styles.row, { borderColor: c.border, opacity: pressed ? .65 : 1 }]}>
@@ -74,42 +61,6 @@ function Settings({ household }: { household: Household }) {
           if (!name.trim() || name.trim().length > 100) { setError(t('admin_name_invalid')); return; }
           void save(async () => { const result = await adminComponent04Service.rename(household.id, name.trim()); setSavedName(result.household.name); setName(result.household.name); setEditor(null); });
         }} /></View>}
-      {prefs && row(t('language'), 'globe-outline', () => toggleEditor('language'), languageName(prefs.language), false, editor === 'language')}
-      {prefs && editor === 'language' && <View style={styles.editor}>
-        <View style={s.wrap}>{(['en', 'si', 'ta'] as const).map(lang => <Action key={lang} label={languageName(lang)} selected={prefs.language === lang} disabled={saving || !clientLangs.some(item => item.code === lang && item.is_enabled && item.translation_supported)} onPress={() => preference({ language: lang })} />)}</View>
-        <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border }}>
-          <Label muted>{t('admin_client_languages')}</Label>
-          <View style={{ gap: 8, marginTop: 6 }}>
-            {clientLangs.map((item) => (
-              <View key={item.code} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Text style={{ fontSize: 18 }}>{item.flag}</Text>
-                  <View>
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: c.text }}>{item.name} ({item.native_name})</Text>
-                    {!item.translation_supported && <Text style={{ color: c.muted }}>{t('ui_translations_unavailable')}</Text>}
-                    {item.code === 'en' && <Text style={{ fontSize: 11, color: c.muted }}>{t('admin_lang_default_desc')}</Text>}
-                  </View>
-                </View>
-                <Switch
-                  value={item.is_enabled}
-                  disabled={saving || busy || item.code === 'en' || !item.translation_supported}
-                  accessibilityLabel={`${item.name}: ${t('admin_lang_enabled')}`}
-                  trackColor={{ false: c.border, true: '#713DE8' }}
-                  thumbColor="#FFFFFF"
-                  onValueChange={(val) => toggleClientLang(item.code, val)}
-                />
-              </View>
-            ))}
-          </View>
-          <TextInput accessibilityLabel={t('ui_locale_code')} placeholderTextColor={c.muted} placeholder={t('ui_locale_code')} value={newCode} onChangeText={setNewCode} autoCapitalize="none" style={[s.input, styles.languageInput, { color: c.text }]} />
-          <TextInput accessibilityLabel={t('ui_language_name')} placeholderTextColor={c.muted} placeholder={t('ui_language_name')} value={newName} onChangeText={setNewName} style={[s.input, styles.languageInput, { color: c.text }]} />
-          <TextInput accessibilityLabel={t('ui_native_name')} placeholderTextColor={c.muted} placeholder={t('ui_native_name')} value={newNativeName} onChangeText={setNewNativeName} style={[s.input, styles.languageInput, { color: c.text }]} />
-          <Action label={t('ui_add_language')} disabled={saving || !newCode.trim() || !newName.trim() || !newNativeName.trim()} onPress={() => void save(async () => {
-            const added = await settingsService.addSupportedLanguage(newCode.trim().toLowerCase(), newName.trim(), newNativeName.trim());
-            setClientLangs(previous => [...previous, added]); setNewCode(''); setNewName(''); setNewNativeName('');
-          })} />
-        </View>
-      </View>}
     </>)}
     {settings && section(t('admin_notification_preferences'), <>
       {(['chore_reminders', 'due_date_alerts', 'weekly_summary'] as const).map((key, i) => {
@@ -122,6 +73,7 @@ function Settings({ household }: { household: Household }) {
     {prefs && section(t('admin_app'), <>
       {row(t('theme'), 'settings-outline', () => toggleEditor('theme'), themeLabel(prefs.theme), true, editor === 'theme')}
       {editor === 'theme' && <View style={styles.editor}><View style={s.wrap}>{(['light', 'dark', 'system'] as const).map(theme => <Action key={theme} label={themeLabel(theme)} selected={prefs.theme === theme} disabled={saving} onPress={() => preference({ theme })} />)}</View></View>}
+      {row(t('language'), 'globe-outline', () => router.push({ pathname: '/admin/language', params: { family_id: household.id } }), t('language_sub'))}
       {row(t('admin_privacy'), 'shield-checkmark-outline', () => router.push('/profile/change-password'))}
     </>)}
     {(saving || !!notice) && <Text accessibilityLiveRegion="polite" style={[styles.secondary, { color: c.accent }]}>{saving ? t('admin_saving') : notice}</Text>}
@@ -132,7 +84,6 @@ function Settings({ household }: { household: Household }) {
   </AdminPage>;
 }
 const styles = StyleSheet.create({
-  languageInput: { borderWidth: 0, borderRadius: 0 },
   section: { borderRadius: 14, padding: 5, overflow: 'hidden' },
   sectionTitle: { fontSize: 14, fontWeight: '700', paddingHorizontal: 9, paddingVertical: 10 },
   rows: { borderRadius: 10, overflow: 'hidden' },

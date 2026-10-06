@@ -5,10 +5,10 @@ import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from
  * Accessible from: Profile → App Settings → Settings → Language
  * Back navigates to: /home/settings
  *
- * Displays only languages enabled by the Admin in supported_languages.
+ * Displays the shared catalog; unavailable translations cannot be selected.
  * Selected language is applied immediately across the whole app.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   BackHandler,
   FlatList,
@@ -28,7 +28,7 @@ import { SupportedLanguageItem } from '@/services/settingsService';
 
 const purple = '#7C5CFC';
 
-export default function LanguageScreen() {
+export default function LanguageScreen({ settingsPath = '/home/settings', familyId }: { settingsPath?: '/home/settings' | '/admin/settings'; familyId?: string }) {
   const themeColors = useClientTheme().colors;
   const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
@@ -51,20 +51,18 @@ export default function LanguageScreen() {
     }, [refreshAvailableLanguages, t])
   );
 
+  const goBack = useCallback(() => router.navigate({ pathname: settingsPath, ...(familyId ? { params: { family_id: familyId } } : {}) }), [settingsPath, familyId]);
+
   // Hardware back button → Settings
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      router.navigate('/home/settings' as any);
+      goBack();
       return true;
     });
     return () => sub.remove();
-  }, []);
+  }, [goBack]));
 
-  // Filter only admin-enabled languages, then by search query (name or native_name)
-  const clientVisibleLanguages = useMemo(() => {
-    // Only show admin-enabled languages to clients
-    return availableLanguages.filter((l) => l.is_enabled && l.translation_supported && Object.hasOwn(translations, l.code));
-  }, [availableLanguages]);
+  const clientVisibleLanguages = availableLanguages;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -92,23 +90,24 @@ export default function LanguageScreen() {
     [language, saving, setLanguage, t]
   );
 
-  const goBack = () => router.navigate('/home/settings' as any);
 
   // ── Row renderer ──
   const renderItem = ({ item }: { item: SupportedLanguageItem }) => {
     const isSelected = item.code === language;
     const isSaving = saving === item.code;
+    const selectable = item.is_enabled && item.translation_supported && Object.hasOwn(translations, item.code);
     return (
       <Pressable
         accessibilityRole="radio"
-        accessibilityState={{ selected: isSelected }}
-        disabled={saving !== null}
+        accessibilityState={{ selected: isSelected, checked: isSelected, disabled: !selectable || saving !== null }}
+        disabled={!selectable || saving !== null}
         accessibilityLabel={`${item.name} (${item.native_name})`}
         onPress={() => void selectLanguage(item.code as Language)}
         style={({ pressed }) => [
           styles.row,
           { backgroundColor: card, borderColor: isSelected ? purple : border },
           isSelected && styles.rowSelected,
+          !selectable && { opacity: 0.55 },
           pressed && { opacity: 0.75 },
         ]}
       >
@@ -117,6 +116,7 @@ export default function LanguageScreen() {
         <View style={styles.nameWrap}>
           <Text style={[styles.langName, { color: fg }]}>{item.native_name}</Text>
           <Text style={[styles.nativeName, { color: muted }]}>{item.name}</Text>
+          {!selectable && <Text style={[styles.nativeName, { color: muted }]}>{t(item.translation_supported ? 'disabled_by_admin' : 'ui_translations_unavailable')}</Text>}
         </View>
         {/* Radio indicator */}
         <View
@@ -176,7 +176,7 @@ export default function LanguageScreen() {
       {!!error && <Text accessibilityRole="alert" style={{ color: fg, padding: 16 }}>{translateFeedback(error, t)}</Text>}
       <FlatList
         style={styles.scrollList}
-        extraData={language}
+        extraData={{ language, saving }}
         showsVerticalScrollIndicator
         data={filtered}
         keyExtractor={(item) => item.code}

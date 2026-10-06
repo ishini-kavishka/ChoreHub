@@ -77,31 +77,32 @@ export function AdminGate({ children }: { children: (household: Household) => Re
     )}
   </View></SafeAreaView>;
   return <View style={[s.fill, { backgroundColor: c.bg }]}>
-    {households.length > 1 && <View style={s.selector}>{households.map(h => <Action key={h.id} label={h.name} selected={h.id === household.id} onPress={() => setSelected(h.id)} />)}</View>}
+    {households.length > 1 && <ScrollView style={{ maxHeight: 144, flexGrow: 0 }} contentContainerStyle={s.selector} keyboardShouldPersistTaps="handled">{households.map(h => <Action key={h.id} label={h.name} selected={h.id === household.id} onPress={() => setSelected(h.id)} />)}</ScrollView>}
     <React.Fragment key={household.id}>{children(household)}</React.Fragment>
   </View>;
 }
-export function AdminPage({ title, household, busy, error, refresh, children, compactHeader = false }: {
-  title: string; household: Household; busy: boolean; error: string; refresh: () => void; children: React.ReactNode; compactHeader?: boolean;
+export function AdminPage({ title, household, busy, error, refresh, children, compactHeader = false, showNotificationBell = true }: {
+  title: string; household: Household; busy: boolean; error: string; refresh: () => void; children: React.ReactNode; compactHeader?: boolean; showNotificationBell?: boolean;
 }) {
   const c = useAdminColors(); const { t } = useLanguage(); const [unread, setUnread] = useState<number | null>(null);
-  useEffect(() => { const off = notificationService.subscribeUnreadCount(setUnread); return () => { off(); }; }, []);
+  useEffect(() => { if (!showNotificationBell || compactHeader) return; const off = notificationService.subscribeUnreadCount(setUnread); return () => { off(); }; }, [showNotificationBell, compactHeader]);
   useFocusEffect(useCallback(() => {
+    if (!showNotificationBell || compactHeader) return;
     let active = true;
     const update = () => { void notificationService.getUnreadCount(true).then(n => { if (active) setUnread(n); }).catch(() => { if (active) setUnread(null); }); };
     update(); const timer = setInterval(update, 30000);
     return () => { active = false; clearInterval(timer); };
-  }, []));
+  }, [showNotificationBell, compactHeader]));
   return <SafeAreaView edges={['top', 'left', 'right']} style={[s.fill, { backgroundColor: c.bg }]}>
     <View style={[s.header, { borderColor: c.border }]}>
       <Pressable style={s.icon} accessibilityRole="button" accessibilityLabel={t('admin_back')} onPress={() => router.canGoBack() ? router.back() : router.replace('/admin/dashboard')}><Ionicons name="arrow-back" size={23} color={c.accent} /></Pressable>
       <View style={{ flex: 1, alignItems: compactHeader ? 'center' : 'flex-start' }}><Label heading>{title}</Label>{!compactHeader && <Label muted>{household.name}</Label>}</View>
-      {compactHeader ? <View style={s.icon} /> : <Pressable style={s.icon} accessibilityRole="button" accessibilityLabel={`${t('notifications')}${unread === null ? '' : `, ${t('filter_unread')} ${unread}`}`} onPress={() => router.push({ pathname: '/admin/notifications', params: { family_id: household.id } })}>
+      {compactHeader ? <View style={s.icon} /> : showNotificationBell ? <Pressable style={s.icon} accessibilityRole="button" accessibilityLabel={`${t('notifications')}${unread === null ? '' : `, ${t('filter_unread')} ${unread}`}`} onPress={() => router.push({ pathname: '/admin/notifications', params: { family_id: household.id } })}>
         <Ionicons name="notifications-outline" size={24} color={c.accent} />
         {!!unread && <View style={s.badge}><Text style={{ color: '#fff', fontSize: 10, fontWeight: '800' }}>{unread > 99 ? '99+' : unread}</Text></View>}
-      </Pressable>}
+      </Pressable> : null}
     </View>
-    <ScrollView contentContainerStyle={s.body} refreshControl={<RefreshControl refreshing={busy} onRefresh={refresh} tintColor={purple} />}>
+    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.body} refreshControl={<RefreshControl refreshing={busy} onRefresh={refresh} tintColor={purple} />}>
       {!!error && <Card><Text accessibilityRole="alert" style={{ color: c.error }}>{translateFeedback(error, t)}</Text><Action label={t('admin_retry')} onPress={refresh} /></Card>}
       {busy && <ActivityIndicator color={purple} accessibilityLabel={t('admin_progress')} />}
       {children}

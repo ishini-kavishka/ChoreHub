@@ -408,12 +408,10 @@ export default function EditChoreScreen() {
       </ScrollView>
 
       {/* Member Picker Modal */}
-      <Modal visible={showMemberPicker} animationType="slide" transparent>
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setShowMemberPicker(false)}
-        >
-          <View style={styles.pickerCard}>
+      <Modal visible={showMemberPicker} animationType="slide" transparent onRequestClose={() => setShowMemberPicker(false)}>
+        <View style={styles.modalOverlay}>
+          <Pressable accessibilityLabel={t('cancel')} accessibilityRole="button" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }} onPress={() => setShowMemberPicker(false)} />
+          <ScrollView style={styles.pickerCard} contentContainerStyle={styles.pickerContent} keyboardShouldPersistTaps="handled">
             <Text style={styles.pickerTitle}>{t('ag_select_member')}</Text>
             <Pressable
               style={styles.pickerOption}
@@ -448,17 +446,15 @@ export default function EditChoreScreen() {
                 </View>
               </Pressable>
             ))}
-          </View>
-        </Pressable>
+          </ScrollView>
+        </View>
       </Modal>
 
       {/* Repeat Picker Modal */}
-      <Modal visible={showRepeatPicker} animationType="slide" transparent>
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setShowRepeatPicker(false)}
-        >
-          <View style={styles.pickerCard}>
+      <Modal visible={showRepeatPicker} animationType="slide" transparent onRequestClose={() => setShowRepeatPicker(false)}>
+        <View style={styles.modalOverlay}>
+          <Pressable accessibilityLabel={t('cancel')} accessibilityRole="button" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }} onPress={() => setShowRepeatPicker(false)} />
+          <ScrollView style={styles.pickerCard} contentContainerStyle={styles.pickerContent} keyboardShouldPersistTaps="handled">
             <Text style={styles.pickerTitle}>{t('ag_select_repeat')}</Text>
             {[
               { label: t('repeat_none'), value: 'none' },
@@ -477,17 +473,15 @@ export default function EditChoreScreen() {
                 <Text style={styles.pickerOptionText}>{opt.label}</Text>
               </Pressable>
             ))}
-          </View>
-        </Pressable>
+          </ScrollView>
+        </View>
       </Modal>
 
       {/* Status Picker Modal */}
-      <Modal visible={showStatusPicker} animationType="slide" transparent>
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setShowStatusPicker(false)}
-        >
-          <View style={styles.pickerCard}>
+      <Modal visible={showStatusPicker} animationType="slide" transparent onRequestClose={() => setShowStatusPicker(false)}>
+        <View style={styles.modalOverlay}>
+          <Pressable accessibilityLabel={t('cancel')} accessibilityRole="button" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }} onPress={() => setShowStatusPicker(false)} />
+          <ScrollView style={styles.pickerCard} contentContainerStyle={styles.pickerContent} keyboardShouldPersistTaps="handled">
             <Text style={styles.pickerTitle}>{t('ag_select_status')}</Text>
             {[
               { label: t('filter_pending'), value: 'pending', dotStyle: styles.pendingDot },
@@ -508,17 +502,15 @@ export default function EditChoreScreen() {
                 </View>
               </Pressable>
             ))}
-          </View>
-        </Pressable>
+          </ScrollView>
+        </View>
       </Modal>
 
       {/* Date Selector Modal */}
-      <Modal visible={showDatePicker} animationType="slide" transparent>
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setShowDatePicker(false)}
-        >
-          <View style={styles.pickerCard}>
+      <Modal visible={showDatePicker} animationType="slide" transparent onRequestClose={() => setShowDatePicker(false)}>
+        <View style={styles.modalOverlay}>
+          <Pressable accessibilityLabel={t('cancel')} accessibilityRole="button" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }} onPress={() => setShowDatePicker(false)} />
+          <ScrollView style={styles.pickerCard} contentContainerStyle={styles.pickerContent} keyboardShouldPersistTaps="handled">
             <Text style={styles.pickerTitle}>{t('ag_select_due')}</Text>
             {[
               { label: t('today'), offsetDays: 0 },
@@ -546,8 +538,8 @@ export default function EditChoreScreen() {
                 <Text style={styles.pickerOptionText}>{opt.label}</Text>
               </Pressable>
             ))}
-          </View>
-        </Pressable>
+          </ScrollView>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -756,10 +748,10 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
     backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    padding: 24,
-    gap: 12,
+    flexGrow: 0,
     maxHeight: '60%',
   },
+  pickerContent: { padding: 24, paddingBottom: 40, gap: 12 },
   pickerTitle: {
     fontSize: 18,
     fontWeight: '800',

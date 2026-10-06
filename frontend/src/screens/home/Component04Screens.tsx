@@ -3,7 +3,6 @@ import { NotificationBell, refreshMemberUnread } from '@/components/notification
 import { translateFeedback } from '@/i18n/translations';
 import { useAppAlert } from '@/components/ui/AppDialog';
 import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
-import PrivateChoreMessageForm from '@/components/notifications/PrivateChoreMessageForm';
 import type { Household } from '@/services/adminComponent04Service';
 import { notificationDisplay } from '@/i18n/clientTranslations';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -42,8 +41,6 @@ export function Component04Screen({ kind, adminFamily }: { kind: 'notifications'
   const [sliderWidth, setSliderWidth] = useState(200);
 
   // ── Screen data state ──
-  const [messageVisible, setMessageVisible] = useState(false);
-  const [messageChoreId, setMessageChoreId] = useState<string|undefined>();
 
   const [items, setItems] = useState<AppNotification[]>([]);
   const [chores, setChores] = useState<CompletedChore[]>([]);
@@ -237,7 +234,7 @@ export function Component04Screen({ kind, adminFamily }: { kind: 'notifications'
     <>
       {banner}
       <Text style={[s.subtitle, { color: muted }]}>{t('notifications_subtitle')}</Text>
-      <View style={s.chips}><Pressable accessibilityRole="button" accessibilityLabel={t('pm_message_admin')} onPress={()=>{setMessageChoreId(undefined);setMessageVisible(true);}} style={[s.chip,{backgroundColor:colors.surface}]}><Text style={{color:purple,fontWeight:'700'}}>{t('pm_message_admin')}</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel={t('my_reminders')} onPress={() => router.push('/home/reminders')} style={[s.chip, { backgroundColor:colors.surface, flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
+      <View style={s.chips}><Pressable accessibilityRole="button" accessibilityLabel={t('my_reminders')} onPress={() => router.push('/home/reminders')} style={[s.chip, { backgroundColor:colors.surface, flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
         <Ionicons name="alarm-outline" size={20} color={purple}/><Text style={{ color: purple, fontWeight: '700' }}>{t('my_reminders')}</Text>
       </Pressable></View>
       {adminFamily && <Pressable accessibilityRole="button" accessibilityLabel={t('mark_all_read')} style={s.primary} onPress={async () => { try { await notificationService.markAllRead(true); setItems(previous => previous.map(n => ({ ...n, is_read: true }))); } catch (e) { setError(t('admin_error')); } }}>
@@ -283,7 +280,6 @@ export function Component04Screen({ kind, adminFamily }: { kind: 'notifications'
               </Pressable>
               {n.type==='chore_assigned' && n.chore_id && <View style={[s.chips,{marginLeft:36,marginTop:8}]}>
                 <Pressable accessibilityRole="button" accessibilityLabel={t('tr_chore')} onPress={()=>router.push({pathname:'/home/chore-details',params:{id:n.chore_id!}})} style={[s.chip,{backgroundColor:colors.surface}]}><Text style={{color:purple,fontWeight:'700'}}>{t('tr_chore')}</Text></Pressable>
-                <Pressable accessibilityRole="button" accessibilityLabel={t('pm_message_admin')+': '+(n.chore_title||n.title)} onPress={()=>{setMessageChoreId(n.chore_id!);setMessageVisible(true);}} style={[s.chip,{backgroundColor:colors.surface}]}><Text style={{color:purple,fontWeight:'700'}}>{t('pm_message_admin')}</Text></Pressable>
               </View>}
               </View>
               {!n.is_read && <View style={s.dot}/>}
@@ -293,7 +289,6 @@ export function Component04Screen({ kind, adminFamily }: { kind: 'notifications'
             </View>
         </View>
       ))}
-      <PrivateChoreMessageForm visible={messageVisible} initialChoreId={messageChoreId} onClose={()=>setMessageVisible(false)} onSent={()=>setNotice(t('pm_sent'))}/>
       <Text style={{color:muted,fontSize:12,textAlign:'center'}}>{t('admin_latest')}</Text>
     </>
   );

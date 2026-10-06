@@ -92,7 +92,6 @@ Module._load = function(name, ...args) {
   if(name==='@/i18n/translations')return require('../src/i18n/translations.ts');
   if(name==='@/components/ui/AppDialog')return {useAppAlert:()=>()=>{}};
   if(name==='@/components/notifications/NotificationBell')return require('../src/components/notifications/NotificationBell.tsx');
-  if (name === '@/components/notifications/PrivateChoreMessageForm') return {__esModule:true,default:'private-message-form'};
   if (name === 'react-native') return { BackHandler:{addEventListener:()=>({remove(){}})}, ActivityIndicator:'loading', Pressable:'button', RefreshControl:'refresh', ScrollView:'scroll', StyleSheet:{ create:value=>value }, Switch:'switch', Text:'text', TextInput:'input', View:'view', Alert:{alert(){}}, Modal:({visible,children})=>visible ? React.createElement('dialog',null,children) : null };
   if (name === 'react-native-safe-area-context') return { SafeAreaView:'safe' };
   if (name === 'react-native-svg')return {__esModule:true,default:'svg',Circle:'circle',Line:'line',Polyline:'polyline'};
@@ -170,14 +169,14 @@ test('time filters respect local midnight and Monday week boundaries',async()=>{
   }finally{if(r)await act(async()=>r.unmount());global.Date=NativeDate;}
 });
 
-test('linked assignment opens the simple message form and reuses existing Chore navigation',async()=>{
+test('linked assignment keeps Chore navigation without any Message Admin actions',async()=>{
   records=[{id:'linked',title:'New Chore Assigned',message:'Clean Kitchen',type:'chore_assigned',is_read:false,created_at:new Date().toISOString(),chore_id:'actual-chore',chore_title:'Clean Kitchen',chore_due_date:new Date(Date.now()+86400000).toISOString(),assigned_by:'Admin',can_request_time:true},{id:'other',title:'Information',message:'Unrelated notice',type:'info',is_read:false,created_at:new Date().toISOString()}];
   let r;
   try{
     await act(async()=>{r=create(React.createElement(Screen,{kind:'notifications'}));});
-    assert.ok(button(r,'Message Admin'));
+    assert.equal(button(r,'Message Admin'),undefined);
+    assert.equal(button(r,'Message Admin: Clean Kitchen'),undefined);
     assert.equal(button(r,'Request Time Change'),undefined);
-    await press(r,'Message Admin: Clean Kitchen');assert.equal(r.root.findByType('private-message-form').props.initialChoreId,'actual-chore');assert.equal(r.root.findByType('private-message-form').props.visible,true);
     await press(r,'View Chore');assert.equal(routes.at(-1).pathname,'/home/chore-details');assert.equal(routes.at(-1).params.id,'actual-chore');
     records=records.map(n=>({...n,can_request_time:false}));await press(r,'Refresh');assert.equal(button(r,'Request Time Change'),undefined);
   }finally{if(r)await act(async()=>r.unmount());}
@@ -240,11 +239,13 @@ test('Home, Progress and other member bells share live counts, one route, persis
     inboxParams=progressRoute.params;
     await act(async()=>{inbox=create(React.createElement(Screen,{kind:'notifications'}));});
     assert.equal(button(inbox,translate('mark_all_read')),undefined);
-    assert.ok(button(inbox,translate('pm_message_admin')));assert.ok(button(inbox,translate('my_reminders')));
+    assert.equal(button(inbox,translate('pm_message_admin')),undefined);assert.ok(button(inbox,translate('my_reminders')));
+    await press(inbox,translate('my_reminders'));assert.equal(routes.at(-1),'/home/reminders');
     assert.ok(button(inbox,'Same assignment. Unread.'));assert.ok(button(inbox,'Same reminder. Unread.'));
     await press(inbox,'Same assignment. Unread.');for(const r of [home,progress,other])badge(r,1);
     await press(inbox,translate('admin_back'));assert.equal(routes.at(-1),'/home/progress');
     inboxParams=homeRoute.params;await act(async()=>inbox.update(React.createElement(Screen,{kind:'notifications'})));
+    assert.equal(button(inbox,translate('pm_message_admin')),undefined);
     await press(inbox,'Refresh');assert.ok(button(inbox,'Same assignment. Read.'));assert.equal(button(inbox,translate('mark_all_read')),undefined);
     assert.equal(button(inbox,translate('mark_all_read')),undefined);await press(inbox,'Same reminder. Unread.');for(const r of [home,progress,other])assert.equal(button(r,translate('ui_open_notifications')).findAllByType('text').length,0);
     records.push({id:'new-member',title:'New incoming member update',message:'New real record',type:'family_update',is_read:false,created_at:new Date().toISOString()});

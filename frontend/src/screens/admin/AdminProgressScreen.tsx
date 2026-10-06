@@ -92,6 +92,7 @@ function Progress({ household }: { household: Household }) {
 
   return (
     <AdminPage
+      showNotificationBell={false}
       title={t('admin_progress')}
       household={household}
       busy={busy}
