@@ -138,13 +138,6 @@ export default function SupportDashboardScreen() {
           />
 
           <MenuCard
-            icon="chatbox-ellipses-outline"
-            title="Contact Us"
-            subtitle="Send a direct message to our team"
-            onPress={() => router.push('/support/contact-us' as any)}
-          />
-
-          <MenuCard
             icon="alert-circle-outline"
             title="Report an Issue"
             subtitle="Report a bug or problem in the app"

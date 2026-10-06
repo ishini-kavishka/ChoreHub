@@ -16,6 +16,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SupportBottomNav } from '@/components/support/SupportBottomNav';
 import { authService } from '@/services/authService';
+import { supportTicketService } from '@/services/supportTicketService';
 
 export default function ContactUsScreen() {
   const [name, setName] = useState('');
@@ -35,36 +36,52 @@ export default function ContactUsScreen() {
     }).catch(() => {});
   }, []);
 
-  const handleSubmit = () => {
-    if (!name.trim()) {
-      Alert.alert('Required Field', 'Please enter your full name.');
+  const handleSubmit = async () => {
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
+    const trimmedSubject = subject.trim();
+    const trimmedMessage = message.trim();
+
+    if (!trimmedName) {
+      Alert.alert('Required Field', 'Please enter your name.');
       return;
     }
-    if (!email.trim() || !email.includes('@')) {
+
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!trimmedEmail || !emailPattern.test(trimmedEmail)) {
       Alert.alert('Required Field', 'Please enter a valid email address.');
       return;
     }
-    if (!subject.trim()) {
+    if (!trimmedSubject) {
       Alert.alert('Required Field', 'Please specify a subject for your message.');
       return;
     }
-    if (!message.trim()) {
+    if (!trimmedMessage) {
       Alert.alert('Required Field', 'Please enter your message.');
       return;
     }
 
     setSubmitting(true);
-    // Simulate sending message
-    setTimeout(() => {
+
+    try {
+      await supportTicketService.sendSupportMessage({
+        name: trimmedName,
+        email: trimmedEmail,
+        subject: trimmedSubject,
+        message: trimmedMessage,
+      });
+
       setSubmitting(false);
       setSubmitted(true);
       Alert.alert(
-        'Message Sent!',
-        'Thank you for reaching out. Our support team will get back to you within 24 hours.',
+        'Message sent successfully',
+        'Your message has been sent to the ChoreHub support team.',
         [
           {
             text: 'OK',
             onPress: () => {
+              setName('');
+              setEmail('');
               setSubject('');
               setMessage('');
               setSubmitted(false);
@@ -74,7 +91,11 @@ export default function ContactUsScreen() {
           },
         ]
       );
-    }, 900);
+    } catch (error) {
+      setSubmitting(false);
+      const msg = error instanceof Error ? error.message : 'Unable to send your message right now. Please try again.';
+      Alert.alert('Message not sent', msg);
+    }
   };
 
   return (
@@ -125,7 +146,7 @@ export default function ContactUsScreen() {
           {/* Form */}
           <View style={styles.formContainer}>
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Full Name</Text>
+              <Text style={styles.inputLabel}>Name</Text>
               <TextInput
                 value={name}
                 onChangeText={setName}
@@ -160,7 +181,7 @@ export default function ContactUsScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Your Message</Text>
+              <Text style={styles.inputLabel}>Message</Text>
               <TextInput
                 value={message}
                 onChangeText={setMessage}

@@ -1,8 +1,10 @@
 import { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import * as ExpoSplashScreen from 'expo-splash-screen';
 import { authService } from '@/services/authService';
+
+const choreHubLogo = require('../../../assets/images/chorehub-logo.png');
 
 export default function SplashScreen() {
   useEffect(() => {
@@ -15,6 +17,41 @@ export default function SplashScreen() {
     });
     return () => { active = false; };
   }, []);
-  return <View style={styles.screen}><View style={styles.mark}><Text style={styles.markText}>C</Text></View><Text style={styles.name}>ChoreHub</Text><Text style={styles.tagline}>A calmer way to share the load.</Text></View>;
+  return (
+    <View style={styles.screen}>
+      <Image
+        source={choreHubLogo}
+        style={styles.logo}
+        resizeMode="contain"
+        accessible
+        accessibilityLabel="ChoreHub family chores logo"
+      />
+      <Text style={styles.tagline}>A calmer way to share the load.</Text>
+      <ActivityIndicator style={styles.loading} color="#713DE8" size="small" />
+    </View>
+  );
 }
-const styles = StyleSheet.create({ screen: { flex: 1, backgroundColor: '#247B6B', alignItems: 'center', justifyContent: 'center' }, mark: { width: 94, height: 94, borderRadius: 30, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center' }, markText: { color: '#247B6B', fontSize: 52, fontWeight: '900' }, name: { color: '#FFF', fontSize: 34, fontWeight: '900', marginTop: 22 }, tagline: { color: '#DDF3EE', fontSize: 16, marginTop: 8 } });
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: '#FAFAFD',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+  },
+  logo: {
+    width: '100%',
+    maxWidth: 360,
+    aspectRatio: 1,
+  },
+  tagline: {
+    color: '#656276',
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 10,
+    textAlign: 'center',
+  },
+  loading: {
+    marginTop: 28,
+  },
+});

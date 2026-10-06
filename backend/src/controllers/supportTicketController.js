@@ -1,9 +1,15 @@
+const nodemailer = require('nodemailer');
 const { pool } = require('../config/db');
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const appError = (message, statusCode = 400) => Object.assign(new Error(message), { statusCode });
 const categories = ['Chore Issue', 'Technical Bug', 'Account & Login', 'General Inquiry'];
 const priorities = ['low', 'medium', 'high'];
 const statuses = ['open', 'in_progress', 'resolved'];
+
+function normalizeEmail(value) {
+  return typeof value === 'string' ? value.trim().toLowerCase() : '';
+}
 const ticketColumns = `
   id,
   ticket_number AS "ticketNumber",
@@ -135,4 +141,70 @@ async function deleteTicket(req, res, next) {
   }
 }
 
-module.exports = { getTickets, getUserTickets, createTicket, updateUserTicket, updateTicketStatus, deleteTicket };
+async function sendSupportMessage(req, res, next) {
+  try {
+    const body = req.body || {};
+    const name = typeof body.name === 'string' ? body.name.trim() : '';
+    const email = normalizeEmail(body.email);
+    const subject = typeof body.subject === 'string' ? body.subject.trim() : '';
+    const message = typeof body.message === 'string' ? body.message.trim() : '';
+
+    if (!name || name.length > 200) throw appError('Name is required and must be 200 characters or fewer.');
+    if (!EMAIL_PATTERN.test(email)) throw appError('A valid email address is required.');
+    if (!subject || subject.length > 200) throw appError('Subject is required and must be 200 characters or fewer.');
+    if (!message || message.length > 5000) throw appError('Message is required and must be 5000 characters or fewer.');
+
+    const smtpHost = process.env.SMTP_HOST;
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+    const fromAddress = process.env.EMAIL_FROM || smtpUser || 'no-reply@chorehub.local';
+    const supportTo = process.env.SUPPORT_EMAIL_TO || 'supportchorehub@gmail.com';
+
+    if (!smtpHost || !smtpUser || !smtpPass) {
+      throw appError('Support email is not configured on the server. Please set SMTP_HOST, SMTP_USER, and SMTP_PASS in backend environment variables.');
+    }
+
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: Number(process.env.SMTP_PORT || 587),
+      secure: Number(process.env.SMTP_PORT || 587) === 465,
+      auth: { user: smtpUser, pass: smtpPass },
+    });
+
+    await transporter.sendMail({
+      from: fromAddress,
+      to: supportTo,
+      replyTo: email,
+      subject: `[ChoreHub Support] ${subject}`,
+      text: [
+        `Name: ${name}`,
+        `Email: ${email}`,
+        `Subject: ${subject}`,
+        '',
+        'Message:',
+        message,
+      ].join('\n'),
+      html: `
+        <p><strong>Name:</strong> ${name}</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Subject:</strong> ${subject}</p>
+        <p><strong>Message:</strong></p>
+        <p>${message.replace(/\n/g, '<br />')}</p>
+      `,
+    });
+
+    return res.json({ message: 'Message sent successfully.' });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+module.exports = {
+  getTickets,
+  getUserTickets,
+  createTicket,
+  updateUserTicket,
+  updateTicketStatus,
+  deleteTicket,
+  sendSupportMessage,
+};
