@@ -1,5 +1,5 @@
 const express = require('express');
-const { requireAuth } = require('../middleware/authMiddleware');
+const { requireAuth, requireAdmin } = require('../middleware/authMiddleware');
 const {
   createFamily,
   joinFamily,
@@ -12,10 +12,10 @@ const router = express.Router();
 
 router.use(requireAuth);
 
-router.post('/', createFamily);
+router.post('/', requireAdmin, createFamily);
 router.post('/join', joinFamily);
 router.get('/my-family', getMyFamily);
-router.get('/search-user', searchUserByEmail);
-router.post('/add-member', addFamilyMember);
+router.get('/search-user', requireAdmin, searchUserByEmail);
+router.post('/add-member', requireAdmin, addFamilyMember);
 
 module.exports = router;

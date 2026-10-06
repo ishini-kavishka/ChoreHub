@@ -16,22 +16,22 @@ interface TabConfig {
 
 const TAB_CONFIGS: Record<string, TabConfig> = {
   index: {
-    labelKey: 'tab_home',
+    labelKey: 'home',
     activeIcon: 'home',
     inactiveIcon: 'home-outline',
   },
   chores: {
-    labelKey: 'tab_chores',
+    labelKey: 'chores',
     activeIcon: 'clipboard',
     inactiveIcon: 'clipboard-outline',
   },
   calendar: {
-    labelKey: 'tab_calendar',
+    labelKey: 'calendar',
     activeIcon: 'calendar',
     inactiveIcon: 'calendar-outline',
   },
   profile: {
-    labelKey: 'tab_profile',
+    labelKey: 'profile',
     activeIcon: 'person',
     inactiveIcon: 'person-outline',
   },
@@ -40,6 +40,7 @@ const TAB_CONFIGS: Record<string, TabConfig> = {
 export function MemberTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const { colors } = useAppTheme();
+  const { t } = useLanguage();
 
   return (
     <View
@@ -59,6 +60,16 @@ export function MemberTabBar({ state, descriptors, navigation }: BottomTabBarPro
           const { options } = descriptors[route.key];
           const isFocused = state.index === index;
           const tabConfig = TAB_CONFIGS[route.name];
+          const label =
+            route.name === 'index'
+              ? t('home')
+              : route.name === 'chores'
+              ? t('chores')
+              : route.name === 'calendar'
+              ? t('calendar')
+              : route.name === 'profile'
+              ? t('profile')
+              : options.title || route.name;
 
           const onPress = () => {
             const event = navigation.emit({
@@ -84,7 +95,7 @@ export function MemberTabBar({ state, descriptors, navigation }: BottomTabBarPro
               style={({ pressed }) => [styles.tabItem, pressed && styles.tabPressed]}
               accessibilityRole="button"
               accessibilityState={isFocused ? { selected: true } : {}}
-              accessibilityLabel={tabConfig.label}
+              accessibilityLabel={label}
             >
               <Ionicons name={iconName} size={22} color={currentColor} style={styles.icon} />
               <Text
@@ -94,7 +105,7 @@ export function MemberTabBar({ state, descriptors, navigation }: BottomTabBarPro
                   isFocused && styles.activeLabel,
                 ]}
               >
-                {tabConfig.label}
+                {label}
               </Text>
             </Pressable>
           );
