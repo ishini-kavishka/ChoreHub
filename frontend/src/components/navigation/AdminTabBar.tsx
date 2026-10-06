@@ -32,16 +32,6 @@ const TAB_CONFIGS: Record<string, TabConfig> = {
     activeIcon: 'notifications',
     inactiveIcon: 'notifications-outline',
   },
-  chores: {
-    label: 'Chores',
-    activeIcon: 'clipboard',
-    inactiveIcon: 'clipboard-outline',
-  },
-  members: {
-    label: 'Members',
-    activeIcon: 'people',
-    inactiveIcon: 'people-outline',
-  },
   profile: {
     label: 'Profile',
     activeIcon: 'person',
@@ -58,7 +48,7 @@ export function AdminTabBar({ state, descriptors, navigation }: BottomTabBarProp
 
   useEffect(() => {
     const unsub = notificationService.subscribeUnreadCount(setUnread);
-    notificationService.getUnreadCount().then(setUnread).catch(() => {});
+    notificationService.getUnreadCount().then(setUnread).catch(() => { });
     return () => {
       unsub();
     };
@@ -74,17 +64,17 @@ export function AdminTabBar({ state, descriptors, navigation }: BottomTabBarProp
           const isFocused = state.index === index;
           const tabConfig = TAB_CONFIGS[route.name];
 
-        const onPress = () => {
-          const event = navigation.emit({
-            type: 'tabPress',
-            target: route.key,
-            canPreventDefault: true,
-          });
+          const onPress = () => {
+            const event = navigation.emit({
+              type: 'tabPress',
+              target: route.key,
+              canPreventDefault: true,
+            });
 
-          if (!isFocused && !event.defaultPrevented) {
-            navigation.navigate(route.name, route.params);
-          }
-        };
+            if (!isFocused && !event.defaultPrevented) {
+              navigation.navigate(route.name, route.params);
+            }
+          };
 
           const activeColor = theme === 'dark' ? '#BEABFF' : '#713DE8';
           const inactiveColor = colors.isDark ? colors.textSecondary : '#8A879A';
@@ -95,14 +85,10 @@ export function AdminTabBar({ state, descriptors, navigation }: BottomTabBarProp
             route.name === 'dashboard'
               ? t('home')
               : route.name === 'progress'
-              ? t('admin_progress')
-              : route.name === 'notifications'
-              ? t('notifications')
-              : route.name === 'members'
-              ? t('admin_members')
-              : route.name === 'chores'
-              ? t('chores')
-              : t('profile');
+                ? t('admin_progress')
+                : route.name === 'notifications'
+                  ? t('notifications')
+                  : t('profile');
 
           return (
             <Pressable

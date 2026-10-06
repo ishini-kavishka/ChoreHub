@@ -196,7 +196,7 @@ export default function LoginScreen() {
               <View style={styles.dividerLine} />
             </View>
 
-            {/* ── Continue with Google Button (no-op until Google OAuth is configured) ── */}
+            {/* ── Continue with Google Button ── */}
             <Pressable
               onPress={() => {}}
               style={({ pressed }) => [styles.googleBtn, pressed && { opacity: 0.88 }]}

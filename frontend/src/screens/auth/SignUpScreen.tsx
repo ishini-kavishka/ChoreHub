@@ -44,7 +44,7 @@ export default function SignUpScreen() {
 
     try {
       await authService.signUp(name.trim(), email.trim(), password);
-      router.replace('/profile');
+      router.replace('/home' as any);
     } catch (err) {
       const msg = t('admin_error');
       setError(msg);
@@ -200,7 +200,7 @@ export default function SignUpScreen() {
               <View style={styles.dividerLine} />
             </View>
 
-            {/* ── Continue with Google (no-op until Google OAuth is configured) ── */}
+            {/* ── Continue with Google ── */}
             <Pressable
               onPress={() => {}}
               style={({ pressed }) => [styles.googleBtn, pressed && { opacity: 0.88 }]}

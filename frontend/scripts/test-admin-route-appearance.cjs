@@ -87,10 +87,10 @@ for(const [name,Component,props]of modalCases)test(name+' modal responds to them
     assert.notEqual(texts.en,texts.si);assert.notEqual(texts.en,texts.ta);
   }finally{if(r)await act(async()=>r.unmount());}
 });
-test('admin bottom navigation uses global colors and translated labels without changing routes',async()=>{
+test('merged admin bottom navigation keeps four visible tabs with global colors and translated labels',async()=>{
   const {AdminTabBar}=require('../src/components/navigation/AdminTabBar.tsx');let r;
   const props={state:{index:0,routes:['dashboard','progress','notifications','chores','members','profile'].map(name=>({key:name,name}))},descriptors:Object.fromEntries(['dashboard','progress','notifications','chores','members','profile'].map(key=>[key,{options:{}}])),navigation:{emit:()=>({}),navigate(){}}};
-  try{for(const code of Object.keys(translations))for(const theme of ['light','dark']){language=code;mode=theme;await act(async()=>{if(r)r.update(React.createElement(AdminTabBar,props));else r=create(React.createElement(AdminTabBar,props));});assert.equal(r.root.findAllByType('button').length,6);assert.equal(r.root.findAllByType('text')[0].children[0],translations[code].home);assert.equal(native.StyleSheet.flatten(r.root.findAllByType('view')[0].props.style).backgroundColor,mode==='dark'?tokens[mode].card:'#FFFFFF');}}
+  try{for(const code of Object.keys(translations))for(const theme of ['light','dark']){language=code;mode=theme;await act(async()=>{if(r)r.update(React.createElement(AdminTabBar,props));else r=create(React.createElement(AdminTabBar,props));});assert.equal(r.root.findAllByType('button').length,4);assert.equal(r.root.findAllByType('text')[0].children[0],translations[code].home);assert.equal(native.StyleSheet.flatten(r.root.findAllByType('view')[0].props.style).backgroundColor,mode==='dark'?tokens[mode].card:'#FFFFFF');}}
   finally{if(r)await act(async()=>r.unmount());}
 });
 test('themed shared confirmations preserve callbacks, prevent duplicate actions and follow locale changes',async()=>{

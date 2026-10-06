@@ -25,9 +25,11 @@ export default function MemberFamilyScreen() {
   const [members, setMembers] = useState<FamilyMemberItem[]>([]);
   const [currentMember, setCurrentMember] = useState<Member | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadData = useCallback(async () => {
+    setError(null);
     try {
       const user = await authService.getCurrentMember();
       if (user) setCurrentMember(user);
@@ -35,8 +37,8 @@ export default function MemberFamilyScreen() {
       const res = await familyService.getMyFamily();
       if (res?.family) setFamily(res.family);
       if (res?.members) setMembers(res.members);
-    } catch {
-      // Soft fail
+    } catch (err: any) {
+      setError(err?.message || 'Unable to load family members.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -88,7 +90,10 @@ export default function MemberFamilyScreen() {
           <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={10}>
             <Ionicons name="arrow-back" size={24} color={themeColors.isDark ? themeColors.textPrimary : "#1E1B2E"} />
           </Pressable>
-          <Text style={styles.headerTitle}>{t('household_family')}</Text>
+          <View style={styles.headerTitleGroup}>
+            <Text style={styles.headerTitle}>{t('admin_members')}</Text>
+            <Text style={styles.headerSubtitle}>{t('household_family')}</Text>
+          </View>
           <View style={{ width: 24 }} />
         </View>
 
@@ -110,6 +115,22 @@ export default function MemberFamilyScreen() {
 
         {loading ? (
           <ActivityIndicator size="large" color="#713DE8" style={{ marginTop: 24 }} />
+        ) : error ? (
+          <View style={styles.errorCard}>
+            <Ionicons name="alert-circle" size={40} color="#EF4444" />
+            <Text style={styles.errorTitle}>{t('admin_error')}</Text>
+            <Text style={styles.errorSubtitle}>{error}</Text>
+            <Pressable
+              onPress={() => {
+                setLoading(true);
+                loadData();
+              }}
+              style={styles.retryBtn}
+            >
+              <Ionicons name="refresh" size={16} color="#FFFFFF" />
+              <Text style={styles.retryBtnText}>{t('admin_retry')}</Text>
+            </Pressable>
+          </View>
         ) : members.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyIcon}>🏠</Text>
@@ -187,10 +208,54 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   backBtn: {
     padding: 4,
   },
+  headerTitleGroup: {
+    alignItems: 'center',
+  },
   headerTitle: {
     fontSize: 20,
     fontWeight: '900',
     color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
+    marginTop: 1,
+  },
+  errorCard: {
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FEE2E2',
+    gap: 8,
+    marginTop: 16,
+  },
+  errorTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
+  },
+  errorSubtitle: {
+    fontSize: 13,
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
+    textAlign: 'center',
+  },
+  retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#713DE8',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginTop: 6,
+  },
+  retryBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 14,
   },
 
   familyBanner: {

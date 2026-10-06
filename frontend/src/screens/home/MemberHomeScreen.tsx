@@ -164,6 +164,13 @@ export default function MemberHomeScreen() {
       onPress: () => router.push('/home/chores' as any),
     },
     {
+      id: 'schedule',
+      label: t('ui_my_schedule'),
+      icon: 'time-outline' as const,
+      color: '#059669',
+      onPress: () => router.push('/home/schedule' as any),
+    },
+    {
       id: 'calendar',
       label: t('quick_view_calendar'),
       icon: 'calendar-outline' as const,
@@ -214,7 +221,7 @@ export default function MemberHomeScreen() {
         <View style={styles.topHeader}>
           {/* ChoreHub Logo */}
           <View style={styles.logoRow}>
-            <Text style={styles.logoChore}>Chore</Text>
+            <Text style={styles.logoChore}>{t('pm_chore')}</Text>
             <Text style={styles.logoHub}>Hub</Text>
           </View>
 

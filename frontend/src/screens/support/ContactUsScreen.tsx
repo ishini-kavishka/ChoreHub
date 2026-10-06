@@ -4,7 +4,6 @@ import { useLanguage } from '@/context/LanguageContext';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -19,6 +18,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SupportBottomNav } from '@/components/support/SupportBottomNav';
 import { authService } from '@/services/authService';
+import { supportTicketService } from '@/services/supportTicketService';
 
 export default function ContactUsScreen() {
   const alert = useAppAlert();
@@ -42,27 +42,41 @@ export default function ContactUsScreen() {
     }).catch(() => {});
   }, []);
 
-  const handleSubmit = () => {
-    if (!name.trim()) {
+  const handleSubmit = async () => {
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
+    const trimmedSubject = subject.trim();
+    const trimmedMessage = message.trim();
+
+    if (!trimmedName) {
       alert(t('ui_required_field'), t('ui_please_enter_your_full_name'));
       return;
     }
-    if (!email.trim() || !email.includes('@')) {
+
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!trimmedEmail || !emailPattern.test(trimmedEmail)) {
       alert(t('ui_required_field'), t('valid_email'));
       return;
     }
-    if (!subject.trim()) {
+    if (!trimmedSubject) {
       alert(t('ui_required_field'), t('ui_please_specify_a_subject_for_your_message'));
       return;
     }
-    if (!message.trim()) {
+    if (!trimmedMessage) {
       alert(t('ui_required_field'), t('ui_please_enter_your_message'));
       return;
     }
 
     setSubmitting(true);
-    // Simulate sending message
-    setTimeout(() => {
+
+    try {
+      await supportTicketService.sendSupportMessage({
+        name: trimmedName,
+        email: trimmedEmail,
+        subject: trimmedSubject,
+        message: trimmedMessage,
+      });
+
       setSubmitting(false);
       setSubmitted(true);
       alert(
@@ -72,6 +86,8 @@ export default function ContactUsScreen() {
           {
             text: t('ui_ok'),
             onPress: () => {
+              setName('');
+              setEmail('');
               setSubject('');
               setMessage('');
               setSubmitted(false);
@@ -81,7 +97,10 @@ export default function ContactUsScreen() {
           },
         ]
       );
-    }, 900);
+    } catch (error) {
+      setSubmitting(false);
+      alert(t('admin_error'), t('admin_retry'));
+    }
   };
 
   return (

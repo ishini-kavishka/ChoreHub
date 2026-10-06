@@ -1,9 +1,8 @@
 import { translateFeedback } from '@/i18n/translations';
-import { useAppAlert } from '@/components/ui/AppDialog';
 import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,7 +12,6 @@ import { authService } from '@/services/authService';
 import { profileService } from '@/services/profileService';
 
 export default function EditProfileScreen() {
-  const alert = useAppAlert();
   const themeColors = useClientTheme().colors;
   const styles = useThemedStyles(createStyles);
   const { t } = useLanguage();
@@ -23,6 +21,8 @@ export default function EditProfileScreen() {
 	const [error, setError] = useState('');
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
+	const [showDeleteModal, setShowDeleteModal] = useState(false);
+	const [showDeletedModal, setShowDeletedModal] = useState(false);
 
 	useEffect(() => {
 		profileService
@@ -56,28 +56,23 @@ export default function EditProfileScreen() {
 		}
 	};
 
-	const deleteAccount = async () => {
-		alert(t('ui_delete_account'), t('delete_account_confirm'), [
-			{ text: t('cancel'), style: 'cancel' },
-			{
-				text: t('delete'),
-				style: 'destructive',
-				onPress: async () => {
-					try {
-						setSaving(true);
-						await profileService.deleteProfile();
-						await authService.signOut();
-						alert(t('ui_account_deleted'), t('ui_your_account_has_been_removed'), [
-							{ text: t('ui_ok'), onPress: () => router.replace('/auth/login') },
-						]);
-					} catch (requestError) {
-						setError(t('admin_error'));
-					} finally {
-						setSaving(false);
-					}
-				},
-			},
-		]);
+	const confirmDeleteAccount = async () => {
+		try {
+			setSaving(true);
+			setError('');
+			await profileService.deleteProfile();
+			await authService.signOut();
+			setShowDeleteModal(false);
+			setShowDeletedModal(true);
+		} catch (requestError) {
+			setError(t('admin_error'));
+		} finally {
+			setSaving(false);
+		}
+	};
+
+	const deleteAccount = () => {
+		setShowDeleteModal(true);
 	};
 
 	return (
@@ -159,6 +154,82 @@ export default function EditProfileScreen() {
 					<Text style={styles.deleteButtonText}>{t('ui_delete_account')}</Text>
 				</Pressable>
 			</ScrollView>
+			<Modal
+				visible={showDeleteModal}
+				transparent
+				animationType="fade"
+				onRequestClose={() => {
+					if (!saving) setShowDeleteModal(false);
+				}}
+			>
+				<View style={styles.modalOverlay}>
+					<Pressable
+						style={styles.modalBackdrop}
+						onPress={() => {
+							if (!saving) setShowDeleteModal(false);
+						}}
+					/>
+					<View style={styles.modalCard}>
+						<View style={styles.modalIconContainer}>
+							<Ionicons name="trash-outline" size={30} color="#EF4444" />
+						</View>
+						<Text style={styles.modalTitle}>{t('ui_delete_account')}</Text>
+						<Text style={styles.modalMessage}>
+							{t('delete_account_confirm')}</Text>
+						<View style={styles.modalActions}>
+							<Pressable
+								onPress={() => void confirmDeleteAccount()}
+								disabled={saving}
+								style={({ pressed }) => [
+									styles.modalDeleteBtn,
+									pressed && styles.modalBtnPressed,
+									saving && styles.modalBtnDisabled,
+								]}
+							>
+								{saving ? (
+									<ActivityIndicator color="#FFFFFF" size="small" />
+								) : (
+									<Text style={styles.modalPrimaryBtnText}>{t('ui_delete_account')}</Text>
+								)}
+							</Pressable>
+							<Pressable
+								onPress={() => setShowDeleteModal(false)}
+								disabled={saving}
+								style={({ pressed }) => [
+									styles.modalSecondaryBtn,
+									pressed && styles.modalBtnPressed,
+								]}
+							>
+								<Text style={styles.modalSecondaryBtnText}>{t('cancel')}</Text>
+							</Pressable>
+						</View>
+					</View>
+				</View>
+			</Modal>
+
+			<Modal visible={showDeletedModal} transparent animationType="fade">
+				<View style={styles.modalOverlay}>
+					<View style={styles.modalCard}>
+						<View style={styles.successIconContainer}>
+							<Ionicons name="checkmark-circle-outline" size={30} color="#10B981" />
+						</View>
+						<Text style={styles.modalTitle}>{t('ui_account_deleted')}</Text>
+						<Text style={styles.modalMessage}>{t('ui_your_account_has_been_removed')}</Text>
+						<View style={styles.modalActions}>
+							<Pressable
+								onPress={() => {
+									setShowDeletedModal(false);
+									router.dismissAll();
+									router.replace('/auth/welcome');
+								}}
+								style={styles.modalPrimaryBtn}
+							>
+								<Text style={styles.modalPrimaryBtnText}>{t('ui_ok')}</Text>
+							</Pressable>
+						</View>
+					</View>
+				</View>
+			</Modal>
 		</SafeAreaView>
 	);
 }
@@ -185,4 +256,75 @@ const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
 	deleteButtonText: { color: '#EF4444', fontSize: 16, fontWeight: '800' },
 	pressed: { opacity: 0.84 },
 	disabled: { opacity: 0.6 },
+	modalOverlay: {
+		flex: 1,
+		backgroundColor: 'rgba(15, 23, 42, 0.55)',
+		justifyContent: 'center',
+		alignItems: 'center',
+		padding: 24,
+	},
+	modalBackdrop: { ...StyleSheet.absoluteFill },
+	modalCard: {
+		width: '100%',
+		maxWidth: 340,
+		backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
+		borderRadius: 24,
+		paddingHorizontal: 24,
+		paddingVertical: 28,
+		alignItems: 'center',
+		shadowColor: '#000',
+		shadowOffset: { width: 0, height: 10 },
+		shadowOpacity: 0.15,
+		shadowRadius: 20,
+		elevation: 8,
+	},
+	modalIconContainer: {
+		width: 60,
+		height: 60,
+		borderRadius: 30,
+		backgroundColor: '#FEF2F2',
+		alignItems: 'center',
+		justifyContent: 'center',
+		marginBottom: 16,
+	},
+	successIconContainer: {
+		width: 60,
+		height: 60,
+		borderRadius: 30,
+		backgroundColor: '#D1FAE5',
+		alignItems: 'center',
+		justifyContent: 'center',
+		marginBottom: 16,
+	},
+	modalTitle: { fontSize: 20, fontWeight: '800', color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'), marginBottom: 8, textAlign: 'center' },
+	modalMessage: { fontSize: 14, color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'), textAlign: 'center', lineHeight: 21, marginBottom: 24 },
+	modalActions: { width: '100%', gap: 10 },
+	modalPrimaryBtn: {
+		width: '100%',
+		height: 48,
+		borderRadius: 14,
+		backgroundColor: '#713DE8',
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	modalDeleteBtn: {
+		width: '100%',
+		height: 48,
+		borderRadius: 14,
+		backgroundColor: '#EF4444',
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	modalPrimaryBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+	modalSecondaryBtn: {
+		width: '100%',
+		height: 48,
+		borderRadius: 14,
+		backgroundColor: '#F0EFF8',
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	modalSecondaryBtnText: { color: '#713DE8', fontSize: 15, fontWeight: '700' },
+	modalBtnPressed: { opacity: 0.82 },
+	modalBtnDisabled: { opacity: 0.65 },
 });

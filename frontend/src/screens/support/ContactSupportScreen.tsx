@@ -22,7 +22,7 @@ export default function ContactSupportScreen() {
   const styles = useThemedStyles(createStyles);
   const { t } = useLanguage();
   const handleEmailPress = () => {
-    const email = 'support@chorehub.com';
+    const email = 'supportchorehub@gmail.com';
     Linking.openURL(`mailto:${email}`).catch(() => {
       alert(
         t('ui_email_support'),
@@ -93,7 +93,7 @@ export default function ContactSupportScreen() {
             </View>
             <View style={styles.cardContent}>
               <Text style={styles.cardTitle}>{t('email')}</Text>
-              <Text style={styles.cardDetail}>support@chorehub.com</Text>
+              <Text style={styles.cardDetail}>supportchorehub@gmail.com</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={themeColors.isDark ? themeColors.textSecondary : "#8A879A"} />
           </Pressable>

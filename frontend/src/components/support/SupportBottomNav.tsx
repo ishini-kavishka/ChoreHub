@@ -40,8 +40,6 @@ const CUSTOMER_TABS: TabItem[] = [
 ];
 const ADMIN_TABS: TabItem[] = [
   { id: 'home', label: t('ui_dashboard'), icon: 'grid-outline', activeIcon: 'grid', route: '/admin/dashboard' },
-  { id: 'chores', label: t('chores'), icon: 'clipboard-outline', activeIcon: 'clipboard', route: '/admin/chores' },
-  { id: 'members', label: t('admin_members'), icon: 'people-outline', activeIcon: 'people', route: '/admin/members' },
   { id: 'profile', label: t('profile_title'), icon: 'person-outline', activeIcon: 'person', route: '/admin/profile' },
 ];
   const insets = useSafeAreaInsets();

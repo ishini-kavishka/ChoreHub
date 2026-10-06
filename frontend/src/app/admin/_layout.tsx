@@ -15,8 +15,8 @@ export default function AdminLayout() {
       <Tabs.Screen name="dashboard" options={{ title: t('home') }} />
       <Tabs.Screen name="progress" options={{ title: t('progress_title') }} />
       <Tabs.Screen name="notifications" options={{ title: t('notifications_title') }} />
-      <Tabs.Screen name="chores" options={{ title: t('chores') }} />
-      <Tabs.Screen name="members" options={{ title: t('admin_members') }} />
+      <Tabs.Screen name="chores" options={{ href: null }} />
+      <Tabs.Screen name="members" options={{ href: null }} />
       <Tabs.Screen name="profile" options={{ title: t('profile_title') }} />
       <Tabs.Screen name="add-chore" options={{ href: null }} />
       <Tabs.Screen name="edit-chore" options={{ href: null }} />

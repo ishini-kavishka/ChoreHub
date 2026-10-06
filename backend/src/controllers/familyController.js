@@ -100,7 +100,7 @@ async function getMyFamily(req, res, next) {
     if (!family) {
       // Return self as single member list if user has no family yet
       const selfUser = await pool.query(
-        `SELECT id, full_name AS name, email, profile_image_url AS avatar, is_active, role, 'Admin' AS relationship
+        `SELECT id, full_name AS name, email, profile_image_url AS avatar, is_active, role, 'Other' AS relationship
          FROM users WHERE id = $1`,
         [userId]
       );

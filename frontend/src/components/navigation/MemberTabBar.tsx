@@ -17,22 +17,22 @@ interface TabConfig {
 
 const TAB_CONFIGS: Record<string, TabConfig> = {
   index: {
-    labelKey: 'tab_home',
+    labelKey: 'home',
     activeIcon: 'home',
     inactiveIcon: 'home-outline',
   },
   chores: {
-    labelKey: 'tab_chores',
+    labelKey: 'chores',
     activeIcon: 'clipboard',
     inactiveIcon: 'clipboard-outline',
   },
   calendar: {
-    labelKey: 'tab_calendar',
+    labelKey: 'calendar',
     activeIcon: 'calendar',
     inactiveIcon: 'calendar-outline',
   },
   profile: {
-    labelKey: 'tab_profile',
+    labelKey: 'profile',
     activeIcon: 'person',
     inactiveIcon: 'person-outline',
   },
