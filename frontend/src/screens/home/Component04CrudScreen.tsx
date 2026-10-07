@@ -119,10 +119,31 @@ export default function Component04CrudScreen({ kind, familyId, admin = false }:
         style={[s.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
         {text(time.split(' ')[1] || '')}<Ionicons name="time-outline" size={20} color={colors.primary}/>
       </Pressable></View>;
-      if (Platform?.OS !== 'android' && Platform?.OS !== 'ios') return field(label, time.split(' ')[0], value => {
-        setTime(value + ' ' + (time.split(' ')[1] || ''));
-      }, 10, 'YYYY-MM-DD');
-      return <View style={{ gap: 7 }}>{text(label)}<Pressable accessibilityRole="button" accessibilityLabel={label} disabled={saving} onPress={() => setPicker(mode)} style={[s.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, minHeight: 48, justifyContent: 'center' }]}>{text(time.split(' ')[0])}</Pressable></View>;
+      const dateValue = time.split(' ')[0];
+      const minimumDate = editor?.id ? undefined : localInput(new Date().toISOString()).split(' ')[0];
+      const dateStyle = [s.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, minHeight: 48, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const }];
+      const contents = <><Text style={{ color: colors.textPrimary, fontSize: 16, lineHeight: 22 }}>{dateValue}</Text><Ionicons name="calendar-outline" size={20} color={colors.primary}/></>;
+      if (Platform.OS === 'web') return <View style={{ gap: 7 }}>{text(label)}<View style={dateStyle}>
+        {contents}
+        {React.createElement('input', {
+          type: 'date', 'aria-label': label, value: dateValue, min: minimumDate, disabled: saving,
+          // Keep the existing YYYY-MM-DD presentation; the native input covers the
+          // entire field so its calendar also opens when the icon is tapped.
+          style: { position: 'absolute', inset: 0, width: '100%', height: '100%', boxSizing: 'border-box', opacity: 0, cursor: 'pointer', colorScheme: colors.isDark ? 'dark' : 'light' },
+          onClick: (event: React.MouseEvent<HTMLInputElement>) => {
+            try { event.currentTarget.showPicker?.(); } catch { /* The native input remains available as a fallback. */ }
+          },
+          onKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => {
+            if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); try { event.currentTarget.showPicker?.(); } catch {} }
+            else if (event.key !== 'Tab' && event.key !== 'Escape') event.preventDefault();
+          },
+          onChange: (event: React.ChangeEvent<HTMLInputElement>) => {
+            const value = event.target.value;
+            if (value && event.target.validity.valid) setTime(current => value + ' ' + (current.split(' ')[1] || ''));
+          },
+        })}
+      </View></View>;
+      return <View style={{ gap: 7 }}>{text(label)}<Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled: saving }} disabled={saving} onPress={() => setPicker('date')} style={dateStyle}>{contents}</Pressable></View>;
     };
     const clientBack = () => { if (editor || detail) { setEditor(null); setDetail(null); setError(''); reveal(); } else router.navigate('/home/notifications'); };
     const showDetails = (item: Reminder) => void action(async () => { setDetail((await reminderService.get(item.id)).reminder); setEditor(null); reveal(); });
@@ -150,9 +171,14 @@ export default function Component04CrudScreen({ kind, familyId, admin = false }:
           {field(`${t('reminder_title')} *`, title, setTitle, 200)}
           {field(t('crud_note'), body, setBody, 2000, '', true)}
           {timeField('date')}{timeField('time')}
-          {picker === 'date' && React.createElement(require('@react-native-community/datetimepicker').default, {
-            value: new Date(parseLocalTime(time) || new Date(Date.now() + 60_000).toISOString()), mode: picker,
-            onChange: (event: { type: string }, value?: Date) => { setPicker(null); if (event.type !== 'dismissed' && value) { setTime(localInput(value.toISOString())); } },
+          {picker === 'date' && Platform.OS !== 'web' && React.createElement(require('@react-native-community/datetimepicker').default, {
+            value: new Date(time.split(' ')[0] + 'T12:00:00'), mode: 'date', display: Platform.OS === 'ios' ? 'inline' : 'calendar',
+            minimumDate: editor.id ? undefined : new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()),
+            themeVariant: colors.isDark ? 'dark' : 'light', accentColor: colors.primary,
+            onChange: (event: { type: string }, value?: Date) => {
+              setPicker(null);
+              if (event.type !== 'dismissed' && value) setTime(current => localInput(value.toISOString()).split(' ')[0] + ' ' + (current.split(' ')[1] || ''));
+            },
           })}
           {picker === 'time' && Platform.OS === 'android' && React.createElement(require('@react-native-community/datetimepicker').default, {
             value: new Date(2000, 0, 1, Number(pendingTime.split(':')[0]), Number(pendingTime.split(':')[1])), mode: 'time', display: 'clock', is24Hour: true,

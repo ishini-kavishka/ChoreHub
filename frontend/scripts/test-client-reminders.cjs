@@ -64,6 +64,17 @@ Module._load = original;
 const button = (r, label) => r.root.findAllByType('button').find(n => n.props.accessibilityLabel === label);
 const press = async (r, label) => { assert.ok(button(r, label), label); await act(async () => { await button(r, label).props.onPress(); }); };
 const enter = async (r, label, value) => {
+  if (label === 'Reminder Date *') {
+    const input = r.root.findAllByType('input').find(n => n.props['aria-label'] === label);
+    assert.equal(input.props.type, 'date');
+    let opened = false;
+    input.props.onClick({ currentTarget: { showPicker: () => { opened = true; } } });
+    assert.ok(opened, 'Click opens the browser calendar.');
+    const previousTime = button(r, 'Reminder Time *').findByType('text').props.children;
+    await act(async () => input.props.onChange({ target: { value, validity: { valid: !!value } } }));
+    assert.equal(button(r, 'Reminder Time *').findByType('text').props.children, previousTime, 'Date selection preserves the time.');
+    return;
+  }
   if (label === 'Reminder Time *') {
     await press(r, label);
     const selectors = r.root.findAllByType('select');
@@ -90,7 +101,12 @@ test('client forms, persisted-service refresh, details/edit/back and confirmed d
     await enter(r, 'Reminder Title *', 'Take bins outside'); await enter(r, 'Note (optional)', 'User text stays unchanged');
     assert.ok(!JSON.stringify(r.toJSON()).includes('Assigned Chore'));
     assert.ok(!JSON.stringify(r.toJSON()).includes('No linked chore'));
-    await enter(r, 'Reminder Date *', ''); assert.equal(r.root.findAllByType('input').find(n => n.props.accessibilityLabel === 'Reminder Date *').props.value, '');
+    const dateInput = r.root.findAllByType('input').find(n => n.props['aria-label'] === 'Reminder Date *');
+    const initialDate = dateInput.props.value;
+    await enter(r, 'Reminder Date *', ''); assert.equal(dateInput.props.value, initialDate, 'Empty dates do not replace the selection.');
+    await act(async () => dateInput.props.onChange({ target: { value: '2099-02-30', validity: { valid: false } } }));
+    assert.equal(dateInput.props.value, initialDate, 'Invalid dates do not replace the selection.');
+    assert.ok(dateInput.props.min, 'New reminders prevent past date selection.');
     await enter(r, 'Reminder Date *', '2099-10-10'); await enter(r, 'Reminder Time *', '18:30');
     failSave = true; await press(r, 'Create Reminder'); assert.ok(button(r, 'Create Reminder'), 'Failure preserves form.'); failSave = false;
     await press(r, 'Create Reminder'); assert.equal(records.length, 1); assert.equal(calls.at(-1)[0], 'POST'); assert.equal(new Date(calls.at(-1)[2].remind_at).getHours(), 18); assert.equal(new Date(calls.at(-1)[2].remind_at).getMinutes(), 30); assert.ok(!Object.hasOwn(calls.at(-1)[2], 'chore_id'));
@@ -98,8 +114,9 @@ test('client forms, persisted-service refresh, details/edit/back and confirmed d
     await press(r, 'Go back'); assert.ok(button(r, '+ Add Reminder')); assert.equal(routes.length, 0, 'Details back stays in list.');
     await enter(r, 'Search', 'Take bins');
     await press(r, 'Edit'); assert.equal(r.root.findAllByType('input').find(n => n.props.accessibilityLabel === 'Reminder Title *').props.value, 'Take bins outside');
+    assert.equal(r.root.findAllByType('input').find(n => n.props['aria-label'] === 'Reminder Date *').props.value, '2099-10-10', 'Edit restores the saved local date.');
     await enter(r, 'Reminder Title *', 'Edited bins'); await enter(r, 'Note (optional)', 'Updated note'); await enter(r, 'Reminder Date *', '2099-10-11'); await enter(r, 'Reminder Time *', '19:45');
-    await press(r, 'Save Changes'); assert.equal(calls.at(-1)[0], 'PATCH'); assert.equal(records[0].title, 'Edited bins'); assert.equal(records[0].note, 'Updated note');
+    await press(r, 'Save Changes'); assert.equal(calls.at(-1)[0], 'PATCH'); assert.equal(records[0].title, 'Edited bins'); assert.equal(records[0].note, 'Updated note'); assert.equal(new Date(records[0].remind_at).getDate(), 11);
     assert.equal(r.root.findAllByType('input').find(n => n.props.accessibilityLabel === 'Search').props.value, '', 'An old search cannot hide the newly saved reminder.');
     await press(r, 'Refresh'); assert.ok(JSON.stringify(r.toJSON()).includes('Edited bins'));
     await press(r, 'Delete'); assert.equal(records.length, 1); await press(r, 'Cancel'); assert.equal(records.length, 1);
@@ -118,7 +135,7 @@ test('personal reminder saves without a chore and persists sound selection',asyn
  if(liveService)return;let r;let choreLoads=0;const old=service.chores;service.chores=async()=>{choreLoads++;throw new Error('Client reminders must not load chores');};records=[];calls=[];
  try{await act(async()=>{r=create(React.createElement(Screen,{kind:'reminders'}));});await press(r,'+ Add Reminder');
  assert.equal(choreLoads,0);assert.ok(!JSON.stringify(r.toJSON()).includes('Assigned Chore'));assert.ok(!JSON.stringify(r.toJSON()).includes('No linked chore'));
- assert.deepEqual(r.root.findAllByType('input').map(n=>n.props.accessibilityLabel).slice(0,4),['Reminder Title *','Note (optional)','Reminder Date *']);
+ assert.deepEqual(r.root.findAllByType('input').map(n=>n.props.accessibilityLabel || n.props['aria-label']).slice(0,4),['Reminder Title *','Note (optional)','Reminder Date *']);
  await enter(r,'Reminder Title *','Private task');await enter(r,'Note (optional)','Owner note');await enter(r,'Reminder Date *','2099-10-10');await enter(r,'Reminder Time *','21:50');
  await act(async()=>r.root.findAllByType('switch').find(n=>n.props.accessibilityLabel==='Sound').props.onValueChange(false));await press(r,'Create Reminder');
  assert.ok(!Object.hasOwn(calls.at(-1)[2], 'chore_id'));assert.equal(calls.at(-1)[2].sound,false);assert.equal(records.length,1);
@@ -126,4 +143,24 @@ test('personal reminder saves without a chore and persists sound selection',asyn
  await enter(r,'Reminder Title *','Updated private task');await act(async()=>r.root.findAllByType('switch').find(n=>n.props.accessibilityLabel==='Vibrate when reminder arrives').props.onValueChange(false));await press(r,'Save Changes');
  assert.ok(!Object.hasOwn(calls.at(-1)[2],'chore_id'));assert.equal(calls.at(-1)[2].vibrate,false);assert.equal(records[0].title,'Updated private task');assert.equal(choreLoads,0);
  }finally{service.chores=old;if(r)await act(async()=>r.unmount());}
+});
+
+test('date field and browser calendar follow the global light and dark theme', async () => {
+  for (const isDark of [false, true]) {
+    colors.isDark = isDark;
+    let r;
+    try {
+      await act(async () => { r = create(React.createElement(Screen, { kind: 'reminders' })); });
+      await press(r, '+ Add Reminder');
+      const input = r.root.findAllByType('input').find(n => n.props['aria-label'] === 'Reminder Date *');
+      assert.equal(input.props.style.colorScheme, isDark ? 'dark' : 'light');
+      const fieldStyle = input.parent.props.style[1];
+      assert.equal(fieldStyle.backgroundColor, colors.inputBackground);
+      assert.equal(fieldStyle.borderColor, colors.border);
+      const icon = input.parent.findByType('icon');
+      assert.equal(icon.props.name, 'calendar-outline');
+      assert.equal(icon.props.color, colors.primary);
+      assert.equal(icon.props.size, 20);
+    } finally { if (r) await act(async () => r.unmount()); }
+  }
 });
