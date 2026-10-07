@@ -33,6 +33,7 @@ export default function Component04CrudScreen({ kind, familyId, admin = false }:
   const [items, setItems] = useState<RecordItem[]>([]), [chores, setChores] = useState<{ id: string; title: string; due_date?: string | null }[]>([]);
   const [sound, setSound] = useState(true);
   const [vibrate, setVibrate] = useState(true);
+  const [pendingTime, setPendingTime] = useState('00:00');
   const [picker, setPicker] = useState<'date' | 'time' | null>(null);
   const [family, setFamily] = useState(familyId || ''), [canManage, setCanManage] = useState(reminders);
   const [busy, setBusy] = useState(true), [saving, setSaving] = useState(false), lock = useRef(false);
@@ -113,10 +114,15 @@ export default function Component04CrudScreen({ kind, familyId, admin = false }:
     const heading = t(editor ? editor.id ? 'reminder_edit' : 'reminder_add' : detail ? 'reminder_details' : 'my_reminders');
     const timeField = (mode: 'date' | 'time') => {
       const label = `${t(mode === 'date' ? 'reminder_date' : 'reminder_time')} *`;
-      if (Platform?.OS !== 'android' && Platform?.OS !== 'ios') return field(label, mode === 'date' ? time.split(' ')[0] : time.split(' ')[1] || '', value => {
-        setTime(mode === 'date' ? `${value} ${time.split(' ')[1] || ''}` : `${time.split(' ')[0]} ${value}`);
-      }, mode === 'date' ? 10 : 5, mode === 'date' ? 'YYYY-MM-DD' : 'HH:mm');
-      return <View style={{ gap: 7 }}>{text(label)}<Pressable accessibilityRole="button" accessibilityLabel={label} disabled={saving} onPress={() => setPicker(mode)} style={[s.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, minHeight: 48, justifyContent: 'center' }]}>{text(mode === 'date' ? time.split(' ')[0] : time.split(' ')[1])}</Pressable></View>;
+      if (mode === 'time') return <View style={{ gap: 7 }}>{text(label)}<Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled: saving }} disabled={saving}
+        onPress={() => { setPendingTime(time.split(' ')[1] || '00:00'); setPicker('time'); }}
+        style={[s.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
+        {text(time.split(' ')[1] || '')}<Ionicons name="time-outline" size={20} color={colors.primary}/>
+      </Pressable></View>;
+      if (Platform?.OS !== 'android' && Platform?.OS !== 'ios') return field(label, time.split(' ')[0], value => {
+        setTime(value + ' ' + (time.split(' ')[1] || ''));
+      }, 10, 'YYYY-MM-DD');
+      return <View style={{ gap: 7 }}>{text(label)}<Pressable accessibilityRole="button" accessibilityLabel={label} disabled={saving} onPress={() => setPicker(mode)} style={[s.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, minHeight: 48, justifyContent: 'center' }]}>{text(time.split(' ')[0])}</Pressable></View>;
     };
     const clientBack = () => { if (editor || detail) { setEditor(null); setDetail(null); setError(''); reveal(); } else router.navigate('/home/notifications'); };
     const showDetails = (item: Reminder) => void action(async () => { setDetail((await reminderService.get(item.id)).reminder); setEditor(null); reveal(); });
@@ -144,10 +150,40 @@ export default function Component04CrudScreen({ kind, familyId, admin = false }:
           {field(`${t('reminder_title')} *`, title, setTitle, 200)}
           {field(t('crud_note'), body, setBody, 2000, '', true)}
           {timeField('date')}{timeField('time')}
-          {picker && React.createElement(require('@react-native-community/datetimepicker').default, {
+          {picker === 'date' && React.createElement(require('@react-native-community/datetimepicker').default, {
             value: new Date(parseLocalTime(time) || new Date(Date.now() + 60_000).toISOString()), mode: picker,
             onChange: (event: { type: string }, value?: Date) => { setPicker(null); if (event.type !== 'dismissed' && value) { setTime(localInput(value.toISOString())); } },
           })}
+          {picker === 'time' && Platform.OS === 'android' && React.createElement(require('@react-native-community/datetimepicker').default, {
+            value: new Date(2000, 0, 1, Number(pendingTime.split(':')[0]), Number(pendingTime.split(':')[1])), mode: 'time', display: 'clock', is24Hour: true,
+            onChange: (event: { type: string }, value?: Date) => {
+              setPicker(null);
+              if (event.type === 'set' && value) setTime(current => `${current.split(' ')[0]} ${localInput(value.toISOString()).split(' ')[1]}`);
+            },
+          })}
+          <Modal visible={picker === 'time' && Platform.OS !== 'android'} transparent animationType="fade" onRequestClose={() => setPicker(null)}>
+            <View style={{ flex: 1, backgroundColor: '#0008', justifyContent: 'center', padding: 20 }}><View style={{ width: '100%', maxWidth: 440, alignSelf: 'center' }}>{card(<>
+              {text(t('reminder_time'), false, true)}
+              {Platform.OS === 'ios' ? React.createElement(require('@react-native-community/datetimepicker').default, {
+                value: new Date(2000, 0, 1, Number(pendingTime.split(':')[0]), Number(pendingTime.split(':')[1])), mode: 'time', display: 'spinner', themeVariant: colors.isDark ? 'dark' : 'light',
+                onChange: (_event: unknown, value?: Date) => { if (value) setPendingTime(localInput(value.toISOString()).split(' ')[1]); },
+              }) : <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+                {(['hour', 'minute'] as const).map((part, index) => React.createElement('select', {
+                  key: part, 'aria-label': `${t('reminder_time')} (${index === 0 ? 'HH' : 'mm'})`, value: pendingTime.split(':')[index],
+                  style: { backgroundColor: colors.inputBackground, color: colors.textPrimary, border: `1px solid ${colors.border}`, borderRadius: 14, padding: 12, fontFamily: 'inherit', fontSize: 15 },
+                  onChange: (event: React.ChangeEvent<HTMLSelectElement>) => {
+                    const value = event.target.value;
+                    setPendingTime(current => index === 0 ? `${value}:${current.split(':')[1]}` : `${current.split(':')[0]}:${value}`);
+                  },
+                }, Array.from({ length: index === 0 ? 24 : 60 }, (_, n) => {
+                  const value = String(n).padStart(2, '0'); return React.createElement('option', { key: value, value }, value);
+                })))}
+              </View>}
+              <View style={s.wrap}>{button(t('crud_cancel'), () => setPicker(null))}{button(t('crud_save'), () => {
+                setTime(current => `${current.split(' ')[0]} ${pendingTime}`); setPicker(null);
+              }, true)}</View>
+            </>)}</View></View>
+          </Modal>
           {text(t('reminder_local_time'), true)}
           {text(t('reminder_alert'), false, true)}
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>{text(t('reminder_sound'))}<Switch accessibilityLabel={t('reminder_sound')} value={sound} disabled={saving} onValueChange={setSound} trackColor={{ true: colors.primary }} /></View>

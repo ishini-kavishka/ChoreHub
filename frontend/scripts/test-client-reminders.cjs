@@ -63,7 +63,21 @@ const { default: Screen, parseLocalTime } = require('../src/screens/home/Compone
 Module._load = original;
 const button = (r, label) => r.root.findAllByType('button').find(n => n.props.accessibilityLabel === label);
 const press = async (r, label) => { assert.ok(button(r, label), label); await act(async () => { await button(r, label).props.onPress(); }); };
-const enter = async (r, label, value) => { await act(async () => r.root.findAllByType('input').find(n => n.props.accessibilityLabel === label).props.onChangeText(value)); };
+const enter = async (r, label, value) => {
+  if (label === 'Reminder Time *') {
+    await press(r, label);
+    const selectors = r.root.findAllByType('select');
+    assert.equal(selectors.length, 2, 'Time field opens hour/minute picker.');
+    const previous = button(r, label).findByType('text').props.children;
+    for (const [index, part] of value.split(':').entries()) await act(async () => selectors[index].props.onChange({ target: { value: part } }));
+    assert.equal(button(r, label).findByType('text').props.children, previous, 'Selection is pending until confirmed.');
+    await press(r, 'Save');
+    assert.equal(r.root.findAllByType('select').length, 0);
+    assert.ok(button(r, label).findByType('text').props.children.includes(value), 'Confirmed time appears in field.');
+    return;
+  }
+  await act(async () => r.root.findAllByType('input').find(n => n.props.accessibilityLabel === label).props.onChangeText(value));
+};
 
 test('client forms, persisted-service refresh, details/edit/back and confirmed deletion use existing CRUD handlers', async () => {
   let r;
@@ -79,7 +93,7 @@ test('client forms, persisted-service refresh, details/edit/back and confirmed d
     await enter(r, 'Reminder Date *', ''); assert.equal(r.root.findAllByType('input').find(n => n.props.accessibilityLabel === 'Reminder Date *').props.value, '');
     await enter(r, 'Reminder Date *', '2099-10-10'); await enter(r, 'Reminder Time *', '18:30');
     failSave = true; await press(r, 'Create Reminder'); assert.ok(button(r, 'Create Reminder'), 'Failure preserves form.'); failSave = false;
-    await press(r, 'Create Reminder'); assert.equal(records.length, 1); assert.equal(calls.at(-1)[0], 'POST'); assert.ok(!Object.hasOwn(calls.at(-1)[2], 'chore_id'));
+    await press(r, 'Create Reminder'); assert.equal(records.length, 1); assert.equal(calls.at(-1)[0], 'POST'); assert.equal(new Date(calls.at(-1)[2].remind_at).getHours(), 18); assert.equal(new Date(calls.at(-1)[2].remind_at).getMinutes(), 30); assert.ok(!Object.hasOwn(calls.at(-1)[2], 'chore_id'));
     assert.ok(button(r, 'View')); await press(r, 'View'); assert.ok(button(r, 'Edit Reminder')); assert.ok(!button(r, '+ Add Reminder'));
     await press(r, 'Go back'); assert.ok(button(r, '+ Add Reminder')); assert.equal(routes.length, 0, 'Details back stays in list.');
     await enter(r, 'Search', 'Take bins');
@@ -104,7 +118,7 @@ test('personal reminder saves without a chore and persists sound selection',asyn
  if(liveService)return;let r;let choreLoads=0;const old=service.chores;service.chores=async()=>{choreLoads++;throw new Error('Client reminders must not load chores');};records=[];calls=[];
  try{await act(async()=>{r=create(React.createElement(Screen,{kind:'reminders'}));});await press(r,'+ Add Reminder');
  assert.equal(choreLoads,0);assert.ok(!JSON.stringify(r.toJSON()).includes('Assigned Chore'));assert.ok(!JSON.stringify(r.toJSON()).includes('No linked chore'));
- assert.deepEqual(r.root.findAllByType('input').map(n=>n.props.accessibilityLabel).slice(0,4),['Reminder Title *','Note (optional)','Reminder Date *','Reminder Time *']);
+ assert.deepEqual(r.root.findAllByType('input').map(n=>n.props.accessibilityLabel).slice(0,4),['Reminder Title *','Note (optional)','Reminder Date *']);
  await enter(r,'Reminder Title *','Private task');await enter(r,'Note (optional)','Owner note');await enter(r,'Reminder Date *','2099-10-10');await enter(r,'Reminder Time *','21:50');
  await act(async()=>r.root.findAllByType('switch').find(n=>n.props.accessibilityLabel==='Sound').props.onValueChange(false));await press(r,'Create Reminder');
  assert.ok(!Object.hasOwn(calls.at(-1)[2], 'chore_id'));assert.equal(calls.at(-1)[2].sound,false);assert.equal(records.length,1);
