@@ -116,12 +116,263 @@ export default function Component04CrudScreen({ kind, familyId, admin = false }:
     const chooseQuick = (minutes: number | null) => {
       setQuickMinutes(minutes); if (minutes !== null && due) setTime(localInput(new Date(Date.parse(due) - minutes * 60_000).toISOString()));
     };
+    const [showCalendarModal, setShowCalendarModal] = useState(false);
+    const [showTimeModal, setShowTimeModal] = useState(false);
+    const [calendarViewDate, setCalendarViewDate] = useState(() => {
+      const parts = time.split(' ')[0]?.split('-');
+      if (parts && parts.length === 3) {
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1;
+        if (!isNaN(y) && !isNaN(m)) return new Date(y, m, 1);
+      }
+      return new Date();
+    });
+
+    const openPickerMode = (mode: 'date' | 'time') => {
+      if (mode === 'date') {
+        const parts = time.split(' ')[0]?.split('-');
+        if (parts && parts.length === 3) {
+          const y = parseInt(parts[0], 10);
+          const m = parseInt(parts[1], 10) - 1;
+          if (!isNaN(y) && !isNaN(m)) setCalendarViewDate(new Date(y, m, 1));
+        }
+        setShowCalendarModal(true);
+      } else {
+        setShowTimeModal(true);
+      }
+    };
+
     const timeField = (mode: 'date' | 'time') => {
-      const label = `${t(mode === 'date' ? 'reminder_date' : 'reminder_time')} *`;
-      if (Platform?.OS !== 'android' && Platform?.OS !== 'ios') return field(label, mode === 'date' ? time.split(' ')[0] : time.split(' ')[1] || '', value => {
-        setQuickMinutes(null); setTime(mode === 'date' ? `${value} ${time.split(' ')[1] || ''}` : `${time.split(' ')[0]} ${value}`);
-      }, mode === 'date' ? 10 : 5, mode === 'date' ? 'YYYY-MM-DD' : 'HH:mm');
-      return <View style={{ gap: 7 }}>{text(label)}<Pressable accessibilityRole="button" accessibilityLabel={label} disabled={saving} onPress={() => setPicker(mode)} style={[s.input, { backgroundColor: colors.inputBackground, borderColor: colors.border, minHeight: 48, justifyContent: 'center' }]}>{text(mode === 'date' ? time.split(' ')[0] : time.split(' ')[1])}</Pressable></View>;
+      const isDate = mode === 'date';
+      const label = `${t(isDate ? 'reminder_date' : 'reminder_time')} *`;
+      const val = isDate ? time.split(' ')[0] : time.split(' ')[1] || '';
+      const iconName = isDate ? 'calendar-outline' : 'time-outline';
+
+      const updateVal = (v: string) => {
+        setQuickMinutes(null);
+        if (isDate) {
+          setTime(`${v} ${time.split(' ')[1] || ''}`);
+        } else {
+          setTime(`${time.split(' ')[0]} ${v}`);
+        }
+      };
+
+      return (
+        <View style={{ gap: 6 }}>
+          <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: '600' }}>{label}</Text>
+          <View
+            style={[
+              s.input,
+              {
+                backgroundColor: colors.inputBackground,
+                borderColor: colors.border,
+                borderRadius: 12,
+                height: 50,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingHorizontal: 16,
+              },
+            ]}
+          >
+            <TextInput
+              accessibilityLabel={label}
+              value={val}
+              onChangeText={updateVal}
+              maxLength={isDate ? 10 : 5}
+              editable={!saving}
+              placeholder={isDate ? 'YYYY-MM-DD' : 'HH:mm'}
+              placeholderTextColor={colors.textSecondary}
+              style={{ flex: 1, color: colors.textPrimary, fontSize: 15, fontWeight: '500', paddingVertical: 0 }}
+            />
+            <Pressable
+              disabled={saving}
+              onPress={() => openPickerMode(mode)}
+              hitSlop={8}
+              accessibilityLabel={`Open ${mode} picker`}
+              accessibilityRole="button"
+              style={({ pressed }) => [{ paddingLeft: 8, opacity: pressed ? 0.6 : 1 }]}
+            >
+              <Ionicons name={iconName} size={22} color={colors.primary} />
+            </Pressable>
+          </View>
+        </View>
+      );
+    };
+    const renderCalendarModal = () => {
+      if (!showCalendarModal) return null;
+
+      const year = calendarViewDate.getFullYear();
+      const month = calendarViewDate.getMonth();
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+      const firstDayIndex = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const prevMonthDays = new Date(year, month, 0).getDate();
+
+      const cells: Array<{ day: number; currentMonth: boolean; dateStr: string }> = [];
+
+      for (let i = firstDayIndex - 1; i >= 0; i--) {
+        const d = prevMonthDays - i;
+        const m = month === 0 ? 11 : month - 1;
+        const y = month === 0 ? year - 1 : year;
+        const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        cells.push({ day: d, currentMonth: false, dateStr });
+      }
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        cells.push({ day: d, currentMonth: true, dateStr });
+      }
+
+      const remaining = (cells.length > 35 ? 42 : 35) - cells.length;
+      for (let d = 1; d <= remaining; d++) {
+        const m = month === 11 ? 0 : month + 1;
+        const y = month === 11 ? year + 1 : year;
+        const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        cells.push({ day: d, currentMonth: false, dateStr });
+      }
+
+      const currentDateVal = time.split(' ')[0] || '';
+
+      const changeMonth = (delta: number) => {
+        setCalendarViewDate(new Date(year, month + delta, 1));
+      };
+
+      const selectDate = (dateStr: string) => {
+        setQuickMinutes(null);
+        const currentTimePart = time.split(' ')[1] || '09:00';
+        setTime(`${dateStr} ${currentTimePart}`);
+        setShowCalendarModal(false);
+      };
+
+      return (
+        <Modal visible animationType="fade" transparent onRequestClose={() => setShowCalendarModal(false)}>
+          <Pressable onPress={() => setShowCalendarModal(false)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 16 }}>
+            <Pressable style={{ width: '100%', maxWidth: 360, backgroundColor: colors.card, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: colors.border, gap: 16 }}>
+              {/* Header */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Pressable onPress={() => changeMonth(-1)} style={{ padding: 8 }}>
+                  <Ionicons name="chevron-back" size={20} color={colors.primary} />
+                </Pressable>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: colors.textPrimary }}>
+                  {`${monthNames[month]} ${year}`}
+                </Text>
+                <Pressable onPress={() => changeMonth(1)} style={{ padding: 8 }}>
+                  <Ionicons name="chevron-forward" size={20} color={colors.primary} />
+                </Pressable>
+              </View>
+
+              {/* Weekday Labels */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                {dayNames.map(d => (
+                  <Text key={d} style={{ width: 40, textAlign: 'center', fontSize: 12, fontWeight: '700', color: colors.textSecondary }}>
+                    {d}
+                  </Text>
+                ))}
+              </View>
+
+              {/* Grid */}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+                {cells.map((cell, idx) => {
+                  const isSelected = cell.dateStr === currentDateVal;
+                  return (
+                    <Pressable
+                      key={`${cell.dateStr}-${idx}`}
+                      onPress={() => selectDate(cell.dateStr)}
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 20,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: isSelected ? colors.primary : 'transparent',
+                        marginVertical: 2,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          fontWeight: isSelected ? '700' : '500',
+                          color: isSelected ? '#FFFFFF' : cell.currentMonth ? colors.textPrimary : colors.textSecondary + '60',
+                        }}
+                      >
+                        {cell.day}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              {/* Close */}
+              <Pressable
+                onPress={() => setShowCalendarModal(false)}
+                style={{ backgroundColor: colors.surface, borderRadius: 12, height: 44, alignItems: 'center', justifyContent: 'center', marginTop: 4 }}
+              >
+                <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 14 }}>{t('crud_cancel')}</Text>
+              </Pressable>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      );
+    };
+
+    const renderTimeModal = () => {
+      if (!showTimeModal) return null;
+
+      const presets = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'];
+      const currentTimeVal = time.split(' ')[1] || '';
+
+      const selectTime = (tVal: string) => {
+        setQuickMinutes(null);
+        const currentDatePart = time.split(' ')[0] || localInput(new Date().toISOString()).split(' ')[0];
+        setTime(`${currentDatePart} ${tVal}`);
+        setShowTimeModal(false);
+      };
+
+      return (
+        <Modal visible animationType="fade" transparent onRequestClose={() => setShowTimeModal(false)}>
+          <Pressable onPress={() => setShowTimeModal(false)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 16 }}>
+            <Pressable style={{ width: '100%', maxWidth: 360, backgroundColor: colors.card, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: colors.border, gap: 16 }}>
+              <Text style={{ fontSize: 17, fontWeight: '800', color: colors.textPrimary, textAlign: 'center' }}>
+                {t('reminder_time')}
+              </Text>
+
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
+                {presets.map(tVal => {
+                  const isSel = tVal === currentTimeVal;
+                  return (
+                    <Pressable
+                      key={tVal}
+                      onPress={() => selectTime(tVal)}
+                      style={{
+                        backgroundColor: isSel ? colors.primary : colors.surface,
+                        borderRadius: 12,
+                        paddingHorizontal: 16,
+                        paddingVertical: 12,
+                        borderWidth: 1,
+                        borderColor: isSel ? colors.primary : colors.border,
+                      }}
+                    >
+                      <Text style={{ color: isSel ? '#FFFFFF' : colors.textPrimary, fontWeight: '700', fontSize: 15 }}>
+                        {tVal}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <Pressable
+                onPress={() => setShowTimeModal(false)}
+                style={{ backgroundColor: colors.surface, borderRadius: 12, height: 44, alignItems: 'center', justifyContent: 'center', marginTop: 8 }}
+              >
+                <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 14 }}>{t('crud_cancel')}</Text>
+              </Pressable>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      );
     };
     const clientBack = () => { if (editor || detail) { setEditor(null); setDetail(null); setError(''); reveal(); } else router.navigate('/home/notifications'); };
     const showDetails = (item: Reminder) => void action(async () => { setDetail((await reminderService.get(item.id)).reminder); setEditor(null); reveal(); });
@@ -136,6 +387,8 @@ export default function Component04CrudScreen({ kind, familyId, admin = false }:
       {button(t('crud_delete'), () => setDeleting(item), false, saving, true)}
     </View>;
     return <SafeAreaView edges={['top', 'left', 'right']} style={[s.fill, { backgroundColor: colors.background }]}>
+      {renderCalendarModal()}
+      {renderTimeModal()}
       <View style={[s.header, { borderColor: colors.border }]}>
         <Pressable accessibilityRole="button" accessibilityLabel={t('admin_back')} disabled={saving} style={s.icon} onPress={clientBack}><Ionicons name="arrow-back" size={24} color={colors.primary}/></Pressable>
         <View style={{ flex: 1 }}>{text(heading, false, true)}</View>
@@ -145,33 +398,184 @@ export default function Component04CrudScreen({ kind, familyId, admin = false }:
         {!!error && <Text accessibilityRole="alert" style={{ color: c.error, lineHeight: 22 }}>{translateFeedback(error, t)}</Text>}
         {!!notice && text(notice)}
         {busy && <ActivityIndicator color={colors.primary}/>}
-        {editor ? card(<>
-          {field(`${t('reminder_title')} *`, title, setTitle, 200)}
-          {field(t('crud_note'), body, setBody, 2000, '', true)}
-          {text(`${t('reminder_chore')} (${t('reminder_optional')})`)}
-          {editor.id ? text(chores.find(ch => ch.id === chore)?.title || (items.find(item => item.id === editor.id) as Reminder | undefined)?.chore_name || t(chore ? 'crud_unavailable' : 'reminder_no_chore')) : <>
-            {!chores.length && text(t('reminder_chore_optional'), true)}
-            {button(t('reminder_no_chore'), () => { setChore(''); setQuickMinutes(null); })}
-            {chores.map(ch => <Pressable key={ch.id} accessibilityRole="radio" accessibilityLabel={ch.title} accessibilityState={{ checked: chore === ch.id, disabled: saving }} disabled={saving} onPress={() => chooseChore(ch.id)}
-              style={[s.action, { borderWidth: 1, borderColor: chore === ch.id ? colors.primary : colors.border, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 10 }]}>
-              <Ionicons name={chore === ch.id ? 'radio-button-on' : 'radio-button-off'} color={colors.primary} size={20}/><View style={{ flex: 1 }}>{text(ch.title)}</View>
-            </Pressable>)}
-          </>}
-          {!!due && <>{text(`${t('reminder_due')}: ${date(due)}`, true)}
-            {text(t('reminder_before'))}<View style={s.wrap}>{[5, 10, 15, 30, 60, null].map(minutes => <Pressable key={String(minutes)} accessibilityRole="radio" accessibilityLabel={t(minutes === null ? 'reminder_custom' : `reminder_before_${minutes}` as TranslationKey)} accessibilityState={{ selected: quickMinutes === minutes, disabled: saving }} disabled={saving} onPress={() => chooseQuick(minutes)} style={[s.action, { backgroundColor: quickMinutes === minutes ? colors.primary : colors.surface }]}><Text style={{ color: quickMinutes === minutes ? '#fff' : colors.primary }}>{t(minutes === null ? 'reminder_custom' : `reminder_before_${minutes}` as TranslationKey)}</Text></Pressable>)}</View>
-          </>}
-          {timeField('date')}{timeField('time')}
-          {picker && React.createElement(require('@react-native-community/datetimepicker').default, {
-            value: new Date(parseLocalTime(time) || new Date(Date.now() + 60_000).toISOString()), mode: picker,
-            onChange: (event: { type: string }, value?: Date) => { setPicker(null); if (event.type !== 'dismissed' && value) { setTime(localInput(value.toISOString())); setQuickMinutes(null); } },
-          })}
-          {text(t('reminder_local_time'), true)}
-          {text(t('reminder_alert'), false, true)}
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>{text(t('reminder_sound'))}<Switch accessibilityLabel={t('reminder_sound')} value={sound} disabled={saving} onValueChange={setSound} trackColor={{ true: colors.primary }} /></View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>{text(t('reminder_vibrate'))}<Switch accessibilityLabel={t('reminder_vibrate')} value={vibrate} disabled={saving} onValueChange={setVibrate} trackColor={{ true: colors.primary }} /></View>
-          {button(t(saving ? 'crud_saving' : editor.id ? 'reminder_save_changes' : 'reminder_create'), save, true, saving)}
-          {button(t('crud_cancel'), clientBack)}
-        </>) : detail && 'remind_at' in detail ? card(<>
+        {editor ? (
+          <View style={[s.card, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: 20, padding: 20, gap: 16 }]}>
+            {/* Reminder Title */}
+            <View style={{ gap: 6 }}>
+              <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: '600' }}>
+                {`${t('reminder_title')} *`}
+              </Text>
+              <TextInput
+                accessibilityLabel={`${t('reminder_title')} *`}
+                value={title}
+                onChangeText={setTitle}
+                maxLength={200}
+                editable={!saving}
+                style={[
+                  s.input,
+                  {
+                    backgroundColor: colors.inputBackground,
+                    color: colors.textPrimary,
+                    borderColor: colors.border,
+                    borderRadius: 12,
+                    minHeight: 50,
+                    paddingHorizontal: 16,
+                  },
+                ]}
+              />
+            </View>
+
+            {/* Note (optional) */}
+            <View style={{ gap: 6 }}>
+              <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: '600' }}>
+                {t('crud_note')}
+              </Text>
+              <TextInput
+                accessibilityLabel={t('crud_note')}
+                value={body}
+                onChangeText={setBody}
+                maxLength={2000}
+                editable={!saving}
+                multiline
+                style={[
+                  s.input,
+                  {
+                    backgroundColor: colors.inputBackground,
+                    color: colors.textPrimary,
+                    borderColor: colors.border,
+                    borderRadius: 12,
+                    minHeight: 100,
+                    paddingHorizontal: 16,
+                    paddingTop: 12,
+                    paddingBottom: 12,
+                    textAlignVertical: 'top',
+                  },
+                ]}
+              />
+            </View>
+
+            {!!due && (
+              <View style={{ gap: 6 }}>
+                {text(`${t('reminder_due')}: ${date(due)}`, true)}
+                {text(t('reminder_before'))}
+                <View style={s.wrap}>
+                  {[5, 10, 15, 30, 60, null].map(minutes => (
+                    <Pressable
+                      key={String(minutes)}
+                      accessibilityRole="radio"
+                      accessibilityLabel={t(minutes === null ? 'reminder_custom' : `reminder_before_${minutes}` as TranslationKey)}
+                      accessibilityState={{ selected: quickMinutes === minutes, disabled: saving }}
+                      disabled={saving}
+                      onPress={() => chooseQuick(minutes)}
+                      style={[s.action, { backgroundColor: quickMinutes === minutes ? colors.primary : colors.surface, borderRadius: 10 }]}
+                    >
+                      <Text style={{ color: quickMinutes === minutes ? '#fff' : colors.primary }}>
+                        {t(minutes === null ? 'reminder_custom' : `reminder_before_${minutes}` as TranslationKey)}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Reminder Date */}
+            {timeField('date')}
+
+            {/* Reminder Time */}
+            {timeField('time')}
+
+            {/* DateTimePicker modal for native */}
+            {picker && React.createElement(require('@react-native-community/datetimepicker').default, {
+              value: new Date(parseLocalTime(time) || new Date(Date.now() + 60_000).toISOString()), mode: picker,
+              onChange: (event: { type: string }, value?: Date) => { setPicker(null); if (event.type !== 'dismissed' && value) { setTime(localInput(value.toISOString())); setQuickMinutes(null); } },
+            })}
+
+            {/* Helper Subtext */}
+            <Text style={{ color: colors.textSecondary, fontSize: 13, lineHeight: 18, marginTop: -4 }}>
+              {t('reminder_local_time')}
+            </Text>
+
+            {/* Alert Section */}
+            <View style={{ gap: 12, marginTop: 4 }}>
+              <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: '800' }}>
+                {t('reminder_alert')}
+              </Text>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: '600' }}>
+                  {t('reminder_sound')}
+                </Text>
+                <Switch
+                  accessibilityLabel={t('reminder_sound')}
+                  value={sound}
+                  disabled={saving}
+                  onValueChange={setSound}
+                  trackColor={{ false: '#CBD5E1', true: colors.primary }}
+                  thumbColor={sound ? '#10B981' : '#F1F5F9'}
+                />
+              </View>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: '600' }}>
+                  {t('reminder_vibrate')}
+                </Text>
+                <Switch
+                  accessibilityLabel={t('reminder_vibrate')}
+                  value={vibrate}
+                  disabled={saving}
+                  onValueChange={setVibrate}
+                  trackColor={{ false: '#CBD5E1', true: colors.primary }}
+                  thumbColor={vibrate ? '#10B981' : '#F1F5F9'}
+                />
+              </View>
+            </View>
+
+            {/* Primary Action Button */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t(saving ? 'crud_saving' : editor.id ? 'reminder_save_changes' : 'reminder_create')}
+              disabled={saving}
+              onPress={save}
+              style={({ pressed }) => [
+                {
+                  backgroundColor: colors.primary,
+                  borderRadius: 14,
+                  height: 52,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginTop: 8,
+                  opacity: saving ? 0.6 : pressed ? 0.88 : 1,
+                },
+              ]}
+            >
+              <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '800' }}>
+                {t(saving ? 'crud_saving' : editor.id ? 'reminder_save_changes' : 'reminder_create')}
+              </Text>
+            </Pressable>
+
+            {/* Cancel Button */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('crud_cancel')}
+              disabled={saving}
+              onPress={clientBack}
+              style={({ pressed }) => [
+                {
+                  backgroundColor: colors.isDark ? colors.surface : '#F0EAFF',
+                  borderRadius: 14,
+                  height: 48,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: pressed ? 0.88 : 1,
+                },
+              ]}
+            >
+              <Text style={{ color: colors.primary, fontSize: 15, fontWeight: '700' }}>
+                {t('crud_cancel')}
+              </Text>
+            </Pressable>
+          </View>
+        ) : detail && 'remind_at' in detail ? card(<>
           {text(detail.title, false, true)}
           {!!detail.note && <>{text(t('crud_note'), true)}{text(detail.note)}</>}
           {text(`${t('reminder_sound')}: ${detail.sound !== false ? '?' : '?'} ? ${t('reminder_vibrate')}: ${detail.vibrate !== false ? '?' : '?'}`, true)}
