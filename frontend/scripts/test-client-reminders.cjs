@@ -74,11 +74,12 @@ test('client forms, persisted-service refresh, details/edit/back and confirmed d
     await press(r, '+ Add Reminder');
     await press(r, 'Create Reminder'); assert.equal(calls.length, 0, 'Invalid form never calls API.');
     await enter(r, 'Reminder Title *', 'Take bins outside'); await enter(r, 'Note (optional)', 'User text stays unchanged');
-    await press(r, choreName);
+    assert.ok(!JSON.stringify(r.toJSON()).includes('Assigned Chore'));
+    assert.ok(!JSON.stringify(r.toJSON()).includes('No linked chore'));
     await enter(r, 'Reminder Date *', ''); assert.equal(r.root.findAllByType('input').find(n => n.props.accessibilityLabel === 'Reminder Date *').props.value, '');
     await enter(r, 'Reminder Date *', '2099-10-10'); await enter(r, 'Reminder Time *', '18:30');
     failSave = true; await press(r, 'Create Reminder'); assert.ok(button(r, 'Create Reminder'), 'Failure preserves form.'); failSave = false;
-    await press(r, 'Create Reminder'); assert.equal(records.length, 1); assert.equal(calls.at(-1)[0], 'POST'); assert.equal(calls.at(-1)[2].chore_id, choreId);
+    await press(r, 'Create Reminder'); assert.equal(records.length, 1); assert.equal(calls.at(-1)[0], 'POST'); assert.ok(!Object.hasOwn(calls.at(-1)[2], 'chore_id'));
     assert.ok(button(r, 'View')); await press(r, 'View'); assert.ok(button(r, 'Edit Reminder')); assert.ok(!button(r, '+ Add Reminder'));
     await press(r, 'Go back'); assert.ok(button(r, '+ Add Reminder')); assert.equal(routes.length, 0, 'Details back stays in list.');
     await enter(r, 'Search', 'Take bins');
@@ -99,25 +100,16 @@ test('local schedule rejects impossible and past dates and preserves timezone co
   const iso = parseLocalTime('2099-10-10 18:30'); assert.ok(iso); assert.equal(new Date(iso).getHours(), 18); assert.equal(new Date(iso).getMinutes(), 30);
 });
 
-test('quick offsets use the actual assigned due time and the vibration selection is saved',async()=>{
-  if(liveService)return;let r;records=[];calls=[];
-  try{
-    await act(async()=>{r=create(React.createElement(Screen,{kind:'reminders'}));});
-    await press(r,'+ Add Reminder');await press(r,choreName);
-    const quick=r.root.findAllByType('button').find(n=>n.findAllByType('text').some(t=>t.children.includes('10 minutes before')));
-    await act(async()=>quick.props.onPress());
-    assert.equal(r.root.findAllByType('input').find(n=>n.props.accessibilityLabel==='Reminder Time *').props.value,'19:50');
-    await enter(r,'Reminder Title *','Get ready to clean the room');await enter(r,'Note (optional)','Take cleaning supplies');
-    await act(async()=>r.root.findAllByType('switch').find(n=>n.props.accessibilityLabel==='Vibrate when reminder arrives').props.onValueChange(false));await press(r,'Create Reminder');
-    assert.equal(calls.at(-1)[2].vibrate,false);assert.equal(new Date(calls.at(-1)[2].remind_at).getHours(),19);assert.equal(new Date(calls.at(-1)[2].remind_at).getMinutes(),50);
-  }finally{if(r)await act(async()=>r.unmount());}
-});
-
 test('personal reminder saves without a chore and persists sound selection',async()=>{
- if(liveService)return;let r;const old=service.chores;service.chores=async()=>({chores:[]});records=[];calls=[];
+ if(liveService)return;let r;let choreLoads=0;const old=service.chores;service.chores=async()=>{choreLoads++;throw new Error('Client reminders must not load chores');};records=[];calls=[];
  try{await act(async()=>{r=create(React.createElement(Screen,{kind:'reminders'}));});await press(r,'+ Add Reminder');
+ assert.equal(choreLoads,0);assert.ok(!JSON.stringify(r.toJSON()).includes('Assigned Chore'));assert.ok(!JSON.stringify(r.toJSON()).includes('No linked chore'));
+ assert.deepEqual(r.root.findAllByType('input').map(n=>n.props.accessibilityLabel).slice(0,4),['Reminder Title *','Note (optional)','Reminder Date *','Reminder Time *']);
  await enter(r,'Reminder Title *','Private task');await enter(r,'Note (optional)','Owner note');await enter(r,'Reminder Date *','2099-10-10');await enter(r,'Reminder Time *','21:50');
  await act(async()=>r.root.findAllByType('switch').find(n=>n.props.accessibilityLabel==='Sound').props.onValueChange(false));await press(r,'Create Reminder');
- assert.equal(calls.at(-1)[2].chore_id,undefined);assert.equal(calls.at(-1)[2].sound,false);assert.equal(records.length,1);
+ assert.ok(!Object.hasOwn(calls.at(-1)[2], 'chore_id'));assert.equal(calls.at(-1)[2].sound,false);assert.equal(records.length,1);
+ await press(r,'Edit');assert.ok(!JSON.stringify(r.toJSON()).includes('Assigned Chore'));assert.ok(!JSON.stringify(r.toJSON()).includes('No linked chore'));
+ await enter(r,'Reminder Title *','Updated private task');await act(async()=>r.root.findAllByType('switch').find(n=>n.props.accessibilityLabel==='Vibrate when reminder arrives').props.onValueChange(false));await press(r,'Save Changes');
+ assert.ok(!Object.hasOwn(calls.at(-1)[2],'chore_id'));assert.equal(calls.at(-1)[2].vibrate,false);assert.equal(records[0].title,'Updated private task');assert.equal(choreLoads,0);
  }finally{service.chores=old;if(r)await act(async()=>r.unmount());}
 });
