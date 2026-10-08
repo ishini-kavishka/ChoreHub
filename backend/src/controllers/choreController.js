@@ -10,6 +10,25 @@ async function getUserFamilyId(userId) {
   return result.rows[0]?.family_id || null;
 }
 
+// Household progress only includes current household members.
+async function validateAssignee(familyId, assigneeId) {
+  if (!assigneeId) return;
+  const userResult = await pool.query(
+    'SELECT 1 FROM users WHERE id = $1 AND is_active IS DISTINCT FROM FALSE',
+    [assigneeId]
+  );
+  if (!userResult.rows.length) throw appError('Assignee user not found or inactive.');
+
+  if (familyId) {
+    await pool.query(
+      `INSERT INTO family_members (family_id, user_id, role, relationship)
+       VALUES ($1, $2, 'member', 'Other')
+       ON CONFLICT (family_id, user_id) DO NOTHING`,
+      [familyId, assigneeId]
+    );
+  }
+}
+
 async function createChore(req, res, next) {
   try {
     const userId = req.userId;
@@ -34,6 +53,7 @@ async function createChore(req, res, next) {
     const selectedRecurrence = validRecurrence.includes(recurrence) ? recurrence : 'none';
 
     const familyId = await getUserFamilyId(userId);
+    await validateAssignee(familyId, assigned_to);
 
     const query = `
       INSERT INTO chores (
@@ -62,13 +82,14 @@ async function createChore(req, res, next) {
     // Create notification if assigned to another user
     if (assigned_to && assigned_to !== userId) {
       await pool.query(
-        `INSERT INTO notifications (user_id, title, message, type)
-         VALUES ($1, $2, $3, $4)`,
+        `INSERT INTO notifications (user_id, title, message, type, chore_id)
+         VALUES ($1, $2, $3, $4, $5)`,
         [
           assigned_to,
           'New Chore Assigned',
           `You have been assigned to: "${chore.title}"`,
           'chore_assigned',
+          chore.id,
         ]
       );
     }
@@ -210,7 +231,10 @@ async function getChoreById(req, res, next) {
 }
 
 async function updateChore(req, res, next) {
+  let db;
   try {
+    db = await pool.connect();
+    await db.query('BEGIN');
     const { id } = req.params;
     const userId = req.userId;
     const {
@@ -224,10 +248,18 @@ async function updateChore(req, res, next) {
       status,
     } = req.body || {};
 
-    const existing = await pool.query('SELECT * FROM chores WHERE id = $1', [id]);
+    const existing = await db.query('SELECT * FROM chores WHERE id = $1 FOR UPDATE', [id]);
     if (!existing.rows[0]) throw appError('Chore not found.', 404);
 
     const chore = existing.rows[0];
+    // Assignees retain completion controls but cannot reassign/edit an admin's
+    // chore to bypass private-request ownership or schedule approval.
+    const { responsibleOwner } = require('../services/choreTimeRequestService');
+    const canManage = chore.created_by === userId || await responsibleOwner(db, chore) === userId;
+    const managementFields = ['title','description','category','priority','due_date','assigned_to','recurrence'];
+    if (!canManage && (chore.assigned_to !== userId || managementFields.some(key => Object.prototype.hasOwnProperty.call(req.body || {}, key)))) {
+      throw appError('Only the creator or responsible owner can edit this chore. Request a time change instead.', 403);
+    }
 
     const updatedTitle = typeof title === 'string' && title.trim() ? title.trim() : chore.title;
     const updatedDesc = description !== undefined ? (description ? description.trim() : null) : chore.description;
@@ -235,6 +267,9 @@ async function updateChore(req, res, next) {
     const updatedPriority = ['low', 'medium', 'high'].includes(priority) ? priority : chore.priority;
     const updatedDueDate = due_date !== undefined ? (due_date ? new Date(due_date) : null) : chore.due_date;
     const updatedAssigned = assigned_to !== undefined ? (assigned_to || null) : chore.assigned_to;
+    if (updatedAssigned !== chore.assigned_to) {
+      await validateAssignee(chore.family_id, updatedAssigned);
+    }
     const updatedRecurrence = ['none', 'daily', 'weekly', 'monthly'].includes(recurrence) ? recurrence : chore.recurrence;
     const updatedStatus = ['pending', 'completed'].includes(status) ? status : chore.status;
 
@@ -265,7 +300,7 @@ async function updateChore(req, res, next) {
       RETURNING *
     `;
 
-    const result = await pool.query(query, [
+    const result = await db.query(query, [
       updatedTitle,
       updatedDesc,
       updatedCat,
@@ -283,36 +318,40 @@ async function updateChore(req, res, next) {
 
     // Notify assigned user when chore is newly assigned via edit
     if (updatedAssigned && updatedAssigned !== chore.assigned_to && updatedAssigned !== userId) {
-      pool.query(
-        `INSERT INTO notifications (user_id, title, message, type)
-         VALUES ($1, $2, $3, $4)`,
+      await db.query(
+        `INSERT INTO notifications (user_id, title, message, type, chore_id)
+         VALUES ($1, $2, $3, $4, $5)`,
         [
           updatedAssigned,
           'New Chore Assigned',
           `You have been assigned to: "${updatedChore.title}"`,
           'chore_assigned',
+          updatedChore.id,
         ]
-      ).catch(() => {});
+      );
     }
 
     // Notify creator when chore is marked completed (if completer ≠ creator)
     if (updatedStatus === 'completed' && chore.status !== 'completed' && chore.created_by && chore.created_by !== userId) {
-      pool.query(
+      await db.query(
         `INSERT INTO notifications (user_id, title, message, type)
-         VALUES ($1, $2, $3, $4)`,
+         SELECT $1, $2, $3, $4
+         WHERE COALESCE((SELECT chore_completions FROM notification_settings WHERE user_id=$1), TRUE)`,
         [
           chore.created_by,
           'Chore Completed',
           `"${updatedChore.title}" has been marked as completed`,
           'chore_completed',
         ]
-      ).catch(() => {});
+      );
     }
 
+    await db.query('COMMIT');
     return res.json({ chore: updatedChore });
   } catch (error) {
+    if (db) await db.query('ROLLBACK');
     return next(error);
-  }
+  } finally { db?.release(); }
 }
 
 async function toggleChoreComplete(req, res, next) {
@@ -339,9 +378,10 @@ async function toggleChoreComplete(req, res, next) {
 
     // Notify the creator when a chore is marked completed (if completer ≠ creator)
     if (newStatus === 'completed' && updatedChore.created_by && updatedChore.created_by !== req.userId) {
-      pool.query(
+      await pool.query(
         `INSERT INTO notifications (user_id, title, message, type)
-         VALUES ($1, $2, $3, $4)`,
+         SELECT $1, $2, $3, $4
+         WHERE COALESCE((SELECT chore_completions FROM notification_settings WHERE user_id=$1), TRUE)`,
         [
           updatedChore.created_by,
           'Chore Completed',
@@ -461,6 +501,10 @@ async function getAdminChoreStats(req, res, next) {
 async function deleteChore(req, res, next) {
   try {
     const { id } = req.params;
+    const chore = (await pool.query('SELECT * FROM chores WHERE id=$1', [id])).rows[0];
+    if (!chore) throw appError('Chore not found.', 404);
+    const { responsibleOwner } = require('../services/choreTimeRequestService');
+    if (chore.created_by !== req.userId && await responsibleOwner(pool, chore) !== req.userId) throw appError('Only the creator or responsible owner can delete this chore.', 403);
     const result = await pool.query('DELETE FROM chores WHERE id = $1 RETURNING id', [id]);
     if (!result.rows[0]) throw appError('Chore not found.', 404);
     return res.json({ message: 'Chore deleted successfully.', id });

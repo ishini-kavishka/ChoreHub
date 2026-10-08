@@ -1,9 +1,14 @@
+import { useThemedStyles, useAppTheme, type ThemeColors } from '@/context/ThemeContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { ScrollView, StyleSheet, Text, View, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function TermsScreen() {
+  const styles = useThemedStyles(createStyles);
+  const themeColors = useAppTheme().colors;
+  const { t } = useLanguage();
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
@@ -12,9 +17,9 @@ export default function TermsScreen() {
             onPress={() => router.back()}
             style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
             accessibilityRole="button"
-            accessibilityLabel="Go back"
+            accessibilityLabel={t('admin_back')}
           >
-            <Ionicons name="chevron-back" size={23} color="#1E1B2E" />
+            <Ionicons name="chevron-back" size={23} color={themeColors.textPrimary} />
           </Pressable>
           <View style={styles.brandName}>
             <Text style={styles.brandChore}>Chore</Text>
@@ -26,79 +31,63 @@ export default function TermsScreen() {
         <View style={styles.titleCard}>
           <View style={styles.eyebrow}>
             <Ionicons name="document-text-outline" size={15} color="#713DE8" />
-            <Text style={styles.eyebrowText}>LEGAL</Text>
+            <Text style={styles.eyebrowText}>{t('terms_of_service')}</Text>
           </View>
-          <Text style={styles.title}>Terms of Service</Text>
+          <Text style={styles.title}>{t('terms_of_service')}</Text>
           <Text style={styles.subtitle}>
-            These Terms of Service govern how you use ChoreHub to manage household responsibilities,
-            family assignments, and chore tracking.
-          </Text>
+            {t('ui_these_terms_of_service_govern_how_you_use_chorehub_to_manage_household_responsibilities_family_assignments_and_chore_tracking')}</Text>
         </View>
 
         <View style={styles.section}>
           <View style={styles.sectionHeading}>
             <View style={styles.sectionNumber}><Text style={styles.sectionNumberText}>1</Text></View>
-            <Text style={styles.sectionTitle}>Account responsibility</Text>
+            <Text style={styles.sectionTitle}>{t('ui_1_account_responsibility').replace(/^\p{Nd}+\s*[.、]\s*/u, '')}</Text>
           </View>
           <Text style={styles.bodyText}>
-            You are responsible for keeping your account credentials secure and for the accuracy of
-            the information you provide. You must not create accounts for others or misuse another
-            user’s identity.
-          </Text>
+            {t('ui_you_are_responsible_for_keeping_your_account_credentials_secure_and_for_the_accuracy_of_the_information_you_provide_you_must_not_create_accounts_for_others_or_misuse_another_user_s_identity')}</Text>
         </View>
 
         <View style={styles.section}>
           <View style={styles.sectionHeading}>
             <View style={styles.sectionNumber}><Text style={styles.sectionNumberText}>2</Text></View>
-            <Text style={styles.sectionTitle}>Household use</Text>
+            <Text style={styles.sectionTitle}>{t('ui_2_household_use').replace(/^\p{Nd}+\s*[.、]\s*/u, '')}</Text>
           </View>
           <Text style={styles.bodyText}>
-            ChoreHub is intended for household and family coordination. Members may be added to a
-            family group, assigned chores, and track progress together. You agree to use the platform
-            respectfully and only for lawful, household-related activity.
-          </Text>
+            {t('ui_chorehub_is_intended_for_household_and_family_coordination_members_may_be_added_to_a_family_group_assigned_chores_and_track_progress_together_you_agree_to_use_the_platform_respectfully_and_only_for_lawful_household_related_activity')}</Text>
         </View>
 
         <View style={styles.section}>
           <View style={styles.sectionHeading}>
             <View style={styles.sectionNumber}><Text style={styles.sectionNumberText}>3</Text></View>
-            <Text style={styles.sectionTitle}>Chore and schedule management</Text>
+            <Text style={styles.sectionTitle}>{t('ui_3_chore_and_schedule_management').replace(/^\p{Nd}+\s*[.、]\s*/u, '')}</Text>
           </View>
           <Text style={styles.bodyText}>
-            ChoreHub allows users to create, assign, complete, and monitor tasks. You are responsible
-            for keeping task information accurate and for respecting assignments and due dates within
-            your family conversation.
-          </Text>
+            {t('ui_chorehub_allows_users_to_create_assign_complete_and_monitor_tasks_you_are_responsible_for_keeping_task_information_accurate_and_for_respecting_assignments_and_due_dates_within_your_family_conversation')}</Text>
         </View>
 
         <View style={styles.section}>
           <View style={styles.sectionHeading}>
             <View style={styles.sectionNumber}><Text style={styles.sectionNumberText}>4</Text></View>
-            <Text style={styles.sectionTitle}>Acceptable use</Text>
+            <Text style={styles.sectionTitle}>{t('ui_4_acceptable_use').replace(/^\p{Nd}+\s*[.、]\s*/u, '')}</Text>
           </View>
           <Text style={styles.bodyText}>
-            You agree not to use ChoreHub to harass others, share inappropriate content, spam family
-            members, abuse notifications, or attempt unauthorized access to data belonging to another
-            household or user.
-          </Text>
+            {t('ui_you_agree_not_to_use_chorehub_to_harass_others_share_inappropriate_content_spam_family_members_abuse_notifications_or_attempt_unauthorized_access_to_data_belonging_to_another_household_or_user')}</Text>
         </View>
 
         <View style={styles.section}>
           <View style={styles.sectionHeading}>
             <View style={styles.sectionNumber}><Text style={styles.sectionNumberText}>5</Text></View>
-            <Text style={styles.sectionTitle}>Availability and changes</Text>
+            <Text style={styles.sectionTitle}>{t('ui_5_availability_and_changes').replace(/^\p{Nd}+\s*[.、]\s*/u, '')}</Text>
           </View>
           <Text style={styles.bodyText}>
-            We may update features, reliability, and account rules over time. We may suspend access if
-            use violates these terms or poses a security or user-experience risk.
-          </Text>
+            {t('ui_we_may_update_features_reliability_and_account_rules_over_time_we_may_suspend_access_if_use_violates_these_terms_or_poses_a_security_or_user_experience_risk')}</Text>
         </View>
 
         <Pressable
           onPress={() => router.back()}
           style={({ pressed }) => [styles.button, pressed && styles.pressed]}
         >
-          <Text style={styles.buttonText}>Back to sign up</Text>
+          <Text style={styles.buttonText}>{t('ui_back_to_sign_up')}</Text>
           <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
         </Pressable>
       </ScrollView>
@@ -106,10 +95,10 @@ export default function TermsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#FAFAFD'),
   },
   container: {
     paddingHorizontal: 20,
@@ -151,11 +140,11 @@ const styles = StyleSheet.create({
     width: 38,
   },
   titleCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 22,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.04,
@@ -168,7 +157,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#F3EEFF',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F3EEFF'),
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -183,21 +172,21 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 27,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     marginBottom: 8,
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 14,
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
     lineHeight: 21,
   },
   section: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 18,
     padding: 17,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.03,
@@ -214,7 +203,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 10,
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE'),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -227,10 +216,10 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   bodyText: {
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
     fontSize: 14,
     lineHeight: 21,
   },

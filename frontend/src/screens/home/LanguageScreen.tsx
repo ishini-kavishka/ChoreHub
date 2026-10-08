@@ -1,15 +1,15 @@
+import { translateFeedback } from '@/i18n/translations';
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
 /**
  * LanguageScreen
  * Accessible from: Profile → App Settings → Settings → Language
  * Back navigates to: /home/settings
  *
- * Displays a searchable list of supported languages.
- * Only languages with COMPLETE translations in translations.ts are shown.
+ * Displays the shared catalog; unavailable translations cannot be selected.
  * Selected language is applied immediately across the whole app.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
-  BackHandler,
   FlatList,
   Pressable,
   StyleSheet,
@@ -18,28 +18,21 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { settingsService } from '@/services/settingsService';
-import { Language } from '@/i18n/translations';
-
-// ─── Supported Languages ───────────────────────────────────────────────────────
-// IMPORTANT: Only add an entry here if translations.ts has a COMPLETE translation
-// for that language code. Partial translations must NOT be shown.
-const SUPPORTED_LANGUAGES: { code: Language; name: string; nativeName: string; flag: string }[] = [
-  { code: 'en', name: 'English',  nativeName: 'English',   flag: '🌐' },
-  { code: 'si', name: 'Sinhala',  nativeName: 'සිංහල',     flag: '🇱🇰' },
-  { code: 'ta', name: 'Tamil',    nativeName: 'தமிழ்',     flag: '🇮🇳' },
-];
+import { Language, translations } from '@/i18n/translations';
+import { SupportedLanguageItem } from '@/services/settingsService';
+import { useSettingsBack } from '@/hooks/useSettingsBack';
 
 const purple = '#7C5CFC';
 
-// ─── Component ─────────────────────────────────────────────────────────────────
-export default function LanguageScreen() {
+export default function LanguageScreen({ settingsPath = '/home/settings', familyId }: { settingsPath?: '/home/settings' | '/admin/settings'; familyId?: string }) {
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
   const { colors } = useAppTheme();
-  const { language, setLanguage, t } = useLanguage();
+  const { language, setLanguage, t, availableLanguages, refreshAvailableLanguages } = useLanguage();
   const dark = colors.isDark;
   const bg = colors.background;
   const card = colors.card;
@@ -48,74 +41,80 @@ export default function LanguageScreen() {
   const border = colors.border;
 
   const [search, setSearch] = useState('');
+  const [error, setError] = useState('');
   const [saving, setSaving] = useState<Language | null>(null);
 
-  // Hardware back button → Settings
-  useEffect(() => {
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      router.navigate('/home/settings' as any);
-      return true;
-    });
-    return () => sub.remove();
-  }, []);
+  // Refresh available languages from admin configuration on screen focus
+  useFocusEffect(
+    useCallback(() => {
+      void refreshAvailableLanguages().catch(() => setError(t('admin_error')));
+    }, [refreshAvailableLanguages, t])
+  );
 
-  // Filter languages by search query (case-insensitive, matches name OR nativeName)
+  const goBack = useSettingsBack(settingsPath, familyId);
+
+  const clientVisibleLanguages = availableLanguages;
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return SUPPORTED_LANGUAGES;
-    return SUPPORTED_LANGUAGES.filter(
+    if (!q) return clientVisibleLanguages;
+    return clientVisibleLanguages.filter(
       (l) =>
         l.name.toLowerCase().includes(q) ||
-        l.nativeName.toLowerCase().includes(q)
+        l.native_name.toLowerCase().includes(q) || l.code.toLowerCase().includes(q)
     );
-  }, [search]);
+  }, [clientVisibleLanguages, search]);
 
   const selectLanguage = useCallback(
     async (code: Language) => {
       if (code === language || saving) return;
       setSaving(code);
       try {
-        await setLanguage(code);
-        // Persist to backend (fire-and-forget — don't block UI)
-        settingsService.savePreferences({ language: code }).catch(() => {});
+        setError('');
+        await setLanguage(code, true);
+      } catch {
+        setError(t('admin_save_error'));
       } finally {
         setSaving(null);
       }
     },
-    [language, saving, setLanguage]
+    [language, saving, setLanguage, t]
   );
 
-  const goBack = () => router.navigate('/home/settings' as any);
 
   // ── Row renderer ──
-  const renderItem = ({ item }: { item: typeof SUPPORTED_LANGUAGES[number] }) => {
+  const renderItem = ({ item }: { item: SupportedLanguageItem }) => {
     const isSelected = item.code === language;
     const isSaving = saving === item.code;
+    const selectable = item.is_enabled && item.translation_supported && Object.hasOwn(translations, item.code);
     return (
       <Pressable
         accessibilityRole="radio"
-        accessibilityState={{ selected: isSelected }}
-        accessibilityLabel={`${item.name} (${item.nativeName})`}
-        onPress={() => void selectLanguage(item.code)}
+        accessibilityState={{ selected: isSelected, checked: isSelected, disabled: !selectable || saving !== null }}
+        disabled={!selectable || saving !== null}
+        accessibilityLabel={`${item.name} (${item.native_name})`}
+        onPress={() => void selectLanguage(item.code as Language)}
         style={({ pressed }) => [
           styles.row,
           { backgroundColor: card, borderColor: isSelected ? purple : border },
           isSelected && styles.rowSelected,
+          !selectable && { opacity: 0.55 },
           pressed && { opacity: 0.75 },
         ]}
       >
         {/* Flag + Names */}
         <Text style={styles.flag}>{item.flag}</Text>
         <View style={styles.nameWrap}>
-          <Text style={[styles.langName, { color: fg }]}>{item.name}</Text>
-          <Text style={[styles.nativeName, { color: muted }]}>{item.nativeName}</Text>
+          <Text style={[styles.langName, { color: fg }]}>{item.native_name}</Text>
+          <Text style={[styles.nativeName, { color: muted }]}>{item.name}</Text>
+          {!selectable && <Text style={[styles.nativeName, { color: muted }]}>{t(item.translation_supported ? 'disabled_by_admin' : 'ui_translations_unavailable')}</Text>}
         </View>
         {/* Radio indicator */}
         <View
           style={[
             styles.radio,
             {
-              borderColor: isSelected ? purple : (dark ? '#4B4870' : '#CBD5E1'),
+              borderColor: isSelected ? purple : (dark ? '#4B4870' : (themeColors.isDark ? themeColors.border : '#CBD5E1')),
               backgroundColor: isSelected ? purple : 'transparent',
             },
           ]}
@@ -135,7 +134,7 @@ export default function LanguageScreen() {
       <View style={[styles.header, { borderBottomColor: border }]}>
         <Pressable
           onPress={goBack}
-          accessibilityLabel="Go back"
+          accessibilityLabel={t('go_back')}
           accessibilityRole="button"
           style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.6 }]}
         >
@@ -160,19 +159,23 @@ export default function LanguageScreen() {
           autoCorrect={false}
           autoCapitalize="none"
           clearButtonMode="while-editing"
-          accessibilityLabel="Search languages"
+          accessibilityLabel={t('search_languages')}
         />
       </View>
 
       {/* ── Language List ── */}
+      {!!error && <Text accessibilityRole="alert" style={{ color: fg, padding: 16 }}>{translateFeedback(error, t)}</Text>}
       <FlatList
+        style={styles.scrollList}
+        extraData={{ language, saving }}
+        showsVerticalScrollIndicator
         data={filtered}
         keyExtractor={(item) => item.code}
         renderItem={renderItem}
         contentContainerStyle={styles.list}
         keyboardShouldPersistTaps="handled"
         ListEmptyComponent={
-          <Text style={[styles.emptyText, { color: muted }]}>No languages found</Text>
+          <Text style={[styles.emptyText, { color: muted }]}>{t('no_languages_found')}</Text>
         }
       />
     </SafeAreaView>
@@ -180,11 +183,13 @@ export default function LanguageScreen() {
 }
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
+  scrollList: { flex: 1, minHeight: 0 },
   safe: {
     flex: 1,
   },
   header: {
+    width: '100%', maxWidth: 560, alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
@@ -203,6 +208,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   searchWrap: {
+    width: '92%', maxWidth: 528, alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: 16,
@@ -222,6 +228,7 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
   },
   list: {
+    width: '100%', maxWidth: 560, alignSelf: 'center',
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 32,
@@ -265,7 +272,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#fff',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#fff'),
   },
   emptyText: {
     textAlign: 'center',

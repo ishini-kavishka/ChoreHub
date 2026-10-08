@@ -1,3 +1,4 @@
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -11,12 +12,16 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
+import { useLanguage } from '@/context/LanguageContext';
 import { choreService, ChoreItem } from '@/services/choreService';
 import { MemberChoreCard } from '@/components/chores/MemberChoreCard';
 
 type StatusFilter = 'all' | 'pending' | 'completed';
 
 export default function MemberChoresScreen() {
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
+  const { t } = useLanguage();
   const [chores, setChores] = useState<ChoreItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -96,9 +101,9 @@ export default function MemberChoresScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>My Chores</Text>
+          <Text style={styles.headerTitle}>{t('my_chores_title')}</Text>
           <Text style={styles.headerSubtitle}>
-            View and manage chores assigned specifically to you
+            {t('my_chores_sub')}
           </Text>
         </View>
 
@@ -107,8 +112,8 @@ export default function MemberChoresScreen() {
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
             style={styles.searchInput}
-            placeholder="Search my chores..."
-            placeholderTextColor="#9592A6"
+            placeholder={t('search_my_chores')}
+            placeholderTextColor={themeColors.isDark ? themeColors.textSecondary : "#9592A6"}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
@@ -118,6 +123,7 @@ export default function MemberChoresScreen() {
         <View style={styles.filterRow}>
           {(['all', 'pending', 'completed'] as StatusFilter[]).map((f) => {
             const active = statusFilter === f;
+            const label = f === 'all' ? t('filter_all') : f === 'pending' ? t('filter_pending') : t('filter_completed');
             return (
               <Pressable
                 key={f}
@@ -125,7 +131,7 @@ export default function MemberChoresScreen() {
                 style={[styles.filterPill, active && styles.activePill]}
               >
                 <Text style={[styles.filterText, active && styles.activeFilterText]}>
-                  {f.charAt(0).toUpperCase() + f.slice(1)}
+                  {label}
                 </Text>
               </Pressable>
             );
@@ -138,11 +144,11 @@ export default function MemberChoresScreen() {
         ) : filteredChores.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyIcon}>✨</Text>
-            <Text style={styles.emptyTitle}>No chores found</Text>
+            <Text style={styles.emptyTitle}>{t('no_chores_found')}</Text>
             <Text style={styles.emptySubtitle}>
               {searchQuery || statusFilter !== 'all'
-                ? 'Try changing your search or filter settings.'
-                : 'No chores are currently assigned to you.'}
+                ? t('try_changing_filter')
+                : t('no_chores_assigned')}
             </Text>
           </View>
         ) : (
@@ -162,13 +168,14 @@ export default function MemberChoresScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F8F7FC',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#F8F7FC'),
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    width: '100%', maxWidth: 560, alignSelf: 'center',
+    paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 32,
     gap: 16,
@@ -177,23 +184,23 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   headerTitle: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   headerSubtitle: {
     fontSize: 13,
-    color: '#757288',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#757288'),
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     gap: 8,
   },
   searchIcon: {
@@ -202,9 +209,10 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   filterRow: {
+    flexWrap: 'wrap',
     flexDirection: 'row',
     gap: 8,
   },
@@ -212,9 +220,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
   },
   activePill: {
     backgroundColor: '#713DE8',
@@ -223,7 +231,7 @@ const styles = StyleSheet.create({
   filterText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
   },
   activeFilterText: {
     color: '#FFFFFF',
@@ -232,12 +240,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   emptyCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 20,
     padding: 28,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     gap: 8,
   },
   emptyIcon: {
@@ -246,11 +254,11 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   emptySubtitle: {
     fontSize: 13,
-    color: '#757288',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#757288'),
     textAlign: 'center',
   },
 });

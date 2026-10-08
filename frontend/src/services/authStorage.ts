@@ -32,4 +32,8 @@ export async function getUser(): Promise<Member | null> {
   try { return value ? JSON.parse(value) as Member : null; } catch { await removeUser(); return null; }
 }
 export async function removeUser() { await deleteValue(USER_KEY); }
-export async function clearSession() { await Promise.all([removeToken(), removeUser()]); }
+export async function clearSession() { await Promise.all([removeToken(), removeUser()]); notifySessionChanged(); }
+
+const sessionListeners = new Set<() => void>();
+export function subscribeSession(listener: () => void) { sessionListeners.add(listener); return () => { sessionListeners.delete(listener); }; }
+export function notifySessionChanged() { sessionListeners.forEach(listener => listener()); }

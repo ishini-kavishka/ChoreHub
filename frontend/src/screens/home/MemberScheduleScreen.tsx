@@ -1,3 +1,5 @@
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
+import { useLanguage } from '@/context/LanguageContext';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -16,6 +18,9 @@ import { choreService, ChoreItem } from '@/services/choreService';
 type ViewMode = 'day' | 'week' | 'month';
 
 export default function MemberScheduleScreen() {
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
+  const { t, language } = useLanguage();
   const [chores, setChores] = useState<ChoreItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -99,29 +104,29 @@ export default function MemberScheduleScreen() {
     const map: Record<string, ChoreItem[]> = {};
     filteredChores.forEach((chore) => {
       const key = chore.due_date
-        ? new Date(chore.due_date).toLocaleDateString('en-US', {
+        ? new Date(chore.due_date).toLocaleDateString(language, {
             weekday: 'short',
             month: 'short',
             day: 'numeric',
             year: 'numeric',
           })
-        : 'Flexible / Unscheduled';
+        : t('ui_flexible_unscheduled');
       if (!map[key]) map[key] = [];
       map[key].push(chore);
     });
     return map;
-  }, [filteredChores]);
+  }, [filteredChores, language, t]);
 
   const dateKeys = Object.keys(groupedChores);
 
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
       case 'high':
-        return { bg: '#FEE2E2', text: '#EF4444', label: 'High' };
+        return { bg: (themeColors.isDark ? themeColors.surface : '#FEE2E2'), text: '#EF4444', label: t('priority_high') };
       case 'medium':
-        return { bg: '#FFF4E6', text: '#FF9F1C', label: 'Medium' };
+        return { bg: (themeColors.isDark ? themeColors.surface : '#FFF4E6'), text: '#FF9F1C', label: t('priority_medium') };
       default:
-        return { bg: '#E6F9F0', text: '#10B981', label: 'Low' };
+        return { bg: (themeColors.isDark ? themeColors.surface : '#E6F9F0'), text: '#10B981', label: t('priority_low') };
     }
   };
 
@@ -142,9 +147,9 @@ export default function MemberScheduleScreen() {
         {/* Header */}
         <View style={styles.headerRow}>
           <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={10}>
-            <Ionicons name="arrow-back" size={24} color="#1E1B2E" />
+            <Ionicons name="arrow-back" size={24} color={themeColors.isDark ? themeColors.textPrimary : "#1E1B2E"} />
           </Pressable>
-          <Text style={styles.headerTitle}>My Schedule</Text>
+          <Text style={styles.headerTitle}>{t('ui_my_schedule')}</Text>
           <View style={{ width: 24 }} />
         </View>
 
@@ -153,9 +158,9 @@ export default function MemberScheduleScreen() {
           {(['day', 'week', 'month'] as ViewMode[]).map((mode) => {
             const isSelected = viewMode === mode;
             const labels: Record<ViewMode, string> = {
-              day: 'Day',
-              week: 'Week',
-              month: 'Month',
+              day: t('ui_day'),
+              week: t('ui_week'),
+              month: t('ui_month'),
             };
             return (
               <Pressable
@@ -194,7 +199,7 @@ export default function MemberScheduleScreen() {
               </Text>
               {selectedDate.toDateString() === new Date().toDateString() && (
                 <View style={styles.todayPill}>
-                  <Text style={styles.todayPillText}>Today</Text>
+                  <Text style={styles.todayPillText}>{t('today')}</Text>
                 </View>
               )}
             </View>
@@ -205,7 +210,7 @@ export default function MemberScheduleScreen() {
               </Pressable>
               {selectedDate.toDateString() !== new Date().toDateString() && (
                 <Pressable onPress={handleResetToday} style={styles.resetTodayBtn}>
-                  <Text style={styles.resetTodayBtnText}>Today</Text>
+                  <Text style={styles.resetTodayBtnText}>{t('today')}</Text>
                 </Pressable>
               )}
             </View>
@@ -216,12 +221,12 @@ export default function MemberScheduleScreen() {
           <Ionicons name="calendar-outline" size={16} color="#713DE8" />
           <Text style={styles.summaryText}>
             <Text style={styles.boldText}>{filteredChores.length}</Text>{' '}
-            {filteredChores.length === 1 ? 'chore' : 'chores'} in your{' '}
+            {t('chores')}{' '}{t('ui_in_your')}{' '}
             {viewMode === 'day'
-              ? 'daily schedule'
+              ? t('ui_today_s_schedule')
               : viewMode === 'week'
-              ? 'weekly schedule'
-              : 'monthly schedule'}
+              ? t('ui_weekly_schedule')
+              : t('ui_monthly_schedule')}
           </Text>
         </View>
 
@@ -230,7 +235,7 @@ export default function MemberScheduleScreen() {
         ) : error ? (
           <View style={styles.errorCard}>
             <Ionicons name="alert-circle" size={40} color="#EF4444" />
-            <Text style={styles.errorTitle}>Unable to load your schedule.</Text>
+            <Text style={styles.errorTitle}>{t('admin_error')}</Text>
             <Text style={styles.errorSubtitle}>{error}</Text>
             <Pressable
               onPress={() => {
@@ -240,16 +245,14 @@ export default function MemberScheduleScreen() {
               style={styles.retryBtn}
             >
               <Ionicons name="refresh" size={16} color="#FFFFFF" />
-              <Text style={styles.retryBtnText}>Retry</Text>
+              <Text style={styles.retryBtnText}>{t('admin_retry')}</Text>
             </Pressable>
           </View>
         ) : dateKeys.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyIcon}>📋</Text>
-            <Text style={styles.emptyTitle}>You don't have any chores scheduled</Text>
-            <Text style={styles.emptySubtitle}>
-              No chores assigned to you for the selected {viewMode} period.
-            </Text>
+            <Text style={styles.emptyTitle}>{t('ui_you_don_t_have_any_chores_scheduled')}</Text>
+            <Text style={styles.emptySubtitle}>{t('ui_no_chores_assigned_to_you_for_this_period')}</Text>
           </View>
         ) : (
           <View style={styles.groupsList}>
@@ -333,11 +336,11 @@ export default function MemberScheduleScreen() {
                                 { color: isCompleted ? '#059669' : '#D97706' },
                               ]}
                             >
-                              {isCompleted ? 'Completed' : 'Pending'}
+                              {isCompleted ? t('filter_completed') : t('filter_pending')}
                             </Text>
                           </View>
 
-                          <Ionicons name="chevron-forward" size={16} color="#A09DB1" />
+                          <Ionicons name="chevron-forward" size={16} color={themeColors.isDark ? themeColors.textSecondary : "#A09DB1"} />
                         </View>
                       </Pressable>
                     );
@@ -352,13 +355,14 @@ export default function MemberScheduleScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#FAFAFD'),
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    width: '100%', maxWidth: 560, alignSelf: 'center',
+    paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 40,
     gap: 16,
@@ -374,14 +378,14 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
 
   dayNavRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -401,7 +405,7 @@ const styles = StyleSheet.create({
   dayNavDateText: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   todayPill: {
     backgroundColor: '#713DE8',
@@ -423,7 +427,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE'),
   },
   resetTodayBtnText: {
     fontSize: 12,
@@ -433,7 +437,7 @@ const styles = StyleSheet.create({
 
   toggleContainer: {
     flexDirection: 'row',
-    backgroundColor: '#EAE7F5',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#EAE7F5'),
     borderRadius: 16,
     padding: 4,
     gap: 4,
@@ -456,7 +460,7 @@ const styles = StyleSheet.create({
   togglePillText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
   },
   togglePillTextSelected: {
     color: '#FFFFFF',
@@ -467,14 +471,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE'),
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 14,
   },
   summaryText: {
     fontSize: 13,
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   boldText: {
     fontWeight: '800',
@@ -482,7 +486,7 @@ const styles = StyleSheet.create({
   },
 
   groupsList: {
-    gap: 18,
+    gap: 16,
   },
   dateGroup: {
     gap: 10,
@@ -502,12 +506,12 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   choreCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 18,
     padding: 16,
     gap: 12,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.04,
@@ -527,20 +531,20 @@ const styles = StyleSheet.create({
   choreTitle: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   choreCompleted: {
     textDecorationLine: 'line-through',
-    color: '#A09DB1',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#A09DB1'),
   },
   categoryTag: {
     fontSize: 12,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     fontWeight: '500',
   },
   choreDesc: {
     fontSize: 12,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     fontWeight: '500',
   },
   prioBadge: {
@@ -559,7 +563,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#F5F3FF',
+    borderTopColor: (themeColors.isDark ? themeColors.border : '#F5F3FF'),
   },
   statusBadge: {
     flexDirection: 'row',
@@ -570,10 +574,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   completedBg: {
-    backgroundColor: '#D1FAE5',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#D1FAE5'),
   },
   pendingBg: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEF3C7'),
   },
   statusText: {
     fontSize: 12,
@@ -581,12 +585,12 @@ const styles = StyleSheet.create({
   },
 
   emptyCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 20,
     padding: 28,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     gap: 8,
   },
   emptyIcon: {
@@ -595,16 +599,16 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 13,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     textAlign: 'center',
   },
   errorCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 20,
     padding: 24,
     alignItems: 'center',
@@ -616,11 +620,11 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   errorSubtitle: {
     fontSize: 13,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     textAlign: 'center',
   },
   retryBtn: {

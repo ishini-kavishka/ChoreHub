@@ -1,7 +1,11 @@
+import { translateFeedback } from '@/i18n/translations';
+import { useAppAlert } from '@/components/ui/AppDialog';
+import { useLanguage } from '@/context/LanguageContext';
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
+
   Modal,
   Pressable,
   ScrollView,
@@ -13,10 +17,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { choreService, AdminUser } from '@/services/choreService';
+import { choreService } from '@/services/choreService';
 import { familyService } from '@/services/familyService';
 
 export default function AddChoreScreen() {
+  const alert = useAppAlert();
+  const { t, language } = useLanguage();
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
@@ -37,51 +45,22 @@ export default function AddChoreScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
-    choreService
-      .getAdminAllUsers()
-      .then((res) => {
-        if (res?.users && res.users.length > 0) {
-          setMembers(
-            res.users.map((u: AdminUser) => ({
-              id: u.id,
-              name: u.name || u.email,
-              email: u.email,
-            }))
-          );
-        } else {
-          familyService
-            .getMyFamily()
-            .then((fRes) =>
-              setMembers(
-                (fRes.members || []).map((m: any) => ({
-                  id: m.id,
-                  name: m.name || m.email,
-                  email: m.email,
-                }))
-              )
-            )
-            .catch(() => {});
-        }
-      })
+    choreService.getAdminAllUsers()
+      .then((res) => setMembers(res.users.map((u) => ({
+        id: u.id, name: u.name || u.email, email: u.email,
+      }))))
       .catch(() => {
-        familyService
-          .getMyFamily()
-          .then((res) =>
-            setMembers(
-              (res.members || []).map((m: any) => ({
-                id: m.id,
-                name: m.name || m.email,
-                email: m.email,
-              }))
-            )
-          )
-          .catch(() => {});
+        familyService.getMyFamily()
+          .then((res) => setMembers(res.members.map((m) => ({
+            id: m.id, name: m.name || m.email, email: m.email,
+          }))))
+          .catch(() => setError(t('ui_failed_to_load_household_members')));
       });
   }, []);
 
   const handleCreateChore = async () => {
     if (!title.trim()) {
-      setError('Please enter a chore title.');
+      setError(t('ui_please_enter_a_chore_title'));
       return;
     }
 
@@ -99,10 +78,10 @@ export default function AddChoreScreen() {
         due_date: dueDate.toISOString(),
       });
 
-      Alert.alert('Success', 'Chore created successfully!');
+      alert(t('success'), t('ag_chore_created'));
       router.back();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create chore.');
+      setError(t('ag_create_failed'));
     } finally {
       setLoading(false);
     }
@@ -111,19 +90,17 @@ export default function AddChoreScreen() {
   const getRepeatLabel = (rec: string) => {
     switch (rec) {
       case 'daily':
-        return 'Daily';
+        return t('repeat_daily');
       case 'weekly':
-        return 'Weekly';
+        return t('repeat_weekly');
       case 'monthly':
-        return 'Monthly';
+        return t('repeat_monthly');
       default:
-        return 'No repeat';
+        return t('repeat_none');
     }
   };
 
-  const formattedDate = dueDateString
-    ? dueDateString
-    : dueDate.toLocaleDateString('en-US', {
+  const formattedDate = dueDate.toLocaleDateString(language, {
         month: 'short',
         day: 'numeric',
         year: 'numeric',
@@ -136,11 +113,11 @@ export default function AddChoreScreen() {
         <Pressable
           onPress={() => router.back()}
           style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
-          accessibilityLabel="Back"
+          accessibilityLabel={t('back')}
         >
-          <Ionicons name="chevron-back" size={24} color="#1E1B2E" />
+          <Ionicons name="chevron-back" size={24} color={themeColors.isDark ? themeColors.textPrimary : "#1E1B2E"} />
         </Pressable>
-        <Text style={styles.headerTitle}>Add New Chore</Text>
+        <Text style={styles.headerTitle}>{t('ui_add_new_chore')}</Text>
         <View style={{ width: 32 }} />
       </View>
 
@@ -148,17 +125,16 @@ export default function AddChoreScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        {error ? <Text style={styles.errorText}>{translateFeedback(error, t)}</Text> : null}
 
         {/* Chore Title */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>
-            Chore Title <Text style={styles.requiredAsterisk}>*</Text>
+          <Text style={styles.label}>{t('ag_chore_title')}<Text style={styles.requiredAsterisk}>*</Text>
           </Text>
           <TextInput
             style={styles.input}
-            placeholder="Enter chore title"
-            placeholderTextColor="#9592A6"
+            placeholder={t('ag_enter_title')}
+            placeholderTextColor={themeColors.isDark ? themeColors.textSecondary : "#9592A6"}
             value={title}
             onChangeText={setTitle}
           />
@@ -166,11 +142,11 @@ export default function AddChoreScreen() {
 
         {/* Description */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Description</Text>
+          <Text style={styles.label}>{t('description_label')}</Text>
           <TextInput
             style={[styles.input, styles.multilineInput]}
-            placeholder="Enter description (optional)"
-            placeholderTextColor="#9592A6"
+            placeholder={t('ag_enter_description')}
+            placeholderTextColor={themeColors.isDark ? themeColors.textSecondary : "#9592A6"}
             value={description}
             onChangeText={setDescription}
             multiline
@@ -180,32 +156,30 @@ export default function AddChoreScreen() {
 
         {/* Assign to Member */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>
-            Assign to Member <Text style={styles.requiredAsterisk}>*</Text>
+          <Text style={styles.label}>{t('ag_assign_member')}<Text style={styles.requiredAsterisk}>*</Text>
           </Text>
           <Pressable
             onPress={() => setShowMemberPicker(true)}
             style={styles.dropdownInput}
           >
             <View style={styles.dropdownLeft}>
-              <Ionicons name="person-outline" size={18} color="#8A879A" />
+              <Ionicons name="person-outline" size={18} color={themeColors.isDark ? themeColors.textSecondary : "#8A879A"} />
               <Text
                 style={[
                   styles.dropdownText,
                   assignedName ? styles.selectedDropdownText : styles.placeholderText,
                 ]}
               >
-                {assignedName || 'Select a member'}
+                {assignedName || t('ag_select_a_member')}
               </Text>
             </View>
-            <Ionicons name="chevron-down" size={18} color="#8A879A" />
+            <Ionicons name="chevron-down" size={18} color={themeColors.isDark ? themeColors.textSecondary : "#8A879A"} />
           </Pressable>
         </View>
 
         {/* Priority */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>
-            Priority <Text style={styles.requiredAsterisk}>*</Text>
+          <Text style={styles.label}>{t('priority_label')}<Text style={styles.requiredAsterisk}>*</Text>
           </Text>
           <View style={styles.priorityRow}>
             {/* Low */}
@@ -223,9 +197,7 @@ export default function AddChoreScreen() {
                   styles.lowText,
                   priority === 'low' && styles.activeBadgeText,
                 ]}
-              >
-                Low
-              </Text>
+              >{t('priority_low')}</Text>
             </Pressable>
 
             {/* Medium */}
@@ -243,9 +215,7 @@ export default function AddChoreScreen() {
                   styles.mediumText,
                   priority === 'medium' && styles.activeBadgeText,
                 ]}
-              >
-                Medium
-              </Text>
+              >{t('priority_medium')}</Text>
             </Pressable>
 
             {/* High */}
@@ -263,24 +233,21 @@ export default function AddChoreScreen() {
                   styles.highText,
                   priority === 'high' && styles.activeBadgeText,
                 ]}
-              >
-                High
-              </Text>
+              >{t('priority_high')}</Text>
             </Pressable>
           </View>
         </View>
 
         {/* Due Date */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>
-            Due Date <Text style={styles.requiredAsterisk}>*</Text>
+          <Text style={styles.label}>{t('due_date_label')}<Text style={styles.requiredAsterisk}>*</Text>
           </Text>
           <Pressable
             onPress={() => setShowDatePicker(true)}
             style={styles.dropdownInput}
           >
             <View style={styles.dropdownLeft}>
-              <Ionicons name="calendar-outline" size={18} color="#8A879A" />
+              <Ionicons name="calendar-outline" size={18} color={themeColors.isDark ? themeColors.textSecondary : "#8A879A"} />
               <Text style={styles.selectedDropdownText}>{formattedDate}</Text>
             </View>
           </Pressable>
@@ -288,18 +255,18 @@ export default function AddChoreScreen() {
 
         {/* Repeat */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Repeat</Text>
+          <Text style={styles.label}>{t('repeat_label')}</Text>
           <Pressable
             onPress={() => setShowRepeatPicker(true)}
             style={styles.dropdownInput}
           >
             <View style={styles.dropdownLeft}>
-              <Ionicons name="refresh-outline" size={18} color="#8A879A" />
+              <Ionicons name="refresh-outline" size={18} color={themeColors.isDark ? themeColors.textSecondary : "#8A879A"} />
               <Text style={styles.selectedDropdownText}>
                 {getRepeatLabel(recurrence)}
               </Text>
             </View>
-            <Ionicons name="chevron-down" size={18} color="#8A879A" />
+            <Ionicons name="chevron-down" size={18} color={themeColors.isDark ? themeColors.textSecondary : "#8A879A"} />
           </Pressable>
         </View>
 
@@ -316,20 +283,18 @@ export default function AddChoreScreen() {
             {loading ? (
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
-              <Text style={styles.createBtnText}>Create Chore</Text>
+              <Text style={styles.createBtnText}>{t('ui_create_chore')}</Text>
             )}
           </Pressable>
         </View>
       </ScrollView>
 
       {/* Member Picker Modal */}
-      <Modal visible={showMemberPicker} animationType="slide" transparent>
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setShowMemberPicker(false)}
-        >
-          <View style={styles.pickerCard}>
-            <Text style={styles.pickerTitle}>Select Member</Text>
+      <Modal visible={showMemberPicker} animationType="slide" transparent onRequestClose={() => setShowMemberPicker(false)}>
+        <View style={styles.modalOverlay}>
+          <Pressable accessibilityLabel={t('cancel')} accessibilityRole="button" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }} onPress={() => setShowMemberPicker(false)} />
+          <ScrollView style={styles.pickerCard} contentContainerStyle={styles.pickerContent} keyboardShouldPersistTaps="handled">
+            <Text style={styles.pickerTitle}>{t('ag_select_member')}</Text>
             <Pressable
               style={styles.pickerOption}
               onPress={() => {
@@ -338,7 +303,7 @@ export default function AddChoreScreen() {
                 setShowMemberPicker(false);
               }}
             >
-              <Text style={styles.pickerOptionText}>Unassigned</Text>
+              <Text style={styles.pickerOptionText}>{t('admin_unassigned')}</Text>
             </Pressable>
             {members.map((m) => (
               <Pressable
@@ -354,23 +319,21 @@ export default function AddChoreScreen() {
                 <Text style={styles.pickerSubtext}>{m.email}</Text>
               </Pressable>
             ))}
-          </View>
-        </Pressable>
+          </ScrollView>
+        </View>
       </Modal>
 
       {/* Repeat Picker Modal */}
-      <Modal visible={showRepeatPicker} animationType="slide" transparent>
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setShowRepeatPicker(false)}
-        >
-          <View style={styles.pickerCard}>
-            <Text style={styles.pickerTitle}>Select Repeat</Text>
+      <Modal visible={showRepeatPicker} animationType="slide" transparent onRequestClose={() => setShowRepeatPicker(false)}>
+        <View style={styles.modalOverlay}>
+          <Pressable accessibilityLabel={t('cancel')} accessibilityRole="button" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }} onPress={() => setShowRepeatPicker(false)} />
+          <ScrollView style={styles.pickerCard} contentContainerStyle={styles.pickerContent} keyboardShouldPersistTaps="handled">
+            <Text style={styles.pickerTitle}>{t('ag_select_repeat')}</Text>
             {[
-              { label: 'No repeat', value: 'none' },
-              { label: 'Daily', value: 'daily' },
-              { label: 'Weekly', value: 'weekly' },
-              { label: 'Monthly', value: 'monthly' },
+              { label: t('repeat_none'), value: 'none' },
+              { label: t('repeat_daily'), value: 'daily' },
+              { label: t('repeat_weekly'), value: 'weekly' },
+              { label: t('repeat_monthly'), value: 'monthly' },
             ].map((opt) => (
               <Pressable
                 key={opt.value}
@@ -383,23 +346,21 @@ export default function AddChoreScreen() {
                 <Text style={styles.pickerOptionText}>{opt.label}</Text>
               </Pressable>
             ))}
-          </View>
-        </Pressable>
+          </ScrollView>
+        </View>
       </Modal>
 
       {/* Date Selector Modal */}
-      <Modal visible={showDatePicker} animationType="slide" transparent>
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setShowDatePicker(false)}
-        >
-          <View style={styles.pickerCard}>
-            <Text style={styles.pickerTitle}>Select Due Date</Text>
+      <Modal visible={showDatePicker} animationType="slide" transparent onRequestClose={() => setShowDatePicker(false)}>
+        <View style={styles.modalOverlay}>
+          <Pressable accessibilityLabel={t('cancel')} accessibilityRole="button" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }} onPress={() => setShowDatePicker(false)} />
+          <ScrollView style={styles.pickerCard} contentContainerStyle={styles.pickerContent} keyboardShouldPersistTaps="handled">
+            <Text style={styles.pickerTitle}>{t('ag_select_due')}</Text>
             {[
-              { label: 'Today', offsetDays: 0 },
-              { label: 'Tomorrow', offsetDays: 1 },
-              { label: 'In 3 Days', offsetDays: 3 },
-              { label: 'Next Week (7 Days)', offsetDays: 7 },
+              { label: t('today'), offsetDays: 0 },
+              { label: t('ag_tomorrow'), offsetDays: 1 },
+              { label: t('ag_three_days'), offsetDays: 3 },
+              { label: t('ag_next_week'), offsetDays: 7 },
             ].map((opt) => (
               <Pressable
                 key={opt.label}
@@ -409,7 +370,7 @@ export default function AddChoreScreen() {
                   d.setDate(d.getDate() + opt.offsetDays);
                   setDueDate(d);
                   setDueDateString(
-                    d.toLocaleDateString('en-US', {
+                    d.toLocaleDateString(language, {
                       month: 'short',
                       day: 'numeric',
                       year: 'numeric',
@@ -421,17 +382,17 @@ export default function AddChoreScreen() {
                 <Text style={styles.pickerOptionText}>{opt.label}</Text>
               </Pressable>
             ))}
-          </View>
-        </Pressable>
+          </ScrollView>
+        </View>
       </Modal>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#FFFFFF'),
   },
   header: {
     flexDirection: 'row',
@@ -440,7 +401,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F4F2FA',
+    borderBottomColor: (themeColors.isDark ? themeColors.border : '#F4F2FA'),
   },
   backBtn: {
     padding: 4,
@@ -448,7 +409,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -457,7 +418,7 @@ const styles = StyleSheet.create({
     gap: 18,
   },
   errorText: {
-    color: '#DC2626',
+    color: (themeColors.isDark ? themeColors.error : '#DC2626'),
     fontSize: 14,
     fontWeight: '600',
   },
@@ -467,20 +428,20 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   requiredAsterisk: {
     color: '#EF4444',
   },
   input: {
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FAFAFD'),
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 14,
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   multilineInput: {
     minHeight: 80,
@@ -490,10 +451,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FAFAFD'),
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     paddingHorizontal: 16,
     paddingVertical: 13,
   },
@@ -506,10 +467,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   placeholderText: {
-    color: '#9592A6',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#9592A6'),
   },
   selectedDropdownText: {
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     fontWeight: '600',
   },
   priorityRow: {
@@ -525,8 +486,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   lowBadge: {
-    backgroundColor: '#DCFCE7',
-    borderColor: '#DCFCE7',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#DCFCE7'),
+    borderColor: (themeColors.isDark ? themeColors.border : '#DCFCE7'),
   },
   lowBadgeActive: {
     borderColor: '#16A34A',
@@ -536,8 +497,8 @@ const styles = StyleSheet.create({
     color: '#16A34A',
   },
   mediumBadge: {
-    backgroundColor: '#EDE9FE',
-    borderColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE'),
+    borderColor: (themeColors.isDark ? themeColors.border : '#EDE9FE'),
   },
   mediumBadgeActive: {
     borderColor: '#713DE8',
@@ -547,8 +508,8 @@ const styles = StyleSheet.create({
     color: '#713DE8',
   },
   highBadge: {
-    backgroundColor: '#FEE2E2',
-    borderColor: '#FEE2E2',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEE2E2'),
+    borderColor: (themeColors.isDark ? themeColors.border : '#FEE2E2'),
   },
   highBadgeActive: {
     borderColor: '#DC2626',
@@ -590,32 +551,32 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   pickerCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    padding: 24,
-    gap: 12,
+    flexGrow: 0,
     maxHeight: '60%',
   },
+  pickerContent: { padding: 24, paddingBottom: 40, gap: 12 },
   pickerTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     marginBottom: 4,
   },
   pickerOption: {
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F4F2FA',
+    borderBottomColor: (themeColors.isDark ? themeColors.border : '#F4F2FA'),
   },
   pickerOptionText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   pickerSubtext: {
     fontSize: 12,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     marginTop: 2,
   },
 });

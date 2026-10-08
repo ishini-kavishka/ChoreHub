@@ -1,3 +1,4 @@
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -20,6 +21,8 @@ import { useLanguage } from '@/context/LanguageContext';
 import { AddChoreModal } from '@/components/chores/AddChoreModal';
 
 export default function AdminDashboardScreen() {
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
   const { t } = useLanguage();
   const [profile, setProfile] = useState<Member | null>(null);
   const [stats, setStats] = useState<ChoreStats>({
@@ -76,49 +79,49 @@ export default function AdminDashboardScreen() {
     loadData();
   };
 
-  const greetingName = profile?.name ? profile.name.split(' ')[0] : 'Admin';
+  const greetingName = profile?.name ? profile.name.split(' ')[0] : t('role_admin');
   const initial = greetingName.charAt(0).toUpperCase();
   const completionPct = Math.round(stats.completionPercentage ?? 0);
 
   const QUICK_ACTIONS = [
     {
       id: 'family',
-      title: 'Manage Family',
-      subtitle: 'View and manage\nfamily members',
+      title: t('ag_manage_family'),
+      subtitle: t('ag_family_subtitle'),
       icon: 'people' as const,
       color: '#10B981',
-      bgTint: '#ECFDF5',
-      btnBg: '#D1FAE5',
+      bgTint: themeColors.isDark ? themeColors.surface : '#ECFDF5',
+      btnBg: themeColors.isDark ? themeColors.surface : '#D1FAE5',
       onPress: () => router.push('/admin/members' as any),
     },
     {
       id: 'calendar',
-      title: 'Household Calendar',
-      subtitle: 'View monthly chores\nand calendar',
+      title: t('ag_calendar'),
+      subtitle: t('ag_calendar_subtitle'),
       icon: 'calendar' as const,
       color: '#713DE8',
-      bgTint: '#F5F3FF',
-      btnBg: '#EDE9FE',
+      bgTint: themeColors.isDark ? themeColors.surface : '#F5F3FF',
+      btnBg: themeColors.isDark ? themeColors.surface : '#EDE9FE',
       onPress: () => router.push('/admin/calendar' as any),
     },
     {
       id: 'schedule',
-      title: 'Schedule View',
-      subtitle: 'Day / Week / Month\nchore timeline',
+      title: t('ag_schedule_view'),
+      subtitle: t('ag_schedule_subtitle'),
       icon: 'time' as const,
       color: '#3B82F6',
-      bgTint: '#EFF6FF',
-      btnBg: '#DBEAFE',
+      bgTint: themeColors.isDark ? themeColors.surface : '#EFF6FF',
+      btnBg: themeColors.isDark ? themeColors.surface : '#DBEAFE',
       onPress: () => router.push('/admin/schedule' as any),
     },
     {
       id: 'chores',
-      title: 'Manage Chores',
-      subtitle: 'Create, edit and\nassign chores',
+      title: t('ag_manage_chores'),
+      subtitle: t('ag_chores_subtitle'),
       icon: 'list' as const,
       color: '#F59E0B',
-      bgTint: '#FFFBEB',
-      btnBg: '#FEF3C7',
+      bgTint: themeColors.isDark ? themeColors.surface : '#FFFBEB',
+      btnBg: themeColors.isDark ? themeColors.surface : '#FEF3C7',
       onPress: () => router.push('/admin/chores' as any),
     },
   ];
@@ -159,10 +162,17 @@ export default function AdminDashboardScreen() {
           <View style={styles.headerRight}>
             <Pressable
               style={({ pressed }) => [styles.bellBtn, pressed && { opacity: 0.7 }]}
-              onPress={() => {}}
+              onPress={() => router.push('/admin/notifications' as any)}
+              accessibilityLabel={t('notifications')}
             >
-              <Ionicons name="notifications-outline" size={24} color="#1E1B2E" />
-              <View style={styles.bellBadgeDot} />
+              <Ionicons name="notifications-outline" size={24} color={themeColors.isDark ? themeColors.textPrimary : "#1E1B2E"} />
+              {unreadCount > 0 && (
+                <View style={styles.bellBadgeDot}>
+                  <Text style={styles.bellBadgeText}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
             </Pressable>
 
             <Pressable
@@ -177,10 +187,10 @@ export default function AdminDashboardScreen() {
         {/* ── Greeting Banner Section ── */}
         <View style={styles.greetingSection}>
           <View style={styles.greetingTextGroup}>
-            <Text style={styles.greetingTitle}>Hello, {greetingName}! 👋</Text>
+            <Text style={styles.greetingTitle}>{t('ui_hello')}{' '}{greetingName}! 👋</Text>
             <View style={styles.roleBadgePill}>
               <Ionicons name="shield-checkmark-sharp" size={14} color="#713DE8" />
-              <Text style={styles.roleBadgeText}>Admin Dashboard</Text>
+              <Text style={styles.roleBadgeText}>{t('ag_dashboard')}</Text>
             </View>
           </View>
 
@@ -199,10 +209,8 @@ export default function AdminDashboardScreen() {
         <View style={styles.progressCard}>
           <View style={styles.progressCardTopRow}>
             <View style={styles.progressTextGroup}>
-              <Text style={styles.progressCardTitle}>Household Progress</Text>
-              <Text style={styles.progressCardSubtitle}>
-                Overall completion of assigned chores
-              </Text>
+              <Text style={styles.progressCardTitle}>{t('ag_progress')}</Text>
+              <Text style={styles.progressCardSubtitle}>{t('ag_completion')}</Text>
             </View>
 
             {/* Circular Gauge */}
@@ -228,44 +236,44 @@ export default function AdminDashboardScreen() {
         <View style={styles.statsRow}>
           {/* Total Chores */}
           <View style={styles.statCard}>
-            <View style={[styles.statIconBadge, { backgroundColor: '#EDE9FE' }]}>
+            <View style={[styles.statIconBadge, { backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE') }]}>
               <Ionicons name="list" size={18} color="#713DE8" />
             </View>
             <Text style={[styles.statNumber, { color: '#713DE8' }]}>{stats.total}</Text>
-            <Text style={styles.statLabel}>Total Chores</Text>
+            <Text style={styles.statLabel}>{t('ag_total')}</Text>
           </View>
 
           {/* Pending */}
           <View style={styles.statCard}>
-            <View style={[styles.statIconBadge, { backgroundColor: '#FEF3C7' }]}>
+            <View style={[styles.statIconBadge, { backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEF3C7') }]}>
               <Ionicons name="time" size={18} color="#D97706" />
             </View>
             <Text style={[styles.statNumber, { color: '#D97706' }]}>{stats.pending}</Text>
-            <Text style={styles.statLabel}>Pending</Text>
+            <Text style={styles.statLabel}>{t('filter_pending')}</Text>
           </View>
 
           {/* Completed */}
           <View style={styles.statCard}>
-            <View style={[styles.statIconBadge, { backgroundColor: '#DCFCE7' }]}>
+            <View style={[styles.statIconBadge, { backgroundColor: (themeColors.isDark ? themeColors.surface : '#DCFCE7') }]}>
               <Ionicons name="checkmark-circle" size={18} color="#16A34A" />
             </View>
             <Text style={[styles.statNumber, { color: '#16A34A' }]}>{stats.completed}</Text>
-            <Text style={styles.statLabel}>Completed</Text>
+            <Text style={styles.statLabel}>{t('filter_completed')}</Text>
           </View>
 
           {/* Overdue */}
           <View style={styles.statCard}>
-            <View style={[styles.statIconBadge, { backgroundColor: '#FEE2E2' }]}>
+            <View style={[styles.statIconBadge, { backgroundColor: (themeColors.isDark ? themeColors.surface : '#FEE2E2') }]}>
               <Ionicons name="alert-circle" size={18} color="#DC2626" />
             </View>
             <Text style={[styles.statNumber, { color: '#DC2626' }]}>{stats.overdue}</Text>
-            <Text style={styles.statLabel}>Overdue</Text>
+            <Text style={styles.statLabel}>{t('status_overdue')}</Text>
           </View>
         </View>
 
         {/* ── Quick Actions Grid ── */}
         <View style={styles.quickSectionContainer}>
-          <Text style={styles.sectionHeaderTitle}>Quick Actions</Text>
+          <Text style={styles.sectionHeaderTitle}>{t('quick_actions')}</Text>
 
           <View style={styles.quickGrid2x2}>
             {QUICK_ACTIONS.map((action) => (
@@ -312,10 +320,10 @@ export default function AdminDashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAFAFD',
+    backgroundColor: (themeColors.isDark ? themeColors.background : '#FAFAFD'),
   },
   centerLoader: {
     flex: 1,
@@ -361,21 +369,32 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     position: 'relative',
   },
   bellBadgeDot: {
     position: 'absolute',
-    top: 9,
-    right: 9,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: (themeColors.isDark ? themeColors.background : '#FFFFFF'),
+  },
+  bellBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+    lineHeight: 13,
   },
   avatarWrap: {
     borderRadius: 21,
@@ -394,14 +413,14 @@ const styles = StyleSheet.create({
   greetingTitle: {
     fontSize: 28,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
     letterSpacing: -0.5,
   },
   roleBadgePill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#F0EAFF',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F0EAFF'),
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -423,7 +442,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE'),
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 2,
@@ -432,7 +451,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE'),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -442,12 +461,12 @@ const styles = StyleSheet.create({
 
   // ── Household Progress Card ──
   progressCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 24,
     padding: 20,
     gap: 16,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
@@ -467,11 +486,11 @@ const styles = StyleSheet.create({
   progressCardTitle: {
     fontSize: 18,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   progressCardSubtitle: {
     fontSize: 13,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     fontWeight: '500',
   },
   ringGaugeContainer: {
@@ -483,7 +502,7 @@ const styles = StyleSheet.create({
     height: 64,
     borderRadius: 32,
     borderWidth: 5,
-    borderColor: '#EDE9FE',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EDE9FE'),
     borderTopColor: '#713DE8',
     borderRightColor: '#713DE8',
     alignItems: 'center',
@@ -496,7 +515,7 @@ const styles = StyleSheet.create({
   },
   progressBarTrack: {
     height: 10,
-    backgroundColor: '#F0EAFF',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#F0EAFF'),
     borderRadius: 5,
     overflow: 'hidden',
   },
@@ -513,14 +532,14 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 18,
     paddingVertical: 14,
     paddingHorizontal: 6,
     alignItems: 'center',
     gap: 4,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -542,7 +561,7 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     textAlign: 'center',
   },
 
@@ -553,7 +572,7 @@ const styles = StyleSheet.create({
   sectionHeaderTitle: {
     fontSize: 20,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   quickGrid2x2: {
     flexDirection: 'row',
@@ -566,7 +585,7 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 6,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     position: 'relative',
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 2 },
@@ -589,11 +608,11 @@ const styles = StyleSheet.create({
   quickActionTitle: {
     fontSize: 15,
     fontWeight: '900',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   quickActionSub: {
     fontSize: 12,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     lineHeight: 16,
     fontWeight: '500',
   },

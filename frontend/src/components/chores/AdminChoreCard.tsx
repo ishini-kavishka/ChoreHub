@@ -1,3 +1,5 @@
+import { useLanguage } from '@/context/LanguageContext';
+import { useThemedStyles, useAppTheme as useClientTheme, type ThemeColors } from '@/context/ThemeContext';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,27 +18,30 @@ export function AdminChoreCard({
   onEdit,
   onPress,
 }: AdminChoreCardProps) {
+  const { t, language } = useLanguage();
+  const themeColors = useClientTheme().colors;
+  const styles = useThemedStyles(createStyles);
   const isCompleted = chore.status === 'completed';
 
   const getPriorityStyles = (priority: string) => {
     switch (priority) {
       case 'high':
-        return { bg: '#FEE2E2', text: '#DC2626' };
+        return { bg: (themeColors.isDark ? themeColors.surface : '#FEE2E2'), text: '#DC2626' };
       case 'low':
-        return { bg: '#DCFCE7', text: '#16A34A' };
+        return { bg: (themeColors.isDark ? themeColors.surface : '#DCFCE7'), text: '#16A34A' };
       default:
-        return { bg: '#EDE9FE', text: '#713DE8' };
+        return { bg: (themeColors.isDark ? themeColors.surface : '#EDE9FE'), text: '#713DE8' };
     }
   };
 
   const getStatusStyles = (status: string) => {
     switch (status) {
       case 'completed':
-        return { bg: '#DCFCE7', text: '#16A34A', label: 'Completed' };
+        return { bg: (themeColors.isDark ? themeColors.surface : '#DCFCE7'), text: '#16A34A', label: t('filter_completed') };
       case 'overdue':
-        return { bg: '#FEE2E2', text: '#DC2626', label: 'Overdue' };
+        return { bg: (themeColors.isDark ? themeColors.surface : '#FEE2E2'), text: '#DC2626', label: t('status_overdue') };
       default:
-        return { bg: '#FEF3C7', text: '#D97706', label: 'Pending' };
+        return { bg: (themeColors.isDark ? themeColors.surface : '#FEF3C7'), text: '#D97706', label: t('filter_pending') };
     }
   };
 
@@ -47,7 +52,7 @@ export function AdminChoreCard({
     if (!dateString) return null;
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return null;
-    return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    return date.toLocaleDateString(language, { day: 'numeric', month: 'short' });
   };
 
   const formattedDate = formatDate(chore.due_date);
@@ -68,7 +73,7 @@ export function AdminChoreCard({
           isCompleted && styles.checkCircleCompleted,
           pressed && { opacity: 0.7 },
         ]}
-        accessibilityLabel={isCompleted ? 'Mark pending' : 'Mark completed'}
+        accessibilityLabel={isCompleted ? t('ui_mark_pending') : t('ag_mark_completed')}
       >
         {isCompleted ? <Ionicons name="checkmark" size={14} color="#FFFFFF" /> : null}
       </Pressable>
@@ -107,7 +112,7 @@ export function AdminChoreCard({
           {/* Priority Badge */}
           <View style={[styles.badgePill, { backgroundColor: priorityStyle.bg }]}>
             <Text style={[styles.priorityText, { color: priorityStyle.text }]}>
-              {chore.priority.toUpperCase()}
+              {t('priority_' + chore.priority)}
             </Text>
           </View>
 
@@ -123,7 +128,7 @@ export function AdminChoreCard({
           {chore.recurrence && chore.recurrence !== 'none' ? (
             <View style={styles.repeatBadge}>
               <Text style={styles.badgeIcon}>🔄</Text>
-              <Text style={styles.repeatText}>{chore.recurrence}</Text>
+              <Text style={styles.repeatText}>{t('repeat_' + chore.recurrence)}</Text>
             </View>
           ) : null}
         </View>
@@ -136,15 +141,15 @@ export function AdminChoreCard({
             {statusStyle.label}
           </Text>
         </View>
-        <Ionicons name="chevron-forward" size={18} color="#8A879A" />
+        <Ionicons name="chevron-forward" size={18} color={themeColors.isDark ? themeColors.textSecondary : "#8A879A"} />
       </View>
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ThemeColors) => StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: (themeColors.isDark ? themeColors.card : '#FFFFFF'),
     borderRadius: 18,
     paddingHorizontal: 16,
     paddingVertical: 14,
@@ -152,7 +157,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 12,
     borderWidth: 1,
-    borderColor: '#EAE7F5',
+    borderColor: (themeColors.isDark ? themeColors.border : '#EAE7F5'),
     shadowColor: '#713DE8',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -185,15 +190,15 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1E1B2E',
+    color: (themeColors.isDark ? themeColors.textPrimary : '#1E1B2E'),
   },
   completedText: {
     textDecorationLine: 'line-through',
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
   },
   categoryText: {
     fontSize: 13,
-    color: '#8A879A',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#8A879A'),
     fontWeight: '500',
   },
   assigneeRow: {
@@ -207,7 +212,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#EDE9FE',
+    backgroundColor: (themeColors.isDark ? themeColors.surface : '#EDE9FE'),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -219,7 +224,7 @@ const styles = StyleSheet.create({
   assigneeName: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
   },
   badgesRow: {
     flexDirection: 'row',
@@ -254,12 +259,12 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
   },
   repeatText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#656276',
+    color: (themeColors.isDark ? themeColors.textSecondary : '#656276'),
   },
   rightColumn: {
     alignItems: 'flex-end',
